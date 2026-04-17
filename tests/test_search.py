@@ -23,6 +23,9 @@ class SearchServiceTests(unittest.TestCase):
         scanner = FTPScanner(LocalPathFTPClient(), self.repository, PathParser())
         scanner.scan(str(PHOTOS_ROOT))
         self.service = SearchService(self.repository)
+        self.service.create_person("Pablo")
+        self.service.add_person_alias("Pablo", "pablito")
+        self.service.link_person_to_folder("Pablo", "2021/2021-08-15_city_trip")
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -37,6 +40,28 @@ class SearchServiceTests(unittest.TestCase):
         results = self.service.search_images("city")
         self.assertEqual(len(results), 2)
         self.assertTrue(all("city" in result.reason for result in results))
+
+    def test_search_images_by_person_alias_and_year_range(self) -> None:
+        results = self.service.search_images("pablito 2020-2021")
+
+        self.assertEqual(len(results), 2)
+        self.assertTrue(all('person="Pablo"' in result.reason for result in results))
+        self.assertTrue(all("year_range=2020-2021" in result.reason for result in results))
+
+    def test_search_images_by_person_text_without_folder_link(self) -> None:
+        self.service.create_person("Winter")
+
+        results = self.service.search_images("winter")
+
+        self.assertGreaterEqual(len(results), 1)
+        self.assertTrue(any('person_text="Winter"' in result.reason for result in results))
+
+    def test_search_folders_by_person(self) -> None:
+        results = self.service.search_folders("Pablo")
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].folder_path, "2021/2021-08-15_city_trip")
+        self.assertIn('person="Pablo"', results[0].reason)
 
     def test_random_image_is_filtered(self) -> None:
         result = self.service.random_image("2019")

@@ -47,6 +47,7 @@ class TelegramBotServiceTests(unittest.TestCase):
         reply = self.service.handle_command("/years", chat_id=1234)
         self.assertIn("2019", reply.text)
         self.assertIn("2021", reply.text)
+        self.assertIn("folder(s)", reply.text)
 
     def test_whoami_command(self) -> None:
         reply = self.service.handle_command(
@@ -57,6 +58,7 @@ class TelegramBotServiceTests(unittest.TestCase):
         )
         self.assertIn("Chat ID: 1234", reply.text)
         self.assertIn("Auth mode: allowlist", reply.text)
+        self.assertIn("Admin: yes", reply.text)
 
     def test_random_command_returns_image_path(self) -> None:
         reply = self.service.handle_command("/random city", chat_id=1234)
@@ -72,9 +74,14 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("Indexed folders:", reply.text)
         self.assertIn("Indexed images:", reply.text)
 
-    def test_years_rejects_arguments(self) -> None:
-        reply = self.service.handle_command("/years 2005", chat_id=1234)
-        self.assertEqual(reply.text, "Usage: /years")
+    def test_years_accepts_range(self) -> None:
+        reply = self.service.handle_command("/years 2019-2021", chat_id=1234)
+        self.assertIn("2019", reply.text)
+        self.assertIn("2021", reply.text)
+
+    def test_years_rejects_non_year_arguments(self) -> None:
+        reply = self.service.handle_command("/years city", chat_id=1234)
+        self.assertEqual(reply.text, "Usage: /years or /years 2018-2021")
 
     def test_start_for_unauthorized_chat_shows_login_message(self) -> None:
         reply = self.service.handle_command("/start", chat_id=999)
@@ -119,6 +126,68 @@ class TelegramBotServiceTests(unittest.TestCase):
         labels = {button.label for row in reply.buttons for button in row}
         self.assertIn("More", labels)
         self.assertIn("Same Folder", labels)
+
+    def test_people_add_and_show_commands(self) -> None:
+        create_reply = self.service.handle_command("/people add Pablo", chat_id=1234)
+        self.assertIn("Person created: Pablo", create_reply.text)
+
+        alias_reply = self.service.handle_command(
+            "/people alias Pablo | Pablito",
+            chat_id=1234,
+        )
+        self.assertIn("Alias added: Pablo", alias_reply.text)
+
+        link_reply = self.service.handle_command(
+            "/people link Pablo | 2021/2021-08-15_city_trip",
+            chat_id=1234,
+        )
+        self.assertIn("Person linked: Pablo", link_reply.text)
+
+        show_reply = self.service.handle_command("/people show pablito", chat_id=1234)
+        self.assertIn("Person: Pablo", show_reply.text)
+        self.assertIn("Pablito", show_reply.text)
+        self.assertIn("2021/2021-08-15_city_trip", show_reply.text)
+
+    def test_people_command_lists_people(self) -> None:
+        self.service.handle_command("/people add Pablo", chat_id=1234)
+
+        reply = self.service.handle_command("/people", chat_id=1234)
+
+        self.assertIn("Curated people:", reply.text)
+        self.assertIn("Pablo", reply.text)
+
+    def test_people_write_requires_admin_when_admin_allowlist_is_configured(self) -> None:
+        restricted_service = TelegramBotService(
+            SearchService(self.repository),
+            chat_allowlist=(1234,),
+            admin_chat_allowlist=(9999,),
+            stats_provider=self.repository.get_index_stats,
+            access_code="246810",
+            auth_checker=self.repository.is_chat_authorized,
+            auth_granter=self.repository.authorize_chat,
+            auth_revoker=self.repository.revoke_chat,
+            session_loader=self.repository.get_chat_session,
+            session_saver=self.repository.save_chat_session,
+            session_clearer=self.repository.clear_chat_session,
+        )
+
+        reply = restricted_service.handle_command("/people add Pablo", chat_id=1234)
+
+        self.assertEqual(reply.text, "Admin privileges are required for /people write commands.")
+
+    def test_images_command_supports_people_alias_and_year_range(self) -> None:
+        self.service.handle_command("/people add Pablo", chat_id=1234)
+        self.service.handle_command("/people alias Pablo | Pablito", chat_id=1234)
+        self.service.handle_command(
+            "/people link Pablo | 2021/2021-08-15_city_trip",
+            chat_id=1234,
+        )
+
+        reply = self.service.handle_command("/images 2 pablito 2020-2021", chat_id=1234)
+
+        self.assertEqual(len(reply.image_paths), 2)
+        self.assertIn('person="Pablo"', reply.text)
+        self.assertIn("year_range=2020-2021", reply.text)
 
     def test_more_returns_additional_images_from_same_scope(self) -> None:
         first = self.service.handle_command("/images 1 city", chat_id=1234)
@@ -285,6 +354,7 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("login", commands)
         self.assertIn("logout", commands)
         self.assertIn("more", commands)
+        self.assertIn("people", commands)
         callback_handlers = [
             handler
             for handlers in app.handlers.values()

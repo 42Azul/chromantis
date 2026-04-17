@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from chromantis.db.repository import YearSummary
 from chromantis.search.service import SearchResult
 
 
@@ -12,7 +13,12 @@ def format_search_results(kind: str, results: list[SearchResult]) -> str:
     return "\n".join(lines)
 
 
-def format_years(years: list[int]) -> str:
+def format_years(years: list[YearSummary]) -> str:
     if not years:
         return "No indexed years yet."
-    return "Indexed years: " + ", ".join(str(year) for year in years)
+    lines = ["Indexed years:"]
+    for summary in years:
+        lines.append(
+            f"- {summary.year}: {summary.folders} folder(s), {summary.images} image(s)"
+        )
+    return "\n".join(lines)

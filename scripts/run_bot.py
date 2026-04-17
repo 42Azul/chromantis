@@ -38,6 +38,7 @@ def main() -> None:
     service = TelegramBotService(
         SearchService(repository),
         chat_allowlist=config.telegram_chat_allowlist,
+        admin_chat_allowlist=config.telegram_admin_chat_allowlist,
         stats_provider=repository.get_index_stats,
         access_code=access_code,
         auth_checker=repository.is_chat_authorized,
@@ -64,6 +65,12 @@ def main() -> None:
         print(f"Allowed chats: {', '.join(str(chat_id) for chat_id in config.telegram_chat_allowlist)}")
     else:
         print("Allowed chats: dynamic auth via /login")
+    if config.telegram_admin_chat_allowlist:
+        print(
+            f"Admin chats: {', '.join(str(chat_id) for chat_id in config.telegram_admin_chat_allowlist)}"
+        )
+    else:
+        print("Admin chats: all authorized chats")
     print(f"Stored authorized chats: {len(authorized_chats)}")
     if config.telegram_access_code:
         print(f"Access code: {access_code} (from TELEGRAM_ACCESS_CODE)")

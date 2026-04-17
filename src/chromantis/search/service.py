@@ -5,7 +5,7 @@ import random
 import sqlite3
 from dataclasses import dataclass
 
-from chromantis.db.repository import Repository
+from chromantis.db.repository import PersonDetail, PersonSummary, Repository, YearSummary
 from chromantis.search.query_parser import ParsedQuery, parse_query
 
 logger = logging.getLogger(__name__)
@@ -38,17 +38,78 @@ class SearchService:
         logger.debug("Listing indexed years: %s", years)
         return years
 
+    def list_year_summaries(
+        self, year_from: int | None = None, year_to: int | None = None
+    ) -> list[YearSummary]:
+        summaries = self.repository.list_year_summaries(year_from=year_from, year_to=year_to)
+        logger.debug(
+            "Listing indexed year summaries year_from=%s year_to=%s summaries=%s",
+            year_from,
+            year_to,
+            summaries,
+        )
+        return summaries
+
+    def list_people(self) -> list[PersonSummary]:
+        people = self.repository.list_people()
+        logger.debug("Listing curated people: %s", people)
+        return people
+
+    def get_person_detail(self, identifier: str) -> PersonDetail | None:
+        detail = self.repository.get_person_detail(identifier)
+        logger.debug("Fetched person detail identifier=%r detail=%s", identifier, detail)
+        return detail
+
+    def create_person(self, display_name: str) -> PersonDetail:
+        detail = self.repository.create_person(display_name)
+        logger.info("Created person display_name=%r id=%d", display_name, detail.id)
+        return detail
+
+    def rename_person(self, identifier: str, new_display_name: str) -> PersonDetail:
+        detail = self.repository.rename_person(identifier, new_display_name)
+        logger.info(
+            "Renamed person identifier=%r new_display_name=%r id=%d",
+            identifier,
+            new_display_name,
+            detail.id,
+        )
+        return detail
+
+    def add_person_alias(self, identifier: str, alias: str) -> PersonDetail:
+        detail = self.repository.add_person_alias(identifier, alias)
+        logger.info("Added person alias identifier=%r alias=%r id=%d", identifier, alias, detail.id)
+        return detail
+
+    def link_person_to_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+        detail = self.repository.link_person_to_folder(identifier, folder_path)
+        logger.info("Linked person identifier=%r folder=%r id=%d", identifier, folder_path, detail.id)
+        return detail
+
+    def unlink_person_from_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+        detail = self.repository.unlink_person_from_folder(identifier, folder_path)
+        logger.info(
+            "Unlinked person identifier=%r folder=%r id=%d",
+            identifier,
+            folder_path,
+            detail.id,
+        )
+        return detail
+
     def search_folders(self, raw_query: str, limit: int = 10) -> list[SearchResult]:
-        query = parse_query(raw_query)
+        query = self._parse_query(raw_query)
         logger.debug("Searching folders raw_query=%r parsed_query=%s limit=%d", raw_query, query, limit)
         with self.repository.connect() as connection:
             rows = connection.execute(
                 """
                 SELECT f.folder_path, f.title, f.year, f.event_date, f.ftp_root_path,
-                       GROUP_CONCAT(DISTINCT t.tag) AS tags
+                       GROUP_CONCAT(DISTINCT t.tag) AS tags,
+                       GROUP_CONCAT(DISTINCT p.id) AS person_ids,
+                       GROUP_CONCAT(DISTINCT p.display_name) AS people_names
                 FROM folders f
                 LEFT JOIN folder_tags ft ON ft.folder_id = f.id
                 LEFT JOIN tags t ON t.id = ft.tag_id
+                LEFT JOIN folder_people fp ON fp.folder_id = f.id
+                LEFT JOIN people p ON p.id = fp.person_id
                 GROUP BY f.id
                 ORDER BY f.year DESC, f.folder_path ASC
                 """
@@ -64,7 +125,7 @@ class SearchService:
     def search_images_excluding(
         self, raw_query: str, limit: int = 10, exclude_paths: tuple[str, ...] = ()
     ) -> list[SearchResult]:
-        query = parse_query(raw_query)
+        query = self._parse_query(raw_query)
         logger.debug(
             "Searching images raw_query=%r parsed_query=%s limit=%d exclude=%d",
             raw_query,
@@ -235,8 +296,9 @@ class SearchService:
 
     def _folder_result(self, row: sqlite3.Row, query: ParsedQuery) -> SearchResult | None:
         tokens = set((row["tags"] or "").split(",")) if row["tags"] else set()
+        people_ids = _person_ids_from_row(row["person_ids"])
         title_text = row["title"]
-        reasons = self._match_reasons(query, row["year"], title_text, tokens)
+        reasons = self._match_reasons(query, row["year"], title_text, tokens, people_ids)
         if not reasons:
             return None
         return SearchResult(
@@ -252,8 +314,9 @@ class SearchService:
 
     def _image_result(self, row: sqlite3.Row, query: ParsedQuery) -> SearchResult | None:
         tokens = set((row["folder_tags"] or "").split(",")) if row["folder_tags"] else set()
+        people_ids = _person_ids_from_row(row["person_ids"])
         title_text = f'{row["title"]} / {row["filename"]}'
-        reasons = self._match_reasons(query, row["year"], title_text, tokens)
+        reasons = self._match_reasons(query, row["year"], title_text, tokens, people_ids)
         if not reasons:
             return None
         return self._row_to_image_result(row, ", ".join(reasons))
@@ -275,24 +338,47 @@ class SearchService:
     def _image_search_sql() -> str:
         return """
             SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date, f.ftp_root_path,
-                   GROUP_CONCAT(DISTINCT t.tag) AS folder_tags
+                   GROUP_CONCAT(DISTINCT t.tag) AS folder_tags,
+                   GROUP_CONCAT(DISTINCT p.id) AS person_ids,
+                   GROUP_CONCAT(DISTINCT p.display_name) AS people_names
             FROM images i
             JOIN folders f ON f.id = i.folder_id
             LEFT JOIN folder_tags ft ON ft.folder_id = f.id
             LEFT JOIN tags t ON t.id = ft.tag_id
+            LEFT JOIN folder_people fp ON fp.folder_id = f.id
+            LEFT JOIN people p ON p.id = fp.person_id
             GROUP BY i.id
         """
 
-    @staticmethod
+    def _parse_query(self, raw_query: str) -> ParsedQuery:
+        return parse_query(raw_query, alias_map=self.repository.list_alias_map())
+
     def _match_reasons(
-        query: ParsedQuery, year: int, searchable_text: str, tags: set[str]
+        self,
+        query: ParsedQuery,
+        year: int,
+        searchable_text: str,
+        tags: set[str],
+        available_person_ids: set[int],
     ) -> list[str]:
         normalized_text = searchable_text.lower()
         reasons: list[str] = []
-        if query.year is not None and query.year != year:
+        if query.year_from is not None and year < query.year_from:
             return []
-        if query.year is not None:
+        if query.year_to is not None and year > query.year_to:
+            return []
+        if query.year_from is not None and query.year_to is not None and query.year_from == query.year_to:
             reasons.append(f"year={year}")
+        elif query.year_from is not None and query.year_to is not None:
+            reasons.append(f"year_range={query.year_from}-{query.year_to}")
+        for person in query.people:
+            if person.id in available_person_ids:
+                reasons.append(f'person="{person.display_name}"')
+                continue
+            if _person_term_matches(person.search_terms, normalized_text, tags):
+                reasons.append(f'person_text="{person.display_name}"')
+                continue
+            return []
         for keyword in query.keywords:
             if keyword in normalized_text:
                 reasons.append(f'title~"{keyword}"')
@@ -300,6 +386,23 @@ class SearchService:
                 reasons.append(f'tag="{keyword}"')
             else:
                 return []
-        if not query.keywords and query.year is None:
+        if not query.keywords and query.year_from is None and not query.people:
             reasons.append("all")
         return reasons
+
+
+def _person_ids_from_row(value: str | None) -> set[int]:
+    if not value:
+        return set()
+    return {int(item) for item in value.split(",") if item}
+
+
+def _person_term_matches(
+    search_terms: tuple[str, ...], normalized_text: str, tags: set[str]
+) -> bool:
+    for term in search_terms:
+        if term in normalized_text:
+            return True
+        if " " not in term and term in tags:
+            return True
+    return False

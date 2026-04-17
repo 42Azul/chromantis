@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from chromantis.db.schema import SCHEMA_SQL
-from chromantis.parsing.path_parser import ParsedImageRecord
+from chromantis.parsing.path_parser import ParsedImageRecord, normalize_text
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,36 @@ class AuthorizedChat:
     username: str | None
     first_name: str | None
     authorized_at: str
+
+
+@dataclass(frozen=True)
+class YearSummary:
+    year: int
+    folders: int
+    images: int
+
+
+@dataclass(frozen=True)
+class PersonSummary:
+    id: int
+    display_name: str
+    aliases_count: int
+    folder_count: int
+
+
+@dataclass(frozen=True)
+class PersonDetail:
+    id: int
+    display_name: str
+    aliases: tuple[str, ...]
+    folder_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ResolvedPerson:
+    id: int
+    display_name: str
+    search_terms: tuple[str, ...] = ()
 
 
 class Repository:
@@ -110,11 +140,44 @@ class Repository:
         return stale_folders, stale_images
 
     def list_years(self) -> list[int]:
+        return [summary.year for summary in self.list_year_summaries()]
+
+    def list_year_summaries(
+        self, year_from: int | None = None, year_to: int | None = None
+    ) -> list[YearSummary]:
         with self.connect() as connection:
+            filters: list[str] = []
+            params: list[object] = []
+            if year_from is not None:
+                filters.append("f.year >= ?")
+                params.append(year_from)
+            if year_to is not None:
+                filters.append("f.year <= ?")
+                params.append(year_to)
+            where_clause = ""
+            if filters:
+                where_clause = "WHERE " + " AND ".join(filters)
             rows = connection.execute(
-                "SELECT DISTINCT year FROM folders ORDER BY year"
+                f"""
+                SELECT f.year,
+                       COUNT(DISTINCT f.id) AS folders,
+                       COUNT(DISTINCT i.id) AS images
+                FROM folders f
+                LEFT JOIN images i ON i.folder_id = f.id
+                {where_clause}
+                GROUP BY f.year
+                ORDER BY f.year
+                """,
+                params,
             ).fetchall()
-        return [row["year"] for row in rows]
+        return [
+            YearSummary(
+                year=row["year"],
+                folders=row["folders"],
+                images=row["images"],
+            )
+            for row in rows
+        ]
 
     def get_index_stats(self) -> IndexStats:
         with self.connect() as connection:
@@ -206,6 +269,160 @@ class Repository:
                 (chat_id,),
             )
             connection.commit()
+
+    def list_people(self) -> list[PersonSummary]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT p.id,
+                       p.display_name,
+                       COUNT(DISTINCT pa.id) AS aliases_count,
+                       COUNT(DISTINCT fp.folder_id) AS folder_count
+                FROM people p
+                LEFT JOIN person_aliases pa ON pa.person_id = p.id
+                LEFT JOIN folder_people fp ON fp.person_id = p.id
+                GROUP BY p.id
+                ORDER BY p.display_name ASC
+                """
+            ).fetchall()
+        return [
+            PersonSummary(
+                id=row["id"],
+                display_name=row["display_name"],
+                aliases_count=row["aliases_count"],
+                folder_count=row["folder_count"],
+            )
+            for row in rows
+        ]
+
+    def create_person(self, display_name: str) -> PersonDetail:
+        normalized_name = self._normalize_person_value(display_name)
+        with self.connect() as connection:
+            self._assert_person_name_available(connection, normalized_name)
+            cursor = connection.execute(
+                """
+                INSERT INTO people (display_name, normalized_name)
+                VALUES (?, ?)
+                """,
+                (display_name.strip(), normalized_name),
+            )
+            connection.commit()
+            return self._person_detail_by_id(connection, int(cursor.lastrowid))
+
+    def rename_person(self, identifier: str, new_display_name: str) -> PersonDetail:
+        normalized_name = self._normalize_person_value(new_display_name)
+        with self.connect() as connection:
+            person = self._resolve_person(connection, identifier)
+            if person is None:
+                raise ValueError(f"Unknown person: {identifier}")
+            self._assert_person_name_available(connection, normalized_name, exclude_person_id=person.id)
+            previous_display_name = person.display_name
+            previous_normalized = normalize_text(previous_display_name)
+            connection.execute(
+                """
+                UPDATE people
+                SET display_name = ?, normalized_name = ?
+                WHERE id = ?
+                """,
+                (new_display_name.strip(), normalized_name, person.id),
+            )
+            if previous_normalized != normalized_name:
+                self._insert_alias_if_missing(
+                    connection,
+                    person_id=person.id,
+                    alias=previous_display_name,
+                )
+            connection.commit()
+            return self._person_detail_by_id(connection, person.id)
+
+    def add_person_alias(self, identifier: str, alias: str) -> PersonDetail:
+        normalized_alias = self._normalize_person_value(alias)
+        with self.connect() as connection:
+            person = self._resolve_person(connection, identifier)
+            if person is None:
+                raise ValueError(f"Unknown person: {identifier}")
+            self._assert_person_name_available(connection, normalized_alias, exclude_person_id=person.id)
+            self._insert_alias_if_missing(connection, person.id, alias.strip())
+            connection.commit()
+            return self._person_detail_by_id(connection, person.id)
+
+    def get_person_detail(self, identifier: str) -> PersonDetail | None:
+        with self.connect() as connection:
+            person = self._resolve_person(connection, identifier)
+            if person is None:
+                return None
+            return self._person_detail_by_id(connection, person.id)
+
+    def link_person_to_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+        with self.connect() as connection:
+            person = self._resolve_person(connection, identifier)
+            if person is None:
+                raise ValueError(f"Unknown person: {identifier}")
+            folder_id = self._resolve_folder_id(connection, folder_path)
+            if folder_id is None:
+                raise ValueError(f"Unknown folder: {folder_path}")
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO folder_people (folder_id, person_id)
+                VALUES (?, ?)
+                """,
+                (folder_id, person.id),
+            )
+            connection.commit()
+            return self._person_detail_by_id(connection, person.id)
+
+    def unlink_person_from_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+        with self.connect() as connection:
+            person = self._resolve_person(connection, identifier)
+            if person is None:
+                raise ValueError(f"Unknown person: {identifier}")
+            folder_id = self._resolve_folder_id(connection, folder_path)
+            if folder_id is None:
+                raise ValueError(f"Unknown folder: {folder_path}")
+            connection.execute(
+                """
+                DELETE FROM folder_people
+                WHERE folder_id = ? AND person_id = ?
+                """,
+                (folder_id, person.id),
+            )
+            connection.commit()
+            return self._person_detail_by_id(connection, person.id)
+
+    def list_alias_map(self) -> dict[str, ResolvedPerson]:
+        with self.connect() as connection:
+            people_rows = connection.execute(
+                """
+                SELECT id, display_name, normalized_name
+                FROM people
+                ORDER BY id ASC
+                """
+            ).fetchall()
+            alias_rows = connection.execute(
+                """
+                SELECT pa.person_id, pa.alias_normalized
+                FROM person_aliases pa
+                ORDER BY pa.person_id ASC, pa.alias_normalized ASC
+                """
+            ).fetchall()
+        person_terms: dict[int, set[str]] = {}
+        display_names: dict[int, str] = {}
+        alias_map: dict[str, ResolvedPerson] = {}
+        for row in people_rows:
+            person_id = row["id"]
+            display_names[person_id] = row["display_name"]
+            person_terms.setdefault(person_id, set()).add(row["normalized_name"])
+        for row in alias_rows:
+            person_terms.setdefault(row["person_id"], set()).add(row["alias_normalized"])
+        for person_id, terms in person_terms.items():
+            resolved = ResolvedPerson(
+                id=person_id,
+                display_name=display_names[person_id],
+                search_terms=tuple(sorted(terms)),
+            )
+            for term in resolved.search_terms:
+                alias_map[term] = resolved
+        return alias_map
 
     def _upsert_folder(
         self, connection: sqlite3.Connection, record: ParsedImageRecord, scan_seen_at: str
@@ -346,3 +563,135 @@ class Repository:
             (tag_name, source),
         )
         return int(cursor.lastrowid)
+
+    @staticmethod
+    def _normalize_person_value(value: str) -> str:
+        normalized = normalize_text(value)
+        if not normalized:
+            raise ValueError("Person name must not be empty.")
+        return normalized
+
+    def _assert_person_name_available(
+        self,
+        connection: sqlite3.Connection,
+        normalized_value: str,
+        exclude_person_id: int | None = None,
+    ) -> None:
+        people_row = connection.execute(
+            """
+            SELECT id FROM people WHERE normalized_name = ?
+            """,
+            (normalized_value,),
+        ).fetchone()
+        if people_row and people_row["id"] != exclude_person_id:
+            raise ValueError(f'Name "{normalized_value}" is already assigned to another person.')
+        alias_row = connection.execute(
+            """
+            SELECT person_id FROM person_aliases WHERE alias_normalized = ?
+            """,
+            (normalized_value,),
+        ).fetchone()
+        if alias_row and alias_row["person_id"] != exclude_person_id:
+            raise ValueError(f'Alias "{normalized_value}" is already assigned to another person.')
+
+    def _resolve_person(
+        self, connection: sqlite3.Connection, identifier: str
+    ) -> ResolvedPerson | None:
+        normalized_identifier = normalize_text(identifier)
+        if not normalized_identifier:
+            return None
+        row = connection.execute(
+            """
+            SELECT id, display_name
+            FROM people
+            WHERE normalized_name = ?
+            """,
+            (normalized_identifier,),
+        ).fetchone()
+        if row is None:
+            row = connection.execute(
+                """
+                SELECT p.id, p.display_name
+                FROM person_aliases pa
+                JOIN people p ON p.id = pa.person_id
+                WHERE pa.alias_normalized = ?
+                """,
+                (normalized_identifier,),
+            ).fetchone()
+        if row is None:
+            return None
+        return ResolvedPerson(id=row["id"], display_name=row["display_name"])
+
+    @staticmethod
+    def _resolve_folder_id(connection: sqlite3.Connection, folder_path: str) -> int | None:
+        row = connection.execute(
+            """
+            SELECT id FROM folders WHERE folder_path = ?
+            """,
+            (folder_path.strip(),),
+        ).fetchone()
+        return None if row is None else int(row["id"])
+
+    def _insert_alias_if_missing(
+        self, connection: sqlite3.Connection, person_id: int, alias: str
+    ) -> None:
+        normalized_alias = self._normalize_person_value(alias)
+        person_row = connection.execute(
+            """
+            SELECT normalized_name FROM people WHERE id = ?
+            """,
+            (person_id,),
+        ).fetchone()
+        if person_row is not None and person_row["normalized_name"] == normalized_alias:
+            return
+        existing = connection.execute(
+            """
+            SELECT 1 FROM person_aliases
+            WHERE person_id = ? AND alias_normalized = ?
+            """,
+            (person_id, normalized_alias),
+        ).fetchone()
+        if existing is not None:
+            return
+        connection.execute(
+            """
+            INSERT INTO person_aliases (person_id, alias, alias_normalized)
+            VALUES (?, ?, ?)
+            """,
+            (person_id, alias.strip(), normalized_alias),
+        )
+
+    def _person_detail_by_id(self, connection: sqlite3.Connection, person_id: int) -> PersonDetail:
+        person_row = connection.execute(
+            """
+            SELECT id, display_name
+            FROM people
+            WHERE id = ?
+            """,
+            (person_id,),
+        ).fetchone()
+        aliases = connection.execute(
+            """
+            SELECT alias
+            FROM person_aliases
+            WHERE person_id = ?
+            ORDER BY alias_normalized ASC
+            """,
+            (person_id,),
+        ).fetchall()
+        folder_rows = connection.execute(
+            """
+            SELECT f.folder_path
+            FROM folder_people fp
+            JOIN folders f ON f.id = fp.folder_id
+            WHERE fp.person_id = ?
+            ORDER BY f.year DESC, f.folder_path ASC
+            """,
+            (person_id,),
+        ).fetchall()
+        return PersonDetail(
+            id=person_row["id"],
+            display_name=person_row["display_name"],
+            aliases=tuple(row["alias"] for row in aliases),
+            folder_paths=tuple(row["folder_path"] for row in folder_rows),
+        )

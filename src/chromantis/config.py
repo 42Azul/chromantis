@@ -55,6 +55,7 @@ class AppConfig:
     sqlite_path: str
     telegram_token: str | None
     telegram_chat_allowlist: tuple[int, ...]
+    telegram_admin_chat_allowlist: tuple[int, ...]
     telegram_access_code: str | None
     log_level: str
 
@@ -85,6 +86,9 @@ class AppConfig:
             telegram_token=os.getenv("TELEGRAM_TOKEN") or None,
             telegram_chat_allowlist=_parse_chat_allowlist(
                 os.getenv("TELEGRAM_CHAT_ALLOWLIST")
+            ),
+            telegram_admin_chat_allowlist=_parse_chat_allowlist(
+                os.getenv("TELEGRAM_ADMIN_CHAT_ALLOWLIST")
             ),
             telegram_access_code=os.getenv("TELEGRAM_ACCESS_CODE") or None,
             log_level=log_level,

@@ -58,6 +58,7 @@ Copy `.env.example` to `.env` and set:
 - `SQLITE_PATH`
 - `TELEGRAM_TOKEN` optionally
 - `TELEGRAM_CHAT_ALLOWLIST` optionally, comma-separated chat IDs
+- `TELEGRAM_ADMIN_CHAT_ALLOWLIST` optionally, comma-separated admin chat IDs
 - `TELEGRAM_ACCESS_CODE` optionally, a stable bot login code
 - `LOG_LEVEL` optionally, for example `DEBUG` or `INFO`
 
@@ -119,10 +120,18 @@ python scripts/run_bot.py
 ## Current commands
 
 - `/years`
+- `/years <YYYY-YYYY>`
 - `/folders <query>`
 - `/images [count] <query>`
 - `/random [count] [query]`
 - `/more [count]`
+- `/people`
+- `/people show <name-or-alias>`
+- `/people add <display-name>`
+- `/people alias <canonical> | <alias>`
+- `/people rename <canonical> | <new-display-name>`
+- `/people link <canonical> | <folder-path>`
+- `/people unlink <canonical> | <folder-path>`
 - `/whoami`
 - `/stats`
 - `/login <access-code>`
@@ -130,6 +139,7 @@ python scripts/run_bot.py
 
 The bot reads results from SQLite and fetches image bytes from FTP on demand for photo replies.
 If the bot starts with an empty index, it prints a warning at startup and `/stats` will show `0` indexed images.
+Search now supports exact years, inclusive ranges like `2019-2021`, and curated people aliases inside `/folders`, `/images`, and `/random`.
 You can ask for multiple photos in one command, and `/more` continues from the current image batch or scope in that chat.
 When a photo batch spans several folders, the bot now says so explicitly and offers a `Folders` button so users can continue inside one folder without assuming the whole batch came from the same place.
 Image replies include inline buttons for continuing the current search, switching to the same folder or year when that context is singular, getting random similar images, refining the search, and going back.
@@ -152,6 +162,8 @@ TELEGRAM_ACCESS_CODE=123456
 ```
 
 If you prefer fixed chat IDs, keep using `TELEGRAM_CHAT_ALLOWLIST`. Allowlisted chats are always authorized and cannot be logged out from Telegram.
+
+If you set `TELEGRAM_ADMIN_CHAT_ALLOWLIST`, only those chats can use `/people add`, `/people alias`, `/people rename`, `/people link`, and `/people unlink`. If you leave it empty, every authorized chat is treated as an admin for curated metadata.
 
 ## Current v1 limits
 

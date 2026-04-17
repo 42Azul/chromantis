@@ -57,6 +57,25 @@ CREATE TABLE IF NOT EXISTS bot_chat_sessions (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS people (
+    id INTEGER PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    normalized_name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS person_aliases (
+    id INTEGER PRIMARY KEY,
+    person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    alias TEXT NOT NULL,
+    alias_normalized TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS folder_people (
+    folder_id INTEGER NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+    person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    UNIQUE (folder_id, person_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_folders_year ON folders(year);
 CREATE INDEX IF NOT EXISTS idx_folders_slug ON folders(folder_slug);
 CREATE INDEX IF NOT EXISTS idx_folders_event_date ON folders(event_date);
@@ -66,4 +85,8 @@ CREATE INDEX IF NOT EXISTS idx_images_filename ON images(filename);
 CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
 CREATE INDEX IF NOT EXISTS idx_authorized_chats_authorized_at ON authorized_chats(authorized_at);
 CREATE INDEX IF NOT EXISTS idx_bot_chat_sessions_updated_at ON bot_chat_sessions(updated_at);
+CREATE INDEX IF NOT EXISTS idx_people_normalized_name ON people(normalized_name);
+CREATE INDEX IF NOT EXISTS idx_person_aliases_person_id ON person_aliases(person_id);
+CREATE INDEX IF NOT EXISTS idx_person_aliases_normalized ON person_aliases(alias_normalized);
+CREATE INDEX IF NOT EXISTS idx_folder_people_person_id ON folder_people(person_id);
 """

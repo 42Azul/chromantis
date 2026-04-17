@@ -9,6 +9,7 @@ from typing import Callable
 
 from chromantis.bot.formatters import format_search_results, format_years
 from chromantis.db.repository import IndexStats
+from chromantis.search.query_parser import QueryParseError, parse_query
 from chromantis.search.service import SearchResult, SearchService
 
 logger = logging.getLogger(__name__)
@@ -148,6 +149,7 @@ class TelegramBotService:
         self,
         search_service: SearchService,
         chat_allowlist: tuple[int, ...] = (),
+        admin_chat_allowlist: tuple[int, ...] = (),
         stats_provider: Callable[[], IndexStats] | None = None,
         access_code: str | None = None,
         auth_checker: Callable[[int], bool] | None = None,
@@ -159,6 +161,7 @@ class TelegramBotService:
     ):
         self.search_service = search_service
         self.chat_allowlist = chat_allowlist
+        self.admin_chat_allowlist = admin_chat_allowlist
         self.stats_provider = stats_provider
         self.access_code = access_code
         self.auth_checker = auth_checker
@@ -190,7 +193,7 @@ class TelegramBotService:
                 return BotReply("Commands: /login <access-code>, /help")
             return BotReply(
                 "Commands: /years, /folders <query>, /images [count] <query>, "
-                "/random [count] [query], /more [count], /whoami, /stats, /logout"
+                "/random [count] [query], /more [count], /people, /whoami, /stats, /logout"
             )
         if command == "/login":
             return self._handle_login(
@@ -217,17 +220,23 @@ class TelegramBotService:
                 f"Indexed tags: {stats.tags}"
             )
         if command == "/years":
-            if args:
-                return BotReply("Usage: /years")
-            return BotReply(format_years(self.search_service.list_years()))
+            return self._handle_years(args)
+        if command == "/people":
+            return self._handle_people(command_text=command_text, chat_id=chat_id)
         if command == "/folders":
-            results = self.search_service.search_folders(args)
+            try:
+                results = self.search_service.search_folders(args)
+            except QueryParseError as exc:
+                return BotReply(str(exc))
             if not results:
                 return self._empty_reply("No folders found.", chat_id=chat_id)
             return BotReply(format_search_results("folders", results))
         if command == "/images":
             count, query = self._parse_count_and_query(args, default_count=3)
-            results = self.search_service.search_images_excluding(query, limit=count)
+            try:
+                results = self.search_service.search_images_excluding(query, limit=count)
+            except QueryParseError as exc:
+                return BotReply(str(exc))
             if not results:
                 return self._empty_reply("No images found.", chat_id=chat_id)
             view = self._make_image_view(
@@ -241,7 +250,10 @@ class TelegramBotService:
             return self._persist_and_reply(chat_id, view, push_history=True)
         if command == "/random":
             count, query = self._parse_count_and_query(args, default_count=1)
-            results = self.search_service.random_images(query, count=count)
+            try:
+                results = self.search_service.random_images(query, count=count)
+            except QueryParseError as exc:
+                return BotReply(str(exc))
             if not results:
                 logger.info("No random image result for args=%r", args)
                 return self._empty_reply("No images found.", chat_id=chat_id)
@@ -288,7 +300,7 @@ class TelegramBotService:
         if callback_data == "nav:refine":
             return self._refine(chat_id=chat_id)
         if callback_data == "nav:years":
-            return BotReply(format_years(self.search_service.list_years()))
+            return BotReply(format_years(self.search_service.list_year_summaries()))
         return BotReply("Unknown action.")
 
     def _handle_login(
@@ -340,8 +352,96 @@ class TelegramBotService:
             f"Chat ID: {chat_id}\n"
             f"Username: {username or '-'}\n"
             f"First name: {first_name or '-'}\n"
-            f"Auth mode: {auth_mode}"
+            f"Auth mode: {auth_mode}\n"
+            f"Admin: {'yes' if self._is_admin(chat_id) else 'no'}"
         )
+
+    def _handle_years(self, args: str) -> BotReply:
+        if not args:
+            return BotReply(format_years(self.search_service.list_year_summaries()))
+        try:
+            parsed = parse_query(args)
+        except QueryParseError as exc:
+            return BotReply(str(exc))
+        if parsed.keywords or parsed.people or parsed.year_from is None or parsed.year_to is None:
+            return BotReply("Usage: /years or /years 2018-2021")
+        return BotReply(
+            format_years(
+                self.search_service.list_year_summaries(
+                    year_from=parsed.year_from,
+                    year_to=parsed.year_to,
+                )
+            )
+        )
+
+    def _handle_people(self, command_text: str, chat_id: int | None) -> BotReply:
+        _, _, raw_args = command_text.partition(" ")
+        args = raw_args.strip()
+        if not args:
+            return self._list_people_reply()
+
+        action, _, remainder = args.partition(" ")
+        action = action.strip().lower()
+        remainder = remainder.strip()
+        try:
+            if action == "show":
+                if not remainder:
+                    return BotReply("Usage: /people show <name-or-alias>")
+                return self._show_person_reply(remainder)
+            if action == "add":
+                self._require_admin(chat_id)
+                if not remainder:
+                    return BotReply("Usage: /people add <display-name>")
+                detail = self.search_service.create_person(remainder)
+                return BotReply(self._format_person_detail(detail, heading="Person created"))
+            if action == "alias":
+                self._require_admin(chat_id)
+                left, right = self._split_pipe_args(remainder, "Usage: /people alias <canonical> | <alias>")
+                detail = self.search_service.add_person_alias(left, right)
+                return BotReply(self._format_person_detail(detail, heading="Alias added"))
+            if action == "rename":
+                self._require_admin(chat_id)
+                left, right = self._split_pipe_args(remainder, "Usage: /people rename <canonical> | <new-display-name>")
+                detail = self.search_service.rename_person(left, right)
+                return BotReply(self._format_person_detail(detail, heading="Person renamed"))
+            if action == "link":
+                self._require_admin(chat_id)
+                left, right = self._split_pipe_args(remainder, "Usage: /people link <canonical> | <folder-path>")
+                detail = self.search_service.link_person_to_folder(left, right)
+                return BotReply(self._format_person_detail(detail, heading="Person linked"))
+            if action == "unlink":
+                self._require_admin(chat_id)
+                left, right = self._split_pipe_args(remainder, "Usage: /people unlink <canonical> | <folder-path>")
+                detail = self.search_service.unlink_person_from_folder(left, right)
+                return BotReply(self._format_person_detail(detail, heading="Person unlinked"))
+        except QueryParseError as exc:
+            return BotReply(str(exc))
+        except PermissionError:
+            return BotReply("Admin privileges are required for /people write commands.")
+        except ValueError as exc:
+            return BotReply(str(exc))
+        return BotReply(
+            "Usage: /people, /people show <name>, /people add <display-name>, "
+            "/people alias <canonical> | <alias>, /people rename <canonical> | <new>, "
+            "/people link <canonical> | <folder-path>, /people unlink <canonical> | <folder-path>"
+        )
+
+    def _list_people_reply(self) -> BotReply:
+        people = self.search_service.list_people()
+        if not people:
+            return BotReply("No curated people yet.")
+        lines = ["Curated people:"]
+        for person in people:
+            lines.append(
+                f"- {person.display_name}: {person.aliases_count} alias(es), {person.folder_count} folder link(s)"
+            )
+        return BotReply("\n".join(lines))
+
+    def _show_person_reply(self, identifier: str) -> BotReply:
+        detail = self.search_service.get_person_detail(identifier)
+        if detail is None:
+            return BotReply(f"Unknown person: {identifier}")
+        return BotReply(self._format_person_detail(detail, heading="Person"))
 
     def _continue_current_scope(self, chat_id: int | None, count: int | None) -> BotReply:
         if chat_id is None:
@@ -812,6 +912,17 @@ class TelegramBotService:
             return True
         return False
 
+    def _is_admin(self, chat_id: int | None) -> bool:
+        if not self._is_authorized(chat_id):
+            return False
+        if self.admin_chat_allowlist:
+            return chat_id in self.admin_chat_allowlist
+        return True
+
+    def _require_admin(self, chat_id: int | None) -> None:
+        if not self._is_admin(chat_id):
+            raise PermissionError("Admin access required.")
+
     @staticmethod
     def _parse_count_and_query(args: str, default_count: int) -> tuple[int, str]:
         stripped = args.strip()
@@ -822,6 +933,27 @@ class TelegramBotService:
             count = max(1, min(int(first), 10))
             return count, remainder.strip()
         return default_count, stripped
+
+    @staticmethod
+    def _split_pipe_args(args: str, usage: str) -> tuple[str, str]:
+        left, separator, right = args.partition("|")
+        if not separator or not left.strip() or not right.strip():
+            raise ValueError(usage)
+        return left.strip(), right.strip()
+
+    @staticmethod
+    def _format_person_detail(detail, heading: str) -> str:
+        lines = [f"{heading}: {detail.display_name}"]
+        if detail.aliases:
+            lines.append("Aliases: " + ", ".join(detail.aliases))
+        else:
+            lines.append("Aliases: none")
+        if detail.folder_paths:
+            lines.append("Linked folders:")
+            lines.extend(f"- {folder_path}" for folder_path in detail.folder_paths)
+        else:
+            lines.append("Linked folders: none")
+        return "\n".join(lines)
 
 
 class TelegramBotApp:
@@ -853,6 +985,7 @@ class TelegramBotApp:
             "images",
             "random",
             "more",
+            "people",
             "whoami",
             "stats",
         ):
