@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from chromantis.db.repository import Repository
+from chromantis.ftp.client import LocalPathFTPClient
+from chromantis.ftp.scanner import FTPScanner
+from chromantis.parsing.path_parser import PathParser
+from chromantis.search.service import SearchService
+
+
+PHOTOS_ROOT = Path(__file__).parent / "fixtures" / "ftp_tree" / "server_root" / "photos" / "archive"
+
+
+class SearchServiceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        db_path = str(Path(self.temp_dir.name) / "chromantis.db")
+        self.repository = Repository(db_path)
+        self.repository.init_schema()
+        scanner = FTPScanner(LocalPathFTPClient(), self.repository, PathParser())
+        scanner.scan(str(PHOTOS_ROOT))
+        self.service = SearchService(self.repository)
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def test_search_folders_by_year_and_keyword(self) -> None:
+        results = self.service.search_folders("2023 winter")
+        self.assertEqual(len(results), 1)
+        self.assertIn("year=2023", results[0].reason)
+        self.assertIn('title~"winter"', results[0].reason)
+
+    def test_search_images_by_tag(self) -> None:
+        results = self.service.search_images("city")
+        self.assertEqual(len(results), 2)
+        self.assertTrue(all("city" in result.reason for result in results))
+
+    def test_random_image_is_filtered(self) -> None:
+        result = self.service.random_image("2019")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.year, 2019)
