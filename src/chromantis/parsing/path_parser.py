@@ -48,7 +48,7 @@ class PathParseError(ValueError):
 
 @dataclass(frozen=True)
 class ParsedImageRecord:
-    ftp_root_path: str
+    source_root: str
     folder_path: str
     file_path: str
     year: int
@@ -59,24 +59,20 @@ class ParsedImageRecord:
     filename: str
     extension: str
     file_size: int | None
-    ftp_modified_at: str | None
+    source_modified_at: str | None
     folder_tags: tuple[tuple[str, str], ...]
     image_tags: tuple[tuple[str, str], ...]
-
-    @property
-    def absolute_file_path(self) -> str:
-        return f"{self.ftp_root_path.rstrip('/')}/{self.file_path.lstrip('/')}"
 
 
 class PathParser:
     def parse_image_path(
         self,
-        ftp_root_path: str,
-        absolute_path: str,
+        source_root: str,
+        relative_path: str,
         file_size: int | None,
-        ftp_modified_at: str | None,
+        modified_at: str | None,
     ) -> ParsedImageRecord:
-        relative = self._relative_path(ftp_root_path, absolute_path)
+        relative = relative_path.strip("/")
         parts = PurePosixPath(relative).parts
         if len(parts) != 3:
             raise PathParseError(f"Expected /year/folder/file path, got {relative}")
@@ -94,7 +90,7 @@ class PathParser:
         image_tags = build_image_tags(filename)
 
         return ParsedImageRecord(
-            ftp_root_path=ftp_root_path,
+            source_root=source_root,
             folder_path=f"{year_segment}/{folder_name_raw}",
             file_path=relative,
             year=int(year_match.group(1)),
@@ -105,17 +101,10 @@ class PathParser:
             filename=filename,
             extension=extension,
             file_size=file_size,
-            ftp_modified_at=ftp_modified_at,
+            source_modified_at=modified_at,
             folder_tags=folder_tags,
             image_tags=image_tags,
         )
-
-    @staticmethod
-    def _relative_path(ftp_root_path: str, absolute_path: str) -> str:
-        root = ftp_root_path.rstrip("/")
-        if not absolute_path.startswith(root + "/"):
-            raise PathParseError(f"Path {absolute_path} is outside root {ftp_root_path}")
-        return absolute_path[len(root) + 1 :]
 
 
 def normalize_text(value: str) -> str:

@@ -6,9 +6,8 @@ import unittest
 from pathlib import Path
 
 from chromantis.db.repository import Repository
-from chromantis.ftp.client import LocalPathFTPClient
-from chromantis.ftp.scanner import FTPScanner
 from chromantis.parsing.path_parser import PathParser
+from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "ftp_tree" / "server_root"
@@ -16,11 +15,11 @@ PHOTOS_ROOT = FIXTURES_ROOT / "photos" / "archive"
 
 
 class FTPScannerTests(unittest.TestCase):
-    def _build_scanner(self, db_path: str) -> tuple[Repository, FTPScanner]:
+    def _build_scanner(self, db_path: str, source_root: Path) -> tuple[Repository, ArchiveScanner]:
         repository = Repository(db_path)
         repository.init_schema()
-        scanner = FTPScanner(
-            ftp_client=LocalPathFTPClient(),
+        scanner = ArchiveScanner(
+            source=LocalArchiveSource(str(source_root)),
             repository=repository,
             parser=PathParser(),
         )
@@ -29,8 +28,8 @@ class FTPScannerTests(unittest.TestCase):
     def test_scan_indexes_only_files_under_configured_root(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = str(Path(temp_dir) / "chromantis.db")
-            repository, scanner = self._build_scanner(db_path)
-            result = scanner.scan(str(PHOTOS_ROOT))
+            repository, scanner = self._build_scanner(db_path, PHOTOS_ROOT)
+            result = scanner.scan()
 
             self.assertEqual(result.summary.images_indexed, 5)
             self.assertEqual(result.summary.skipped_paths, 0)
@@ -52,11 +51,11 @@ class FTPScannerTests(unittest.TestCase):
             image_path = first_file / "IMG_0001.jpg"
             image_path.write_text("image", encoding="utf-8")
 
-            repository, scanner = self._build_scanner(db_path)
-            scanner.scan(str(local_root))
+            repository, scanner = self._build_scanner(db_path, local_root)
+            scanner.scan()
 
             image_path.unlink()
-            result = scanner.scan(str(local_root))
+            result = scanner.scan()
 
             self.assertEqual(result.summary.deleted_images, 1)
 
@@ -67,8 +66,8 @@ class FTPScannerTests(unittest.TestCase):
     def test_scan_does_not_descend_beyond_year_folder_image_layout(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = str(Path(temp_dir) / "chromantis.db")
-            repository, scanner = self._build_scanner(db_path)
-            result = scanner.scan(str(PHOTOS_ROOT))
+            repository, scanner = self._build_scanner(db_path, PHOTOS_ROOT)
+            result = scanner.scan()
 
             self.assertEqual(result.summary.images_indexed, 5)
 

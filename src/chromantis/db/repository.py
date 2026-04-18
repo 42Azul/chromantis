@@ -97,45 +97,39 @@ class Repository:
         return folder_id, image_id
 
     def prune_stale(
-        self, connection: sqlite3.Connection, ftp_root_path: str, scan_seen_at: str
+        self, connection: sqlite3.Connection, scan_seen_at: str
     ) -> tuple[int, int]:
         stale_images = connection.execute(
             """
             SELECT COUNT(*)
             FROM images
             WHERE scan_seen_at != ?
-              AND folder_id IN (
-                  SELECT id FROM folders WHERE ftp_root_path = ?
-              )
             """,
-            (scan_seen_at, ftp_root_path),
+            (scan_seen_at,),
         ).fetchone()[0]
 
         connection.execute(
             """
             DELETE FROM images
             WHERE scan_seen_at != ?
-              AND folder_id IN (
-                  SELECT id FROM folders WHERE ftp_root_path = ?
-              )
             """,
-            (scan_seen_at, ftp_root_path),
+            (scan_seen_at,),
         )
 
         stale_folders = connection.execute(
             """
             SELECT COUNT(*)
             FROM folders
-            WHERE ftp_root_path = ? AND scan_seen_at != ?
+            WHERE scan_seen_at != ?
             """,
-            (ftp_root_path, scan_seen_at),
+            (scan_seen_at,),
         ).fetchone()[0]
         connection.execute(
             """
             DELETE FROM folders
-            WHERE ftp_root_path = ? AND scan_seen_at != ?
+            WHERE scan_seen_at != ?
             """,
-            (ftp_root_path, scan_seen_at),
+            (scan_seen_at,),
         )
         return stale_folders, stale_images
 
@@ -440,7 +434,7 @@ class Repository:
                 WHERE id = ?
                 """,
                 (
-                    record.ftp_root_path,
+                    record.source_root,
                     record.year,
                     record.folder_name_raw,
                     record.folder_slug,
@@ -462,7 +456,7 @@ class Repository:
             """,
             (
                 record.folder_path,
-                record.ftp_root_path,
+                record.source_root,
                 record.year,
                 record.folder_name_raw,
                 record.folder_slug,
@@ -496,7 +490,7 @@ class Repository:
                     folder_id,
                     record.filename,
                     record.extension,
-                    record.ftp_modified_at,
+                    record.source_modified_at,
                     record.file_size,
                     scan_seen_at,
                     existing["id"],
@@ -517,7 +511,7 @@ class Repository:
                 record.file_path,
                 record.filename,
                 record.extension,
-                record.ftp_modified_at,
+                record.source_modified_at,
                 record.file_size,
                 scan_seen_at,
             ),

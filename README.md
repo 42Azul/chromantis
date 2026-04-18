@@ -2,7 +2,7 @@
 
 > A searchable visual memory over FTP photo folders, designed to evolve from deterministic indexing into LLM-assisted retrieval through chat.
 
-Chromantis is a deterministic MVP that scans a configured FTP photo subtree, parses metadata from folder paths, stores the result in SQLite, and exposes search-oriented Telegram commands.
+Chromantis is a deterministic MVP that scans a configured photo archive source, parses metadata from folder paths, stores the result in SQLite, and exposes search-oriented Telegram commands.
 
 For product vision and roadmap, see [PLANNING.md](PLANNING.md).
 
@@ -10,15 +10,17 @@ For product vision and roadmap, see [PLANNING.md](PLANNING.md).
 
 ```text
 src/chromantis/
-  config.py            # env loading and FTP root validation
+  config.py            # env loading and source-root validation
   db/                  # SQLite schema and repository
-  ftp/                 # FTP clients and recursive subtree scanner
+  source/              # archive source adapters and generic scanner
+  ftp/                 # compatibility wrappers around the generic source layer
   parsing/             # path parsing and deterministic tagging
   search/              # query parsing and local search service
   bot/                 # Telegram command service and adapter
 scripts/
   init_db.py           # create the SQLite schema
-  reindex_ftp.py       # scan FTP and index photos
+  reindex_source.py    # scan the configured source and index photos
+  reindex_ftp.py       # compatibility wrapper for reindex_source.py
   run_bot.py           # start the Telegram bot
 tests/
   fixtures/ftp_tree/   # local fake FTP tree
@@ -27,7 +29,8 @@ tests/
 
 ## How it works
 
-Chromantis indexes only the configured `FTP_PHOTOS_ROOT`, not the whole FTP account. The scanner walks that subtree, filters supported image files, and sends each path to the parser.
+Chromantis indexes only the configured `SOURCE_ROOT`. The active source can be either an FTP subtree or a local folder, but the indexed records are always relative to that configured root.
+Archive access is read-only in both modes: Chromantis only lists directories and reads file bytes, and local-mode reads are confined to the configured root.
 
 Expected relative path shape:
 
@@ -43,18 +46,19 @@ Derived metadata:
 - deterministic tags from folder tokens
 - rule tags such as season and `YYYY-MM`
 
-Search is intentionally deterministic: year matching, title keyword matching, tag matching, and random selection from filtered results.
-Traversal is intentionally limited to `FTP_PHOTOS_ROOT/year/folder/image`; deeper nested directories are ignored.
+Search is intentionally deterministic: year matching, title keyword matching, tag matching, curated person aliases, and random selection from filtered results.
+Traversal is intentionally limited to `SOURCE_ROOT/year/folder/image`; deeper nested directories are ignored.
 
 ## Configuration
 
 Copy `.env.example` to `.env` and set:
 
+- `SOURCE_TYPE` as `ftp` or `local`
+- `SOURCE_ROOT`
 - `FTP_HOST`
 - `FTP_PORT`
 - `FTP_USER`
 - `FTP_PASSWORD`
-- `FTP_PHOTOS_ROOT`
 - `SQLITE_PATH`
 - `TELEGRAM_TOKEN` optionally
 - `TELEGRAM_CHAT_ALLOWLIST` optionally, comma-separated chat IDs
@@ -62,7 +66,8 @@ Copy `.env.example` to `.env` and set:
 - `TELEGRAM_ACCESS_CODE` optionally, a stable bot login code
 - `LOG_LEVEL` optionally, for example `DEBUG` or `INFO`
 
-`FTP_PHOTOS_ROOT` must be an absolute FTP path such as `/photos/archive`.
+Use `SOURCE_TYPE=ftp` with an absolute FTP `SOURCE_ROOT` such as `/photos/archive`.
+Use `SOURCE_TYPE=local` with either an absolute local path or a repo-relative path such as `tests/fixtures/ftp_tree/server_root/photos/archive`.
 Set `LOG_LEVEL=DEBUG` to see scan, search, and Telegram command logs during execution.
 
 ## Quick start
@@ -73,16 +78,16 @@ Initialize the SQLite schema:
 python scripts/init_db.py
 ```
 
-Run a full FTP reindex:
+Run a full source reindex:
 
 ```bash
-python scripts/reindex_ftp.py
+python scripts/reindex_source.py
 ```
 
 Run a more inspectable first index:
 
 ```bash
-python scripts/reindex_ftp.py --verbose --progress-every 1 --show-skipped
+python scripts/reindex_source.py --verbose --progress-every 1 --show-skipped
 ```
 
 Useful flags:
@@ -113,7 +118,7 @@ Recommended first run order:
 
 ```bash
 python scripts/init_db.py
-python scripts/reindex_ftp.py --verbose --progress-every 1 --show-skipped
+python scripts/reindex_source.py --verbose --progress-every 1 --show-skipped
 python scripts/run_bot.py
 ```
 
@@ -137,7 +142,7 @@ python scripts/run_bot.py
 - `/login <access-code>`
 - `/logout`
 
-The bot reads results from SQLite and fetches image bytes from FTP on demand for photo replies.
+The bot reads results from SQLite and fetches image bytes from the configured source on demand for photo replies.
 If the bot starts with an empty index, it prints a warning at startup and `/stats` will show `0` indexed images.
 Search now supports exact years, inclusive ranges like `2019-2021`, and curated people aliases inside `/folders`, `/images`, and `/random`.
 You can ask for multiple photos in one command, and `/more` continues from the current image batch or scope in that chat.

@@ -5,10 +5,9 @@ import unittest
 from pathlib import Path
 
 from chromantis.db.repository import Repository
-from chromantis.ftp.client import LocalPathFTPClient
-from chromantis.ftp.scanner import FTPScanner
 from chromantis.parsing.path_parser import PathParser
 from chromantis.search.service import SearchService
+from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
 PHOTOS_ROOT = Path(__file__).parent / "fixtures" / "ftp_tree" / "server_root" / "photos" / "archive"
@@ -20,8 +19,8 @@ class SearchServiceTests(unittest.TestCase):
         db_path = str(Path(self.temp_dir.name) / "chromantis.db")
         self.repository = Repository(db_path)
         self.repository.init_schema()
-        scanner = FTPScanner(LocalPathFTPClient(), self.repository, PathParser())
-        scanner.scan(str(PHOTOS_ROOT))
+        scanner = ArchiveScanner(LocalArchiveSource(str(PHOTOS_ROOT)), self.repository, PathParser())
+        scanner.scan()
         self.service = SearchService(self.repository)
         self.service.create_person("Pablo")
         self.service.add_person_alias("Pablo", "pablito")

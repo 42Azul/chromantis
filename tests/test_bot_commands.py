@@ -7,10 +7,9 @@ from pathlib import Path
 
 from chromantis.bot.telegram_bot import ChatSession, TelegramBotApp, TelegramBotService
 from chromantis.db.repository import Repository
-from chromantis.ftp.client import LocalPathFTPClient
-from chromantis.ftp.scanner import FTPScanner
 from chromantis.parsing.path_parser import PathParser
 from chromantis.search.service import SearchService
+from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
 PHOTOS_ROOT = (
@@ -24,8 +23,8 @@ class TelegramBotServiceTests(unittest.TestCase):
         db_path = str(Path(self.temp_dir.name) / "chromantis.db")
         repository = Repository(db_path)
         repository.init_schema()
-        scanner = FTPScanner(LocalPathFTPClient(), repository, PathParser())
-        scanner.scan(str(PHOTOS_ROOT))
+        scanner = ArchiveScanner(LocalArchiveSource(str(PHOTOS_ROOT)), repository, PathParser())
+        scanner.scan()
         self.service = TelegramBotService(
             SearchService(repository),
             chat_allowlist=(1234,),
@@ -292,12 +291,12 @@ class TelegramBotServiceTests(unittest.TestCase):
             service=self.service,
             image_fetcher=image_fetcher,
         )
-        image_file = app._open_image("/ftp/root/2021/folder/IMG_001.jpg")
+        image_file = app._open_image("2021/folder/IMG_001.jpg")
 
         self.assertIsInstance(image_file, BytesIO)
         self.assertEqual(image_file.read(), b"remote-image")
         self.assertEqual(image_file.name, "IMG_001.jpg")
-        self.assertEqual(fetched_paths, ["/ftp/root/2021/folder/IMG_001.jpg"])
+        self.assertEqual(fetched_paths, ["2021/folder/IMG_001.jpg"])
         image_file.close()
 
     def test_app_can_open_local_image_path(self) -> None:
@@ -330,12 +329,12 @@ class TelegramBotServiceTests(unittest.TestCase):
 
         image_files = app._open_images(
             (
-                "/ftp/root/2021/folder/IMG_001.jpg",
-                "/ftp/root/2021/folder/IMG_002.jpg",
+                "2021/folder/IMG_001.jpg",
+                "2021/folder/IMG_002.jpg",
             )
         )
 
-        self.assertEqual(fetched_batches, [("/ftp/root/2021/folder/IMG_001.jpg", "/ftp/root/2021/folder/IMG_002.jpg")])
+        self.assertEqual(fetched_batches, [("2021/folder/IMG_001.jpg", "2021/folder/IMG_002.jpg")])
         self.assertEqual(single_fetches, [])
         self.assertEqual([image_file.read() for image_file in image_files], [b"batch:IMG_001.jpg", b"batch:IMG_002.jpg"])
         for image_file in image_files:

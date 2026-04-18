@@ -746,7 +746,7 @@ class TelegramBotService:
             kind="images",
             scope=scope,
             text=text,
-            image_paths=tuple(result.absolute_path for result in results),
+            image_paths=tuple(result.path for result in results),
             query=query,
             count=count,
             folder_path=primary.folder_path if len(folder_summaries) == 1 else None,

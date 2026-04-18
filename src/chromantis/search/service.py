@@ -20,13 +20,6 @@ class SearchResult:
     year: int
     folder_path: str | None = None
     event_date: str | None = None
-    ftp_root_path: str | None = None
-
-    @property
-    def absolute_path(self) -> str:
-        if not self.ftp_root_path:
-            return self.path
-        return f"{self.ftp_root_path.rstrip('/')}/{self.path.lstrip('/')}"
 
 
 class SearchService:
@@ -101,7 +94,7 @@ class SearchService:
         with self.repository.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT f.folder_path, f.title, f.year, f.event_date, f.ftp_root_path,
+                SELECT f.folder_path, f.title, f.year, f.event_date,
                        GROUP_CONCAT(DISTINCT t.tag) AS tags,
                        GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                        GROUP_CONCAT(DISTINCT p.display_name) AS people_names
@@ -309,7 +302,6 @@ class SearchService:
             year=row["year"],
             folder_path=row["folder_path"],
             event_date=row["event_date"],
-            ftp_root_path=row["ftp_root_path"],
         )
 
     def _image_result(self, row: sqlite3.Row, query: ParsedQuery) -> SearchResult | None:
@@ -331,13 +323,12 @@ class SearchService:
             year=row["year"],
             folder_path=row["folder_path"],
             event_date=row["event_date"],
-            ftp_root_path=row["ftp_root_path"],
         )
 
     @staticmethod
     def _image_search_sql() -> str:
         return """
-            SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date, f.ftp_root_path,
+            SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date,
                    GROUP_CONCAT(DISTINCT t.tag) AS folder_tags,
                    GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                    GROUP_CONCAT(DISTINCT p.display_name) AS people_names

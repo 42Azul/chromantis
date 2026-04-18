@@ -10,9 +10,9 @@ if str(SRC) not in sys.path:
 from chromantis.bot.telegram_bot import TelegramBotApp, TelegramBotService
 from chromantis.config import AppConfig
 from chromantis.db.repository import Repository
-from chromantis.ftp.client import StdlibFTPClient
 from chromantis.logging_utils import configure_logging
 from chromantis.search.service import SearchService
+from chromantis.source import build_archive_source
 
 
 def main() -> None:
@@ -28,12 +28,7 @@ def main() -> None:
     authorized_chats = repository.list_authorized_chats()
     access_code = config.telegram_access_code or f"{secrets.randbelow(1_000_000):06d}"
 
-    ftp_client = StdlibFTPClient(
-        host=config.ftp_host,
-        port=config.ftp_port,
-        user=config.ftp_user,
-        password=config.ftp_password,
-    )
+    source = build_archive_source(config)
 
     service = TelegramBotService(
         SearchService(repository),
@@ -51,13 +46,14 @@ def main() -> None:
     app = TelegramBotApp(
         token=config.telegram_token,
         service=service,
-        image_fetcher=ftp_client.download_bytes,
-        image_batch_fetcher=ftp_client.download_many_bytes,
+        image_fetcher=source.read_bytes,
+        image_batch_fetcher=source.read_many_bytes,
     ).build()
 
     print("Starting Chromantis Telegram bot")
     print(f"SQLite path: {config.sqlite_path}")
-    print(f"FTP photo root: {config.ftp_photos_root}")
+    print(f"Source type: {config.source_type}")
+    print(f"Source root: {config.source_root}")
     print(
         f"Current index: folders={stats.folders} images={stats.images} tags={stats.tags}"
     )
@@ -80,7 +76,7 @@ def main() -> None:
     if stats.images == 0:
         print(
             "Warning: index is empty. Run "
-            "'python scripts/reindex_ftp.py --verbose --progress-every 1 --show-skipped' first."
+            "'python scripts/reindex_source.py --verbose --progress-every 1 --show-skipped' first."
         )
     app.run_polling()
 
