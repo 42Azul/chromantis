@@ -220,6 +220,13 @@ Current architecture map:
 **Deliverables:**
 
 - guided admin curation flows instead of only pipe-based syntax
+- guided people management for admins:
+  - add person
+  - add alias
+  - rename person
+  - link folder
+  - unlink folder
+- replace current command-only people and alias management flows with button-driven, step-by-step Telegram UX
 - recent searches per chat
 - favorite or pinned searches per chat
 - richer disambiguation for ambiguous plain-text requests
@@ -227,6 +234,7 @@ Current architecture map:
 **Acceptance:**
 
 - common admin curation tasks are possible without memorizing pipe syntax
+- people and alias management no longer depend on `|`-based command syntax
 - repeated retrieval flows can be resumed from recent or pinned searches
 - conversation-state behavior stays covered by tests
 
