@@ -37,6 +37,14 @@ class AuthorizedChat:
 
 
 @dataclass(frozen=True)
+class ChatPreferences:
+    chat_id: int
+    language: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class InviteCode:
     code: str
     role: str
@@ -239,6 +247,74 @@ class Repository:
     def get_chat_role(self, chat_id: int) -> str | None:
         chat = self.get_authorized_chat(chat_id)
         return None if chat is None else chat.role
+
+    def get_chat_preferences(self, chat_id: int) -> ChatPreferences | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT chat_id, language, created_at, updated_at
+                FROM chat_preferences
+                WHERE chat_id = ?
+                """,
+                (chat_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return ChatPreferences(
+            chat_id=row["chat_id"],
+            language=row["language"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    def get_chat_language(self, chat_id: int) -> str | None:
+        preferences = self.get_chat_preferences(chat_id)
+        return None if preferences is None else preferences.language
+
+    def set_chat_language(
+        self,
+        chat_id: int,
+        language: str,
+        actor_chat_id: int | None = None,
+    ) -> ChatPreferences:
+        if language not in {"en", "es"}:
+            raise ValueError("Language must be en or es.")
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as connection:
+            existing = connection.execute(
+                """
+                SELECT created_at
+                FROM chat_preferences
+                WHERE chat_id = ?
+                """,
+                (chat_id,),
+            ).fetchone()
+            created_at = now if existing is None else str(existing["created_at"])
+            connection.execute(
+                """
+                INSERT INTO chat_preferences (chat_id, language, created_at, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    language = excluded.language,
+                    updated_at = excluded.updated_at
+                """,
+                (chat_id, language, created_at, now),
+            )
+            self._record_audit(
+                connection,
+                action="set_chat_language",
+                target_type="chat_preferences",
+                target_id=str(chat_id),
+                actor_chat_id=actor_chat_id,
+                details={"language": language},
+            )
+            connection.commit()
+        return ChatPreferences(
+            chat_id=chat_id,
+            language=language,
+            created_at=created_at,
+            updated_at=now,
+        )
 
     def authorize_chat(
         self,
@@ -1113,4 +1189,7 @@ class Repository:
             )
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_authorized_chats_role ON authorized_chats(role)"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chat_preferences_language ON chat_preferences(language)"
         )

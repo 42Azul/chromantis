@@ -19,7 +19,7 @@ Chromantis currently provides:
 - deterministic path parsing and deterministic tagging
 - SQLite persistence with migration-aware startup
 - deterministic search over years, year ranges, titles, tags, and curated people aliases
-- a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, plain-text query handling, and explicit `owner`/`admin`/`viewer` auth management
+- a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, guided onboarding, per-chat English/Spanish language preferences, plain-text query handling, and explicit `owner`/`admin`/`viewer` auth management
 - a shared application/query service used by both Telegram and the local HTTP API
 - a local read-only HTTP API for stats, search, browse, and people listing
 
@@ -189,25 +189,45 @@ Current architecture map:
 - archive access remains read-only
 - response shapes are stable enough for a later UI client
 
-### MVP 6 — Better Non-Technical Telegram UX
+### MVP 6A — Guided Telegram UX and Bilingual Onboarding
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
-**Goal:** Make Telegram usable without relying on command memorization.
+**Goal:** Make Telegram usable without relying on command memorization and support per-chat English/Spanish guidance.
 
 **Deliverables:**
 
-- stronger guided home flow after `/start`
-- clearer browse entry points for years, people, random memory, and search
+- per-chat language selection on first `/start`, stored in SQLite
+- localized onboarding, help, settings, examples, and button labels for English and Spanish
+- stronger guided home flow after `/start` and after login
+- clearer browse entry points for years, people, random memory, and search help
 - better empty-state and no-result suggestions
-- disambiguation for ambiguous plain-text requests
-- guided admin curation flows instead of only pipe-based syntax
-- recent searches and favorite or pinned searches per chat
+- lightweight clarification for low-information plain-text requests
+- Spanish request framing support in the rule-based interpreter
 
 **Acceptance:**
 
 - a non-technical user can retrieve images without needing slash commands
 - existing command flows still work
+- conversation-state behavior stays covered by tests
+
+### MVP 6B — Guided Curation and Saved Search UX
+
+**Status:** `Ready Next`
+
+**Goal:** Finish the remaining non-technical UX work that was intentionally deferred from MVP 6A.
+
+**Deliverables:**
+
+- guided admin curation flows instead of only pipe-based syntax
+- recent searches per chat
+- favorite or pinned searches per chat
+- richer disambiguation for ambiguous plain-text requests
+
+**Acceptance:**
+
+- common admin curation tasks are possible without memorizing pipe syntax
+- repeated retrieval flows can be resumed from recent or pinned searches
 - conversation-state behavior stays covered by tests
 
 ### MVP 7 — Query Interpreter Abstraction

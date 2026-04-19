@@ -94,14 +94,25 @@ class TelegramBotServiceTests(unittest.TestCase):
 
     def test_start_for_unauthorized_chat_shows_login_message(self) -> None:
         reply = self.service.handle_command("/start", chat_id=999)
-        self.assertIn("/login <access-code>", reply.text)
+        self.assertIn("Choose your preferred language", reply.text)
+        labels = {button.label for row in reply.buttons for button in row}
+        self.assertIn("English", labels)
+        self.assertIn("Español", labels)
 
-    def test_start_for_authorized_chat_shows_home_buttons(self) -> None:
+    def test_start_for_authorized_chat_without_preference_shows_language_picker(self) -> None:
         reply = self.service.handle_command("/start", chat_id=VIEWER_CHAT_ID)
 
         labels = {button.label for row in reply.buttons for button in row}
-        self.assertIn("Browse Years", labels)
-        self.assertIn("Random Memory", labels)
+        self.assertIn("English", labels)
+        self.assertIn("Español", labels)
+
+    def test_language_selection_opens_authorized_home_in_selected_language(self) -> None:
+        reply = self.service.handle_callback("language:set:es", chat_id=VIEWER_CHAT_ID)
+
+        self.assertIn("Chromantis ya esta listo", reply.text)
+        labels = {button.label for row in reply.buttons for button in row}
+        self.assertIn("Años", labels)
+        self.assertIn("Ajustes", labels)
 
     def test_login_requires_valid_code(self) -> None:
         reply = self.service.handle_command("/login 000000", chat_id=999)
@@ -115,12 +126,13 @@ class TelegramBotServiceTests(unittest.TestCase):
             username="tester",
             first_name="Test",
         )
-        self.assertEqual(reply.text, "Chat authorized. Use /help to see available commands.")
+        self.assertIn("Chat authorized.", reply.text)
+        self.assertIn("The easiest way to use it", reply.text)
         self.assertTrue(self.repository.is_chat_authorized(999))
         self.assertEqual(self.repository.get_chat_role(999), "viewer")
 
         help_reply = self.service.handle_command("/help", chat_id=999)
-        self.assertIn("/logout", help_reply.text)
+        self.assertIn("How to use Chromantis", help_reply.text)
 
     def test_invite_authorizes_new_viewer_chat(self) -> None:
         invite_reply = self.service.handle_command("/invite viewer 5", chat_id=OWNER_CHAT_ID)
@@ -138,8 +150,18 @@ class TelegramBotServiceTests(unittest.TestCase):
             first_name="Viewer",
         )
 
-        self.assertEqual(login_reply.text, "Chat authorized. Use /help to see available commands.")
+        self.assertIn("Chat authorized.", login_reply.text)
+        self.assertIn("Good examples", login_reply.text)
         self.assertEqual(self.repository.get_chat_role(5678), "viewer")
+
+    def test_unauthorized_language_selection_shows_localized_guest_onboarding(self) -> None:
+        reply = self.service.handle_callback("language:set:es", chat_id=5678)
+
+        self.assertIn("Bienvenido a Chromantis.", reply.text)
+        self.assertIn("/login <access-code>", reply.text)
+        labels = {button.label for row in reply.buttons for button in row}
+        self.assertIn("Ayuda de Busqueda", labels)
+        self.assertIn("Ajustes", labels)
 
     def test_logout_revokes_dynamic_authorization(self) -> None:
         self.repository.authorize_chat(999, username="tester", first_name="Test")
@@ -168,6 +190,22 @@ class TelegramBotServiceTests(unittest.TestCase):
 
         self.assertEqual(len(reply.image_paths), 2)
         self.assertIn("Showing images: 2 image(s)", reply.text)
+
+    def test_spanish_plain_text_query_is_interpreted(self) -> None:
+        self.service.handle_callback("language:set:es", chat_id=VIEWER_CHAT_ID)
+
+        reply = self.service.handle_text_input("ensename 2 fotos de city de 2021", chat_id=VIEWER_CHAT_ID)
+
+        self.assertEqual(len(reply.image_paths), 2)
+        self.assertIn("imagen(es)", reply.text)
+
+    def test_low_information_text_returns_clarification(self) -> None:
+        reply = self.service.handle_text_input("show me photos", chat_id=VIEWER_CHAT_ID)
+
+        self.assertIn("I need a little more detail", reply.text)
+        labels = {button.label for row in reply.buttons for button in row}
+        self.assertIn("Browse Years", labels)
+        self.assertIn("Random Memory", labels)
 
     def test_people_add_and_show_commands(self) -> None:
         create_reply = self.service.handle_command("/people add Pablo", chat_id=OWNER_CHAT_ID)
@@ -482,6 +520,7 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("logout", commands)
         self.assertIn("more", commands)
         self.assertIn("people", commands)
+        self.assertIn("settings", commands)
         callback_handlers = [
             handler
             for handlers in app.handlers.values()
@@ -489,3 +528,12 @@ class TelegramBotServiceTests(unittest.TestCase):
             if handler.__class__.__name__ == "CallbackQueryHandler"
         ]
         self.assertTrue(callback_handlers)
+
+    def test_settings_reports_current_language(self) -> None:
+        self.service.handle_callback("language:set:es", chat_id=VIEWER_CHAT_ID)
+
+        reply = self.service.handle_command("/settings", chat_id=VIEWER_CHAT_ID)
+
+        self.assertIn("Idioma actual: Español", reply.text)
+        labels = {button.label for row in reply.buttons for button in row}
+        self.assertIn("Cambiar idioma", labels)

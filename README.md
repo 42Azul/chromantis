@@ -158,6 +158,7 @@ python scripts/run_bot.py
 - `/authorized revoke <chat-id>`
 - `/whoami`
 - `/stats`
+- `/settings`
 - `/login <access-code>`
 - `/logout`
 
@@ -165,6 +166,9 @@ The bot reads results from SQLite and fetches image bytes from the configured so
 If the bot starts with an empty index, it prints a warning at startup and `/stats` will show `0` indexed images.
 Search now supports exact years, inclusive ranges like `2019-2021`, and curated people aliases inside `/folders`, `/images`, and `/random`.
 Authorized users can also send plain-language text like `show me 3 city photos from 2021`; Chromantis rewrites that into the existing deterministic search flow.
+The bot now asks for a preferred language on first `/start`, stores that preference per chat in SQLite, and localizes onboarding, help, examples, button labels, and settings in English or Spanish.
+The first response after language selection or successful login is intentionally instructional: it explains what the bot can search, how to get better matches, and shows concrete example requests for non-technical users.
+The rule-based interpreter now understands common Spanish request framing as well, so users can ask in English or Spanish while still relying on archive words, years, and curated people names for actual retrieval.
 You can ask for multiple photos in one command, and `/more` continues from the current image batch or scope in that chat.
 When a photo batch spans several folders, the bot now says so explicitly and offers a `Folders` button so users can continue inside one folder without assuming the whole batch came from the same place.
 Image replies include inline buttons for continuing the current search, switching to the same folder or year when that context is singular, getting random similar images, refining the search, and going back.
@@ -204,6 +208,14 @@ Useful admin flows:
 - `/authorized`: list effective authorized chats and auth modes
 - `/authorized role <chat-id> <viewer|admin|owner>`: change a dynamic chat role, owner only
 - `/authorized revoke <chat-id>`: revoke a dynamic chat, admin for viewers and owner for admins
+
+For normal users, the easiest flow is now:
+
+1. Send `/start`
+2. Choose `English` or `Español`
+3. If needed, send `/login <access-code>`
+4. Follow the onboarding examples or use the buttons
+5. Use `/settings` later if you want to change the language for that chat
 
 ## Local API
 

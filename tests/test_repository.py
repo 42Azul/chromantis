@@ -64,6 +64,19 @@ class RepositoryMigrationTests(unittest.TestCase):
 
             self.assertEqual(repository.get_chat_role(1), "owner")
 
+    def test_init_schema_supports_chat_preferences(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "chromantis.db"
+            repository = Repository(str(db_path))
+            repository.init_schema()
+
+            preferences = repository.set_chat_language(55, "es", actor_chat_id=55)
+
+            self.assertEqual(preferences.language, "es")
+            self.assertEqual(repository.get_chat_language(55), "es")
+            event = repository.list_audit_events(limit=1)[0]
+            self.assertEqual(event.action, "set_chat_language")
+
     def test_revoke_chat_access_records_actor_and_reason(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = Path(temp_dir) / "chromantis.db"

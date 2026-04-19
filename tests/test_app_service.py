@@ -65,3 +65,9 @@ class ApplicationServiceAuthTests(unittest.TestCase):
                 (9999, "owner", "static_owner"),
             ],
         )
+
+    def test_chat_language_can_be_stored_through_service(self) -> None:
+        preferences = self.service.set_chat_language(5678, "es", actor_chat_id=5678)
+
+        self.assertEqual(preferences.language, "es")
+        self.assertEqual(self.service.get_chat_language(5678), "es")

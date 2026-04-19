@@ -9,6 +9,7 @@ from typing import Callable
 
 from chromantis.app import ApplicationService
 from chromantis.bot.formatters import format_search_results, format_years
+from chromantis.bot.i18n import DEFAULT_LANGUAGE, language_name, t
 from chromantis.db.repository import IndexStats
 from chromantis.search.query_parser import QueryParseError, parse_query
 from chromantis.search.service import SearchResult, SearchService
@@ -179,6 +180,121 @@ class TelegramBotService:
         self.session_saver = session_saver
         self.session_clearer = session_clearer
 
+    def _chat_language(self, chat_id: int | None) -> str:
+        if chat_id is None:
+            return DEFAULT_LANGUAGE
+        return self.app_service.get_chat_language(chat_id) or DEFAULT_LANGUAGE
+
+    def _has_language_preference(self, chat_id: int | None) -> bool:
+        if chat_id is None:
+            return False
+        return self.app_service.get_chat_language(chat_id) is not None
+
+    @staticmethod
+    def _t(language: str, key: str, **kwargs: object) -> str:
+        return t(language, key, **kwargs)
+
+    def _language_picker_reply(self) -> BotReply:
+        language = DEFAULT_LANGUAGE
+        return BotReply(
+            text="\n\n".join(
+                [
+                    self._t(language, "language_choose_home"),
+                    self._t(language, "language_prompt"),
+                ]
+            ),
+            buttons=self._language_buttons(language),
+        )
+
+    def _language_buttons(self, language: str) -> tuple[tuple[ButtonSpec, ...], ...]:
+        return (
+            (
+                ButtonSpec(self._t(language, "button_english"), "language:set:en"),
+                ButtonSpec(self._t(language, "button_spanish"), "language:set:es"),
+            ),
+        )
+
+    def _guest_buttons(self, language: str) -> tuple[tuple[ButtonSpec, ...], ...]:
+        return (
+            (
+                ButtonSpec(self._t(language, "button_search_help"), "nav:search_help"),
+                ButtonSpec(self._t(language, "button_settings"), "settings:open"),
+            ),
+            ((ButtonSpec(self._t(language, "button_home"), "nav:home"),)),
+        )
+
+    def _home_text(self, language: str) -> str:
+        return "\n\n".join(
+            [
+                self._t(language, "home_title"),
+                self._t(language, "home_intro"),
+                self._t(language, "home_hint"),
+            ]
+        )
+
+    def _authorized_onboarding_reply(self, language: str, prefix: str | None = None) -> BotReply:
+        blocks = []
+        if prefix:
+            blocks.append(prefix)
+        blocks.append(self._t(language, "authorized_onboarding"))
+        return BotReply(text="\n\n".join(blocks), buttons=self._home_buttons(language))
+
+    def _guest_onboarding_reply(self, language: str, prefix: str | None = None) -> BotReply:
+        blocks = []
+        if prefix:
+            blocks.append(prefix)
+        blocks.append(self._t(language, "guest_onboarding"))
+        return BotReply(text="\n\n".join(blocks), buttons=self._guest_buttons(language))
+
+    def _settings_reply(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
+        language_label = language_name(language, language)
+        lines = [
+            self._t(language, "settings_title"),
+            self._t(language, "settings_language", language_name=language_label),
+            self._t(language, "settings_hint"),
+        ]
+        buttons = (
+            ((ButtonSpec(self._t(language, "button_change_language"), "settings:language"),)),
+            ((ButtonSpec(self._t(language, "button_home"), "nav:home"),)),
+        )
+        return BotReply(text="\n\n".join(lines), buttons=buttons)
+
+    def _search_help_reply(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
+        buttons = self._home_buttons(language) if self._is_authorized(chat_id) else self._guest_buttons(language)
+        return BotReply(text=self._t(language, "search_help_text"), buttons=buttons)
+
+    def _clarification_reply(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
+        return BotReply(text=self._t(language, "clarify_text"), buttons=self._suggestion_buttons(language, chat_id))
+
+    def _suggestion_buttons(
+        self,
+        language: str,
+        chat_id: int | None,
+        has_history: bool = False,
+    ) -> tuple[tuple[ButtonSpec, ...], ...]:
+        rows: list[tuple[ButtonSpec, ...]] = []
+        if self._is_authorized(chat_id):
+            rows.extend(
+                [
+                    (
+                        ButtonSpec(self._t(language, "button_browse_years"), "nav:years"),
+                        ButtonSpec(self._t(language, "button_people"), "nav:people"),
+                    ),
+                    (
+                        ButtonSpec(self._t(language, "button_random_memory"), "nav:random"),
+                        ButtonSpec(self._t(language, "button_home"), "nav:home"),
+                    ),
+                ]
+            )
+        else:
+            rows.extend(self._guest_buttons(language))
+        if has_history:
+            rows.append((ButtonSpec(self._t(language, "button_back"), "nav:back"),))
+        return tuple(rows)
+
     def handle_command(
         self,
         command_text: str,
@@ -189,26 +305,27 @@ class TelegramBotService:
         authorized = self._is_authorized(chat_id)
         command, _, raw_args = command_text.strip().partition(" ")
         args = raw_args.strip()
+        language = self._chat_language(chat_id)
         logger.info("Handling Telegram command=%s args=%r chat_id=%s", command, args, chat_id)
 
         if command == "/start":
+            if not self._has_language_preference(chat_id):
+                return self._language_picker_reply()
             if authorized:
-                return BotReply(
-                    "Chromantis is ready. Type a request like 'show me beach photos from 2019' or use the shortcuts below.",
-                    buttons=self._home_buttons(),
-                )
-            return BotReply("Chromantis is locked. Use /login <access-code> to authorize this chat.")
+                return self._authorized_onboarding_reply(language)
+            return self._guest_onboarding_reply(language)
         if command == "/help":
             if not authorized:
-                return BotReply("Commands: /login <access-code>, /help")
+                return BotReply(
+                    "\n\n".join([self._t(language, "help_guest"), self._t(language, "search_help_text")]),
+                    buttons=self._guest_buttons(language),
+                )
             return BotReply(
-                "Commands: /years, /folders <query>, /images [count] <query>, "
-                "/random [count] [query], /more [count], /people, /invite, /authorized, "
-                "/whoami, /stats, /logout\n"
-                "Admin: /invite list, /invite revoke <code>, /authorized role <chat-id> "
-                "<viewer|admin|owner>, /authorized revoke <chat-id>\n"
-                "You can also send plain text like 'show me 3 city photos from 2021'."
+                "\n\n".join([self._t(language, "help_authorized"), self._t(language, "search_help_text")]),
+                buttons=self._home_buttons(language),
             )
+        if command == "/settings":
+            return self._settings_reply(chat_id)
         if command == "/login":
             return self._handle_login(
                 args=args,
@@ -221,34 +338,38 @@ class TelegramBotService:
             return self._handle_logout(chat_id=chat_id, authorized=authorized)
         if not authorized:
             logger.warning("Rejected Telegram command from unauthorized chat_id=%s", chat_id)
-            return BotReply("Unauthorized chat. Use /login <access-code>.")
+            return BotReply(self._t(language, "unauthorized"), buttons=self._guest_buttons(language))
         if command == "/whoami":
             return self._whoami_reply(chat_id=chat_id, username=username, first_name=first_name)
         if command == "/stats":
             if self.stats_provider is None:
-                return BotReply("Stats are not available.")
+                return BotReply(self._t(language, "stats_unavailable"))
             stats = self.stats_provider()
             return BotReply(
-                f"Indexed folders: {stats.folders}\n"
-                f"Indexed images: {stats.images}\n"
-                f"Indexed tags: {stats.tags}"
+                self._t(
+                    language,
+                    "stats_text",
+                    folders=stats.folders,
+                    images=stats.images,
+                    tags=stats.tags,
+                )
             )
         if command == "/years":
-            return self._handle_years(args)
+            return self._handle_years(args, language=language)
         if command == "/invite":
-            return self._handle_invite(args, chat_id=chat_id)
+            return self._handle_invite(args, chat_id=chat_id, language=language)
         if command == "/authorized":
-            return self._handle_authorized_args(args, chat_id=chat_id)
+            return self._handle_authorized_args(args, chat_id=chat_id, language=language)
         if command == "/people":
-            return self._handle_people(command_text=command_text, chat_id=chat_id)
+            return self._handle_people(command_text=command_text, chat_id=chat_id, language=language)
         if command == "/folders":
             try:
                 results = self.app_service.search_folders(args)
             except QueryParseError as exc:
                 return BotReply(str(exc))
             if not results:
-                return self._empty_reply("No folders found.", chat_id=chat_id)
-            return BotReply(format_search_results("folders", results))
+                return self._empty_reply(self._t(language, "no_results_folders"), chat_id=chat_id)
+            return BotReply(format_search_results("folders", results, language=language))
         if command == "/images":
             count, query = self._parse_count_and_query(args, default_count=3)
             try:
@@ -256,14 +377,15 @@ class TelegramBotService:
             except QueryParseError as exc:
                 return BotReply(str(exc))
             if not results:
-                return self._empty_reply("No images found.", chat_id=chat_id)
+                return self._empty_reply(self._t(language, "no_results_images"), chat_id=chat_id)
             view = self._make_image_view(
                 results,
-                intro="Showing images",
+                intro_key="intro_showing_images",
                 scope="search_images",
                 query=query,
                 count=count,
                 previous_sent_paths=(),
+                language=language,
             )
             return self._persist_and_reply(chat_id, view, push_history=True)
         if command == "/random":
@@ -274,21 +396,22 @@ class TelegramBotService:
                 return BotReply(str(exc))
             if not results:
                 logger.info("No random image result for args=%r", args)
-                return self._empty_reply("No images found.", chat_id=chat_id)
+                return self._empty_reply(self._t(language, "no_results_images"), chat_id=chat_id)
             view = self._make_image_view(
                 results,
-                intro="Random image" if len(results) == 1 else "Random images",
+                intro_key="intro_random_image" if len(results) == 1 else "intro_random_images",
                 scope="random_images",
                 query=query,
                 count=count,
                 previous_sent_paths=(),
+                language=language,
             )
             return self._persist_and_reply(chat_id, view, push_history=True)
         if command == "/more":
             count, _query = self._parse_count_and_query(args, default_count=3)
             return self._continue_current_scope(chat_id=chat_id, count=count)
         logger.debug("Unknown Telegram command received: %s", command_text)
-        return BotReply("Unknown command. Use /help.")
+        return BotReply(self._t(language, "unknown_command"))
 
     def handle_text_input(
         self,
@@ -298,8 +421,9 @@ class TelegramBotService:
         first_name: str | None = None,
     ) -> BotReply:
         stripped = text.strip()
+        language = self._chat_language(chat_id)
         if not stripped:
-            return BotReply("Send a search like 'show me beach photos from 2019'.")
+            return BotReply(self._t(language, "send_search_prompt"))
         if stripped.startswith("/"):
             return self.handle_command(
                 stripped,
@@ -308,7 +432,7 @@ class TelegramBotService:
                 first_name=first_name,
             )
         if not self._is_authorized(chat_id):
-            return BotReply("Unauthorized chat. Use /login <access-code>.")
+            return BotReply(self._t(language, "unauthorized"), buttons=self._guest_buttons(language))
         interpreted = self.app_service.interpret_text(stripped)
         logger.info(
             "Interpreted text input action=%s query=%r count=%d chat_id=%s",
@@ -317,8 +441,13 @@ class TelegramBotService:
             interpreted.count,
             chat_id,
         )
+        if interpreted.needs_clarification:
+            return self._clarification_reply(chat_id=chat_id)
         if interpreted.action == "years":
-            return BotReply(format_years(self.app_service.list_years()), buttons=self._home_buttons())
+            return BotReply(
+                format_years(self.app_service.list_years(), language=language),
+                buttons=self._home_buttons(language),
+            )
         if interpreted.action == "folders":
             command = f"/folders {interpreted.query}".strip()
         elif interpreted.action == "random":
@@ -342,20 +471,49 @@ class TelegramBotService:
         first_name: str | None = None,
     ) -> BotReply:
         logger.info("Handling callback=%s chat_id=%s", callback_data, chat_id)
+        language = self._chat_language(chat_id)
+
+        if callback_data.startswith("language:set:"):
+            if chat_id is None:
+                return BotReply(self._t(language, "unable_authorize"))
+            selected_language = callback_data.rsplit(":", 1)[1]
+            self.app_service.set_chat_language(chat_id, selected_language, actor_chat_id=chat_id)
+            selected = self._chat_language(chat_id)
+            prefix = self._t(
+                selected,
+                "language_updated",
+                language_name=language_name(selected, selected),
+            )
+            if self._is_authorized(chat_id):
+                return self._authorized_onboarding_reply(selected, prefix=prefix)
+            return self._guest_onboarding_reply(selected, prefix=prefix)
+        if callback_data == "settings:open":
+            return self._settings_reply(chat_id)
+        if callback_data == "settings:language":
+            if chat_id is None:
+                return self._language_picker_reply()
+            return BotReply(
+                text=self._t(language, "language_prompt"),
+                buttons=self._language_buttons(language),
+            )
+        if callback_data == "nav:home":
+            if self._is_authorized(chat_id):
+                return BotReply(self._home_text(language), buttons=self._home_buttons(language))
+            return self._guest_onboarding_reply(language)
+        if callback_data == "nav:search_help":
+            return self._search_help_reply(chat_id)
         if not self._is_authorized(chat_id):
-            return BotReply("Unauthorized chat. Use /login <access-code>.")
+            return BotReply(self._t(language, "unauthorized"), buttons=self._guest_buttons(language))
 
         if callback_data == "nav:back":
             return self._handle_back(chat_id=chat_id)
-        if callback_data == "nav:home":
-            return BotReply(
-                "Chromantis home. Type a request like 'city photos from 2021' or use these shortcuts.",
-                buttons=self._home_buttons(),
-            )
         if callback_data == "nav:more":
             return self._continue_current_scope(chat_id=chat_id, count=None)
         if callback_data == "nav:years":
-            return BotReply(format_years(self.app_service.list_years()), buttons=self._home_buttons())
+            return BotReply(
+                format_years(self.app_service.list_years(), language=language),
+                buttons=self._home_buttons(language),
+            )
         if callback_data == "nav:random":
             return self.handle_command("/random", chat_id=chat_id, username=username, first_name=first_name)
         if callback_data == "nav:people":
@@ -372,7 +530,7 @@ class TelegramBotService:
             return self._random_similar(chat_id=chat_id)
         if callback_data == "nav:refine":
             return self._refine(chat_id=chat_id)
-        return BotReply("Unknown action.")
+        return BotReply(self._t(language, "unknown_action"))
 
     def _handle_login(
         self,
@@ -382,14 +540,15 @@ class TelegramBotService:
         first_name: str | None,
         already_authorized: bool,
     ) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("Unable to authorize this chat.")
+            return BotReply(self._t(language, "unable_authorize"))
         if already_authorized:
-            return BotReply("This chat is already authorized.")
+            return BotReply(self._t(language, "already_authorized"))
         if not self.access_code:
-            return BotReply("Login by access code is not enabled.")
+            return BotReply(self._t(language, "login_disabled"))
         if not args:
-            return BotReply("Usage: /login <access-code>")
+            return BotReply(self._t(language, "login_usage"))
         try:
             authorized_chat = self.app_service.authorize_with_code(
                 chat_id,
@@ -401,27 +560,30 @@ class TelegramBotService:
             logger.warning("Failed login attempt for chat_id=%s", chat_id)
             return BotReply(str(exc))
         logger.info("Authorized chat_id=%s username=%s role=%s", chat_id, username, authorized_chat.role)
-        return BotReply(
-            "Chat authorized. Use /help to see available commands.",
-            buttons=self._home_buttons(),
+        prefix = self._t(language, "login_success_prefix")
+        return self._authorized_onboarding_reply(
+            language,
+            prefix=prefix,
         )
 
     def _handle_logout(self, chat_id: int | None, authorized: bool) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("Unable to logout this chat.")
+            return BotReply(self._t(language, "logout_unavailable"))
         if not authorized:
-            return BotReply("This chat is not authorized.")
+            return BotReply(self._t(language, "logout_not_authorized"))
         principal = self.app_service.resolve_principal(chat_id)
         if principal.auth_mode.startswith("static_"):
-            return BotReply("This chat is authorized by static configuration and cannot be logged out.")
+            return BotReply(self._t(language, "logout_static"))
         self.app_service.revoke_own_access(chat_id)
         self._clear_session(chat_id)
         logger.info("Revoked authorization for chat_id=%s", chat_id)
-        return BotReply("Chat authorization removed.")
+        return BotReply(self._t(language, "logout_success"))
 
     def _whoami_reply(
         self, chat_id: int | None, username: str | None, first_name: str | None
     ) -> BotReply:
+        language = self._chat_language(chat_id)
         principal = self.app_service.resolve_principal(
             chat_id,
             username=username,
@@ -429,57 +591,73 @@ class TelegramBotService:
         )
         role = self._role_for_chat(chat_id)
         return BotReply(
-            f"Chat ID: {chat_id}\n"
-            f"Username: {principal.username or '-'}\n"
-            f"First name: {principal.first_name or '-'}\n"
-            f"Auth mode: {principal.auth_mode}\n"
-            f"Role: {role}\n"
-            f"Admin: {'yes' if self._is_admin(chat_id) else 'no'}"
+            self._t(
+                language,
+                "whoami_template",
+                chat_id=chat_id,
+                username=principal.username or "-",
+                first_name=principal.first_name or "-",
+                auth_mode=principal.auth_mode,
+                role=role,
+                admin=self._t(language, "admin_yes") if self._is_admin(chat_id) else self._t(language, "admin_no"),
+            )
         )
 
-    def _handle_years(self, args: str) -> BotReply:
+    def _handle_years(self, args: str, language: str) -> BotReply:
         if not args:
-            return BotReply(format_years(self.app_service.list_years()))
+            return BotReply(format_years(self.app_service.list_years(), language=language))
         try:
             parsed = parse_query(args)
         except QueryParseError as exc:
             return BotReply(str(exc))
         if parsed.keywords or parsed.people or parsed.year_from is None or parsed.year_to is None:
-            return BotReply("Usage: /years or /years 2018-2021")
-        return BotReply(format_years(self.app_service.list_years(parsed.year_from, parsed.year_to)))
+            return BotReply(self._t(language, "years_usage"))
+        return BotReply(
+            format_years(
+                self.app_service.list_years(parsed.year_from, parsed.year_to),
+                language=language,
+            )
+        )
 
-    def _handle_invite(self, args: str, chat_id: int | None) -> BotReply:
+    def _handle_invite(self, args: str, chat_id: int | None, language: str) -> BotReply:
         parts = [part for part in args.split(" ") if part]
         if not parts:
             parts = ["viewer"]
         if parts[0].lower() == "list":
             if not self._is_admin(chat_id):
-                return BotReply("Admin privileges are required for /invite list.")
+                return BotReply(self._t(language, "invite_list_requires_admin"))
             invites = self.app_service.list_invites(active_only=True)
             if not invites:
-                return BotReply("No active invites.")
-            lines = ["Active invites:"]
+                return BotReply(self._t(language, "no_active_invites"))
+            lines = [self._t(language, "active_invites")]
             for invite in invites:
                 lines.append(
-                    f"- {invite.code}: role={invite.role}, uses={invite.used_count}/{invite.max_uses}, "
-                    f"expires={invite.expires_at or '-'}"
+                    self._t(
+                        language,
+                        "invite_line",
+                        code=invite.code,
+                        role=invite.role,
+                        used_count=invite.used_count,
+                        max_uses=invite.max_uses,
+                        expires_at=invite.expires_at or "-",
+                    )
                 )
             return BotReply("\n".join(lines))
         if parts[0].lower() == "revoke":
             if len(parts) != 2:
-                return BotReply("Usage: /invite revoke <code>")
-            return self._revoke_invite_reply(parts[1], chat_id)
+                return BotReply(self._t(language, "invite_revoke_usage"))
+            return self._revoke_invite_reply(parts[1], chat_id, language=language)
         if not self._is_admin(chat_id):
-            return BotReply("Admin privileges are required for /invite.")
+            return BotReply(self._t(language, "invite_requires_admin"))
         role = parts[0].lower()
         ttl_days = 7
         if role not in {"viewer", "admin"}:
-            return BotReply("Usage: /invite [viewer|admin] [days]")
+            return BotReply(self._t(language, "invite_usage"))
         if role == "admin" and not self._is_owner(chat_id):
-            return BotReply("Only an owner can generate admin invites.")
+            return BotReply(self._t(language, "invite_admin_owner_only"))
         if len(parts) > 1:
             if not parts[1].isdigit():
-                return BotReply("Usage: /invite [viewer|admin] [days]")
+                return BotReply(self._t(language, "invite_usage"))
             ttl_days = max(1, min(int(parts[1]), 30))
         invite = self.app_service.create_invite(
             role=role,
@@ -487,43 +665,56 @@ class TelegramBotService:
             ttl_days=ttl_days,
         )
         return BotReply(
-            f"Invite created.\nRole: {invite.role}\nCode: {invite.code}\nExpires: {invite.expires_at}"
+            self._t(
+                language,
+                "invite_created",
+                role=invite.role,
+                code=invite.code,
+                expires_at=invite.expires_at,
+            )
         )
 
     def _handle_authorized(self, chat_id: int | None) -> BotReply:
-        return self._handle_authorized_args("", chat_id)
+        return self._handle_authorized_args("", chat_id, language=self._chat_language(chat_id))
 
-    def _handle_authorized_args(self, args: str, chat_id: int | None) -> BotReply:
+    def _handle_authorized_args(self, args: str, chat_id: int | None, language: str) -> BotReply:
         if not self._is_admin(chat_id):
-            return BotReply("Admin privileges are required for /authorized.")
+            return BotReply(self._t(language, "authorized_requires_admin"))
         parts = [part for part in args.split(" ") if part]
         if not parts:
             chats = self.app_service.list_effective_authorized_chats()
             if not chats:
-                return BotReply("No authorized chats.")
-            lines = ["Authorized chats:"]
+                return BotReply(self._t(language, "no_authorized_chats"))
+            lines = [self._t(language, "authorized_header")]
             for chat in chats:
                 lines.append(
-                    f"- {chat.chat_id}: role={chat.role}, auth_mode={chat.auth_mode}, "
-                    f"username={chat.username or '-'}, first_name={chat.first_name or '-'}"
+                    self._t(
+                        language,
+                        "authorized_line",
+                        chat_id=chat.chat_id,
+                        role=chat.role,
+                        auth_mode=chat.auth_mode,
+                        username=chat.username or "-",
+                        first_name=chat.first_name or "-",
+                    )
                 )
             return BotReply("\n".join(lines))
         action = parts[0].lower()
         if action == "role":
             if len(parts) != 3:
-                return BotReply("Usage: /authorized role <chat-id> <viewer|admin|owner>")
-            return self._set_chat_role_reply(parts[1], parts[2], actor_chat_id=chat_id)
+                return BotReply(self._t(language, "authorized_role_usage"))
+            return self._set_chat_role_reply(parts[1], parts[2], actor_chat_id=chat_id, language=language)
         if action == "revoke":
             if len(parts) != 2:
-                return BotReply("Usage: /authorized revoke <chat-id>")
-            return self._revoke_chat_reply(parts[1], actor_chat_id=chat_id)
-        return BotReply("Usage: /authorized, /authorized role <chat-id> <viewer|admin|owner>, /authorized revoke <chat-id>")
+                return BotReply(self._t(language, "authorized_revoke_usage"))
+            return self._revoke_chat_reply(parts[1], actor_chat_id=chat_id, language=language)
+        return BotReply(self._t(language, "authorized_usage"))
 
-    def _handle_people(self, command_text: str, chat_id: int | None) -> BotReply:
+    def _handle_people(self, command_text: str, chat_id: int | None, language: str) -> BotReply:
         _, _, raw_args = command_text.partition(" ")
         args = raw_args.strip()
         if not args:
-            return self._list_people_reply()
+            return self._list_people_reply(language=language)
 
         action, _, remainder = args.partition(" ")
         action = action.strip().lower()
@@ -531,53 +722,85 @@ class TelegramBotService:
         try:
             if action == "show":
                 if not remainder:
-                    return BotReply("Usage: /people show <name-or-alias>")
-                return self._show_person_reply(remainder)
+                    return BotReply(self._t(language, "people_show_usage"))
+                return self._show_person_reply(remainder, language=language)
             if action == "add":
                 self._require_admin(chat_id)
                 if not remainder:
-                    return BotReply("Usage: /people add <display-name>")
+                    return BotReply(self._t(language, "people_add_usage"))
                 detail = self.app_service.create_person(remainder, actor_chat_id=chat_id)
-                return BotReply(self._format_person_detail(detail, heading="Person created"))
+                return BotReply(
+                    self._format_person_detail(
+                        detail,
+                        heading=self._t(language, "person_created"),
+                        language=language,
+                    )
+                )
             if action == "alias":
                 self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, "Usage: /people alias <canonical> | <alias>")
+                left, right = self._split_pipe_args(remainder, self._t(language, "people_alias_usage"))
                 detail = self.app_service.add_person_alias(left, right, actor_chat_id=chat_id)
-                return BotReply(self._format_person_detail(detail, heading="Alias added"))
+                return BotReply(
+                    self._format_person_detail(
+                        detail,
+                        heading=self._t(language, "person_alias_added"),
+                        language=language,
+                    )
+                )
             if action == "rename":
                 self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, "Usage: /people rename <canonical> | <new-display-name>")
+                left, right = self._split_pipe_args(remainder, self._t(language, "people_rename_usage"))
                 detail = self.app_service.rename_person(left, right, actor_chat_id=chat_id)
-                return BotReply(self._format_person_detail(detail, heading="Person renamed"))
+                return BotReply(
+                    self._format_person_detail(
+                        detail,
+                        heading=self._t(language, "person_renamed"),
+                        language=language,
+                    )
+                )
             if action == "link":
                 self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, "Usage: /people link <canonical> | <folder-path>")
+                left, right = self._split_pipe_args(remainder, self._t(language, "people_link_usage"))
                 detail = self.app_service.link_person_to_folder(left, right, actor_chat_id=chat_id)
-                return BotReply(self._format_person_detail(detail, heading="Person linked"))
+                return BotReply(
+                    self._format_person_detail(
+                        detail,
+                        heading=self._t(language, "person_linked"),
+                        language=language,
+                    )
+                )
             if action == "unlink":
                 self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, "Usage: /people unlink <canonical> | <folder-path>")
+                left, right = self._split_pipe_args(remainder, self._t(language, "people_unlink_usage"))
                 detail = self.app_service.unlink_person_from_folder(left, right, actor_chat_id=chat_id)
-                return BotReply(self._format_person_detail(detail, heading="Person unlinked"))
+                return BotReply(
+                    self._format_person_detail(
+                        detail,
+                        heading=self._t(language, "person_unlinked"),
+                        language=language,
+                    )
+                )
         except QueryParseError as exc:
             return BotReply(str(exc))
         except PermissionError:
-            return BotReply("Admin privileges are required for /people write commands.")
+            return BotReply(self._t(language, "people_write_requires_admin"))
         except ValueError as exc:
             return BotReply(str(exc))
-        return BotReply(
-            "Usage: /people, /people show <name>, /people add <display-name>, "
-            "/people alias <canonical> | <alias>, /people rename <canonical> | <new>, "
-            "/people link <canonical> | <folder-path>, /people unlink <canonical> | <folder-path>"
-        )
+        return BotReply(self._t(language, "people_usage"))
 
-    def _set_chat_role_reply(self, raw_chat_id: str, role: str, actor_chat_id: int | None) -> BotReply:
+    def _set_chat_role_reply(
+        self,
+        raw_chat_id: str,
+        role: str,
+        actor_chat_id: int | None,
+        language: str,
+    ) -> BotReply:
         if not self._is_owner(actor_chat_id):
-            return BotReply("Owner privileges are required for /authorized role.")
+            return BotReply(self._t(language, "authorized_role_owner_only"))
         try:
             target_chat_id = int(raw_chat_id)
         except ValueError:
-            return BotReply("Usage: /authorized role <chat-id> <viewer|admin|owner>")
+            return BotReply(self._t(language, "authorized_role_usage"))
         try:
             principal = self.app_service.set_chat_role(
                 target_chat_id,
@@ -587,23 +810,34 @@ class TelegramBotService:
         except ValueError as exc:
             return BotReply(str(exc))
         return BotReply(
-            f"Chat role updated.\nChat ID: {principal.chat_id}\nRole: {principal.role}\nAuth mode: {principal.auth_mode}"
+            self._t(
+                language,
+                "chat_role_updated",
+                chat_id=principal.chat_id,
+                role=principal.role,
+                auth_mode=principal.auth_mode,
+            )
         )
 
-    def _revoke_chat_reply(self, raw_chat_id: str, actor_chat_id: int | None) -> BotReply:
+    def _revoke_chat_reply(
+        self,
+        raw_chat_id: str,
+        actor_chat_id: int | None,
+        language: str,
+    ) -> BotReply:
         try:
             target_chat_id = int(raw_chat_id)
         except ValueError:
-            return BotReply("Usage: /authorized revoke <chat-id>")
+            return BotReply(self._t(language, "authorized_revoke_usage"))
         target = self.app_service.resolve_principal(target_chat_id)
         if target.role == "none":
-            return BotReply("Chat is not authorized.")
+            return BotReply(self._t(language, "chat_not_authorized"))
         if target.auth_mode.startswith("static_"):
-            return BotReply("Static chats cannot be revoked.")
+            return BotReply(self._t(language, "static_chats_cannot_be_revoked"))
         if target.role in {"admin", "owner"} and not self._is_owner(actor_chat_id):
-            return BotReply("Owner privileges are required to revoke admin access.")
+            return BotReply(self._t(language, "authorized_revoke_owner_only"))
         if target.role == "viewer" and not self._is_admin(actor_chat_id):
-            return BotReply("Admin privileges are required for /authorized revoke.")
+            return BotReply(self._t(language, "authorized_revoke_admin_only"))
         try:
             self.app_service.revoke_chat_access(
                 target_chat_id,
@@ -614,115 +848,146 @@ class TelegramBotService:
             return BotReply(str(exc))
         if target_chat_id == actor_chat_id:
             self._clear_session(target_chat_id)
-        return BotReply(f"Chat access revoked for {target_chat_id}.")
+        return BotReply(self._t(language, "chat_access_revoked", chat_id=target_chat_id))
 
-    def _revoke_invite_reply(self, code: str, actor_chat_id: int | None) -> BotReply:
+    def _revoke_invite_reply(self, code: str, actor_chat_id: int | None, language: str) -> BotReply:
         invites = {
             invite.code: invite
             for invite in self.app_service.list_invites(active_only=True)
         }
         invite = invites.get(code.strip())
         if invite is None:
-            return BotReply("Unknown invite code.")
+            return BotReply(self._t(language, "unknown_invite_code"))
         if invite.role == "admin" and not self._is_owner(actor_chat_id):
-            return BotReply("Owner privileges are required to revoke admin invites.")
+            return BotReply(self._t(language, "revoke_admin_invite_owner_only"))
         if invite.role == "viewer" and not self._is_admin(actor_chat_id):
-            return BotReply("Admin privileges are required for /invite revoke.")
+            return BotReply(self._t(language, "revoke_viewer_invite_admin_only"))
         try:
             revoked = self.app_service.revoke_invite(code, actor_chat_id=actor_chat_id)
         except ValueError as exc:
             return BotReply(str(exc))
         return BotReply(
-            f"Invite revoked.\nRole: {revoked.role}\nCode: {revoked.code}\nRevoked: {revoked.revoked_at}"
+            self._t(
+                language,
+                "invite_revoked",
+                role=revoked.role,
+                code=revoked.code,
+                revoked_at=revoked.revoked_at,
+            )
         )
 
-    def _list_people_reply(self) -> BotReply:
+    def _list_people_reply(self, language: str) -> BotReply:
         people = self.app_service.list_people()
         if not people:
-            return BotReply("No curated people yet.")
-        lines = ["Curated people:"]
+            return BotReply(self._t(language, "no_people"))
+        lines = [self._t(language, "curated_people_header")]
         for person in people:
             lines.append(
-                f"- {person.display_name}: {person.aliases_count} alias(es), {person.folder_count} folder link(s)"
+                self._t(
+                    language,
+                    "people_summary_line",
+                    display_name=person.display_name,
+                    aliases_count=person.aliases_count,
+                    folder_count=person.folder_count,
+                )
             )
         return BotReply("\n".join(lines))
 
-    def _show_person_reply(self, identifier: str) -> BotReply:
+    def _show_person_reply(self, identifier: str, language: str) -> BotReply:
         detail = self.app_service.get_person_detail(identifier)
         if detail is None:
-            return BotReply(f"Unknown person: {identifier}")
-        return BotReply(self._format_person_detail(detail, heading="Person"))
+            return BotReply(self._t(language, "unknown_person", identifier=identifier))
+        return BotReply(
+            self._format_person_detail(
+                detail,
+                heading=self._t(language, "person_heading"),
+                language=language,
+            )
+        )
 
     def _continue_current_scope(self, chat_id: int | None, count: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No active browsing session.")
+            return BotReply(self._t(language, "no_active_session"))
         session = self._load_session(chat_id)
         current = session.current
         if current is None:
-            return BotReply("No previous image search in this chat. Use /images or /random first.")
+            return BotReply(self._t(language, "no_previous_image_search"))
         if current.kind != "images":
-            return BotReply("Current view is not an image batch. Pick a folder or use Back first.")
+            return BotReply(self._t(language, "not_image_batch"))
         next_count = current.count if count is None else count
-        view = self._continue_from_view(current, count=next_count)
+        view = self._continue_from_view(current, count=next_count, language=language)
         if view is None:
-            return self._empty_reply("No more images found in the current scope.", chat_id=chat_id)
+            return self._empty_reply(self._t(language, "no_results_more"), chat_id=chat_id)
         return self._persist_and_reply(chat_id, view, push_history=True)
 
     def _same_folder(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No active browsing session.")
+            return BotReply(self._t(language, "no_active_session"))
         session = self._load_session(chat_id)
         current = session.current
         if current is None or not current.folder_path:
-            return BotReply("No folder context available.")
+            return BotReply(self._t(language, "no_folder_context"))
         results = self.app_service.images_in_folder(
             current.folder_path,
             limit=current.count,
             exclude_paths=current.sent_paths,
         )
         if not results:
-            return self._empty_reply(f"No images found in folder {current.folder_path}.", chat_id=chat_id)
+            return self._empty_reply(
+                self._t(language, "no_results_folder", folder_path=current.folder_path),
+                chat_id=chat_id,
+            )
         view = self._make_image_view(
             results,
-            intro="Same folder",
+            intro_key="intro_same_folder",
             scope="same_folder",
             query="",
             count=current.count,
             previous_sent_paths=(),
+            language=language,
         )
         return self._persist_and_reply(chat_id, view, push_history=True)
 
     def _same_year(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No active browsing session.")
+            return BotReply(self._t(language, "no_active_session"))
         session = self._load_session(chat_id)
         current = session.current
         if current is None or current.year is None:
-            return BotReply("No year context available.")
+            return BotReply(self._t(language, "no_year_context"))
         results = self.app_service.images_in_year(
             current.year,
             limit=current.count,
             exclude_paths=current.sent_paths,
         )
         if not results:
-            return self._empty_reply(f"No images found for year {current.year}.", chat_id=chat_id)
+            return self._empty_reply(
+                self._t(language, "no_results_year", year=current.year),
+                chat_id=chat_id,
+            )
         view = self._make_image_view(
             results,
-            intro=f"Same year {current.year}",
+            intro_key="intro_same_year",
             scope="same_year",
             query="",
             count=current.count,
             previous_sent_paths=(),
+            language=language,
+            intro_kwargs={"year": current.year},
         )
         return self._persist_and_reply(chat_id, view, push_history=True)
 
     def _random_similar(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No active browsing session.")
+            return BotReply(self._t(language, "no_active_session"))
         session = self._load_session(chat_id)
         current = session.current
         if current is None or current.folder_path is None or current.year is None:
-            return BotReply("No similarity context available.")
+            return BotReply(self._t(language, "no_similarity_context"))
         results = self.app_service.related_images(
             current.folder_path,
             current.year,
@@ -731,49 +996,73 @@ class TelegramBotService:
             exclude_paths=current.sent_paths,
         )
         if not results:
-            return self._empty_reply("No related images found.", chat_id=chat_id)
+            return self._empty_reply(self._t(language, "no_results_related"), chat_id=chat_id)
         view = self._make_image_view(
             results,
-            intro="Random similar",
+            intro_key="intro_random_similar",
             scope="related_images",
             query="",
             count=current.count,
             previous_sent_paths=(),
+            language=language,
         )
         return self._persist_and_reply(chat_id, view, push_history=True)
 
     def _refine(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No active browsing session.")
+            return BotReply(self._t(language, "no_active_session"))
         session = self._load_session(chat_id)
         current = session.current
         if current is None:
-            return BotReply("No active browsing session.")
-        lines = ["Refine this search:"]
+            return BotReply(self._t(language, "no_active_session"))
+        lines = [self._t(language, "refine_title")]
         if current.query:
-            lines.append(f"- Repeat with more results: /images {min(current.count + 2, 10)} {current.query}")
-            lines.append(f"- Random from the same query: /random {current.count} {current.query}")
+            lines.append(
+                self._t(
+                    language,
+                    "refine_more_results",
+                    count=min(current.count + 2, 10),
+                    query=current.query,
+                )
+            )
+            lines.append(
+                self._t(
+                    language,
+                    "refine_random",
+                    count=current.count,
+                    query=current.query,
+                )
+            )
         if current.year is not None:
-            lines.append(f"- Same year only: /images {current.count} {current.year}")
+            lines.append(
+                self._t(language, "refine_same_year", count=current.count, year=current.year)
+            )
         if current.folder_path:
-            lines.append(f"- Continue in folder: /more {current.count}")
+            lines.append(self._t(language, "refine_continue_folder", count=current.count))
         return BotReply(
             "\n".join(lines),
-            buttons=self._build_buttons(current, has_history=bool(session.history), include_more=False),
+            buttons=self._build_buttons(
+                current,
+                has_history=bool(session.history),
+                include_more=False,
+                language=language,
+            ),
         )
 
     def _show_folder_picker(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No active browsing session.")
+            return BotReply(self._t(language, "no_active_session"))
         session = self._load_session(chat_id)
         current = session.current
         if current is None or not current.folder_summaries:
-            return BotReply("No folder choices available.")
+            return BotReply(self._t(language, "folder_picker_none"))
         if len(current.folder_summaries) == 1:
-            return BotReply("This batch only contains one folder.")
+            return BotReply(self._t(language, "folder_picker_single"))
         lines = [
-            "Choose a folder from this batch:",
-            *(f"- {summary.folder_path}: {summary.shown_count} shown" for summary in current.folder_summaries),
+            self._t(language, "folder_picker_title"),
+            *(f"- {summary.folder_path}: {summary.shown_count}" for summary in current.folder_summaries),
         ]
         picker = SessionView(
             kind="folder_picker",
@@ -787,18 +1076,19 @@ class TelegramBotService:
         return self._persist_and_reply(chat_id, picker, push_history=True)
 
     def _show_selected_folder(self, chat_id: int | None, callback_data: str) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No active browsing session.")
+            return BotReply(self._t(language, "no_active_session"))
         session = self._load_session(chat_id)
         current = session.current
         if current is None or not current.folder_summaries:
-            return BotReply("No folder choices available.")
+            return BotReply(self._t(language, "folder_picker_none"))
         try:
             folder_index = int(callback_data.rsplit(":", 1)[1])
         except (IndexError, ValueError):
-            return BotReply("Invalid folder selection.")
+            return BotReply(self._t(language, "invalid_folder_selection"))
         if folder_index < 0 or folder_index >= len(current.folder_summaries):
-            return BotReply("Invalid folder selection.")
+            return BotReply(self._t(language, "invalid_folder_selection"))
         selected = current.folder_summaries[folder_index]
         results = self.app_service.images_in_folder(
             selected.folder_path,
@@ -807,31 +1097,38 @@ class TelegramBotService:
         )
         if not results:
             return self._empty_reply(
-                f"No more images found in folder {selected.folder_path}.",
+                self._t(language, "no_results_folder_more", folder_path=selected.folder_path),
                 chat_id=chat_id,
             )
         view = self._make_image_view(
             results,
-            intro=f"More from {selected.folder_path}",
+            intro_key="intro_more_from_folder",
             scope="same_folder",
             query="",
             count=current.count,
             previous_sent_paths=current.sent_paths,
+            language=language,
+            intro_kwargs={"folder_path": selected.folder_path},
         )
         return self._persist_and_reply(chat_id, view, push_history=True)
 
     def _handle_back(self, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         if chat_id is None:
-            return BotReply("No previous state.")
+            return BotReply(self._t(language, "no_previous_state"))
         session = self._load_session(chat_id)
         if not session.history:
-            return BotReply("No previous state.")
+            return BotReply(self._t(language, "no_previous_state"))
         previous = session.history[-1]
         restored = ChatSession(current=previous, history=session.history[:-1])
         self._save_session(chat_id, restored)
-        return self._reply_from_view(previous, has_history=bool(restored.history))
+        return self._reply_from_view(
+            previous,
+            has_history=bool(restored.history),
+            language=language,
+        )
 
-    def _continue_from_view(self, current: SessionView, count: int) -> SessionView | None:
+    def _continue_from_view(self, current: SessionView, count: int, language: str) -> SessionView | None:
         if current.scope == "search_images":
             results = self.app_service.search_images(
                 current.query,
@@ -840,7 +1137,15 @@ class TelegramBotService:
             )
             if not results:
                 return None
-            return self._make_image_view(results, "More images", current.scope, current.query, count, current.sent_paths)
+            return self._make_image_view(
+                results,
+                "intro_more_images",
+                current.scope,
+                current.query,
+                count,
+                current.sent_paths,
+                language=language,
+            )
         if current.scope == "random_images":
             results = self.app_service.random_images(
                 current.query,
@@ -849,7 +1154,15 @@ class TelegramBotService:
             )
             if not results:
                 return None
-            return self._make_image_view(results, "More random images", current.scope, current.query, count, current.sent_paths)
+            return self._make_image_view(
+                results,
+                "intro_more_random_images",
+                current.scope,
+                current.query,
+                count,
+                current.sent_paths,
+                language=language,
+            )
         if current.scope == "same_folder":
             if not current.folder_path:
                 return None
@@ -860,7 +1173,15 @@ class TelegramBotService:
             )
             if not results:
                 return None
-            return self._make_image_view(results, "More from the same folder", current.scope, "", count, current.sent_paths)
+            return self._make_image_view(
+                results,
+                "intro_more_same_folder",
+                current.scope,
+                "",
+                count,
+                current.sent_paths,
+                language=language,
+            )
         if current.scope == "same_year":
             if current.year is None:
                 return None
@@ -871,7 +1192,16 @@ class TelegramBotService:
             )
             if not results:
                 return None
-            return self._make_image_view(results, f"More from year {current.year}", current.scope, "", count, current.sent_paths)
+            return self._make_image_view(
+                results,
+                "intro_more_year",
+                current.scope,
+                "",
+                count,
+                current.sent_paths,
+                language=language,
+                intro_kwargs={"year": current.year},
+            )
         if current.scope == "related_images":
             if current.folder_path is None or current.year is None:
                 return None
@@ -884,24 +1214,35 @@ class TelegramBotService:
             )
             if not results:
                 return None
-            return self._make_image_view(results, "More related images", current.scope, "", count, current.sent_paths)
+            return self._make_image_view(
+                results,
+                "intro_more_related_images",
+                current.scope,
+                "",
+                count,
+                current.sent_paths,
+                language=language,
+            )
         return None
 
     def _make_image_view(
         self,
         results: list[SearchResult],
-        intro: str,
+        intro_key: str,
         scope: str,
         query: str,
         count: int,
         previous_sent_paths: tuple[str, ...],
+        language: str,
+        intro_kwargs: dict[str, object] | None = None,
     ) -> SessionView:
         primary = results[0]
         folder_summaries = self._folder_summaries(results)
         years = self._unique_years(results)
         reasons = self._unique_reasons(results)
         sent_paths = tuple(dict.fromkeys([*previous_sent_paths, *(result.path for result in results)]))
-        text = self._build_image_text(intro, results, folder_summaries, years, reasons)
+        intro = self._t(language, intro_key, **(intro_kwargs or {}))
+        text = self._build_image_text(intro, results, folder_summaries, years, reasons, language=language)
         return SessionView(
             kind="images",
             scope=scope,
@@ -917,6 +1258,7 @@ class TelegramBotService:
 
     def _persist_and_reply(self, chat_id: int | None, view: SessionView, push_history: bool) -> BotReply:
         has_history = False
+        language = self._chat_language(chat_id)
         if chat_id is not None:
             session = self._load_session(chat_id)
             history = session.history
@@ -925,60 +1267,65 @@ class TelegramBotService:
             updated = ChatSession(current=view, history=history)
             self._save_session(chat_id, updated)
             has_history = bool(history)
-        return self._reply_from_view(view, has_history=has_history)
+        return self._reply_from_view(view, has_history=has_history, language=language)
 
-    def _reply_from_view(self, view: SessionView, has_history: bool) -> BotReply:
+    def _reply_from_view(self, view: SessionView, has_history: bool, language: str) -> BotReply:
         return BotReply(
             text=view.text,
             image_paths=view.image_paths,
-            buttons=self._build_buttons(view, has_history=has_history),
+            buttons=self._build_buttons(view, has_history=has_history, language=language),
         )
 
     def _empty_reply(self, text: str, chat_id: int | None) -> BotReply:
+        language = self._chat_language(chat_id)
         has_history = bool(chat_id is not None and self._load_session(chat_id).history)
-        buttons = ((ButtonSpec("Years", "nav:years"), ButtonSpec("Home", "nav:home")),)
-        if has_history:
-            buttons += ((ButtonSpec("Back", "nav:back"),),)
-        return BotReply(text=text, buttons=buttons)
+        return BotReply(
+            text=text,
+            buttons=self._suggestion_buttons(language, chat_id, has_history=has_history),
+        )
 
     def _build_buttons(
         self,
         view: SessionView,
         has_history: bool,
+        language: str,
         include_more: bool = True,
     ) -> tuple[tuple[ButtonSpec, ...], ...]:
         rows: list[tuple[ButtonSpec, ...]] = []
         if view.kind == "images":
             first_row: list[ButtonSpec] = []
             if include_more:
-                first_row.append(ButtonSpec("More", "nav:more"))
+                first_row.append(ButtonSpec(self._t(language, "button_more"), "nav:more"))
             if len(view.folder_summaries) > 1:
-                first_row.append(ButtonSpec("Folders", "nav:folders"))
+                first_row.append(ButtonSpec(self._t(language, "button_folders"), "nav:folders"))
             elif view.folder_path and view.scope != "same_folder":
-                first_row.append(ButtonSpec("Same Folder", "nav:same_folder"))
+                first_row.append(ButtonSpec(self._t(language, "button_same_folder"), "nav:same_folder"))
             if first_row:
                 rows.append(tuple(first_row))
             second_row: list[ButtonSpec] = []
             if view.year is not None and view.scope != "same_year":
-                second_row.append(ButtonSpec("Same Year", "nav:same_year"))
+                second_row.append(ButtonSpec(self._t(language, "button_same_year"), "nav:same_year"))
             if view.folder_path and view.year is not None and view.scope != "related_images":
-                second_row.append(ButtonSpec("Random Similar", "nav:random_similar"))
+                second_row.append(ButtonSpec(self._t(language, "button_random_similar"), "nav:random_similar"))
             if second_row:
                 rows.append(tuple(second_row))
-            third_row = [ButtonSpec("Refine", "nav:refine"), ButtonSpec("Home", "nav:home")]
+            third_row = [
+                ButtonSpec(self._t(language, "button_refine"), "nav:refine"),
+                ButtonSpec(self._t(language, "button_home"), "nav:home"),
+            ]
             if has_history:
-                third_row.append(ButtonSpec("Back", "nav:back"))
+                third_row.append(ButtonSpec(self._t(language, "button_back"), "nav:back"))
             rows.append(tuple(third_row))
         elif view.kind == "folder_picker":
             for index, summary in enumerate(view.folder_summaries):
                 rows.append((ButtonSpec(self._folder_button_label(summary), f"nav:folder:{index}"),))
-            rows.append((ButtonSpec("Home", "nav:home"),))
+            rows.append((ButtonSpec(self._t(language, "button_home"), "nav:home"),))
             if has_history:
-                rows.append((ButtonSpec("Back", "nav:back"),))
+                rows.append((ButtonSpec(self._t(language, "button_back"), "nav:back"),))
         else:
-            rows.extend(self._home_buttons())
+            rows.extend(self._home_buttons(language))
             if has_history:
-                rows.append((ButtonSpec("Back", "nav:back"),))
+                rows.append((ButtonSpec(self._t(language, "button_back"), "nav:back"),))
         return tuple(rows)
 
     @staticmethod
@@ -1012,25 +1359,33 @@ class TelegramBotService:
         folder_summaries: tuple[FolderSummary, ...],
         years: tuple[int, ...],
         reasons: tuple[str, ...],
+        language: str,
     ) -> str:
-        lines = [f"{intro}: {len(results)} image(s)"]
+        lines = [
+            self._t(
+                language,
+                "image_intro",
+                intro=intro,
+                count=len(results),
+            )
+        ]
         if len(folder_summaries) == 1:
-            lines.append(f"Folder: {folder_summaries[0].folder_path}")
+            lines.append(self._t(language, "image_folder", folder_path=folder_summaries[0].folder_path))
             if years:
-                lines.append(f"Year: {years[0]}")
+                lines.append(self._t(language, "image_year", year=years[0]))
             if reasons:
-                label = "Reason" if len(reasons) == 1 else "Reasons"
-                lines.append(f"{label}: {'; '.join(reasons)}")
+                key = "image_reason_single" if len(reasons) == 1 else "image_reason_multiple"
+                lines.append(self._t(language, key, reasons="; ".join(reasons)))
             return "\n".join(lines)
-        lines.append(f"Folders in this batch: {len(folder_summaries)}")
+        lines.append(self._t(language, "image_folders_in_batch", count=len(folder_summaries)))
         lines.extend(f"- {summary.folder_path}: {summary.shown_count}" for summary in folder_summaries)
         if len(years) == 1:
-            lines.append(f"Year: {years[0]}")
+            lines.append(self._t(language, "image_year", year=years[0]))
         elif years:
-            lines.append("Years: " + ", ".join(str(year) for year in years))
+            lines.append(self._t(language, "image_years", years=", ".join(str(year) for year in years)))
         if reasons:
-            lines.append("Matches: " + "; ".join(reasons))
-        lines.append("Use Folders to continue in one folder.")
+            lines.append(self._t(language, "image_matches", reasons="; ".join(reasons)))
+        lines.append(self._t(language, "image_use_folders"))
         return "\n".join(lines)
 
     @staticmethod
@@ -1086,25 +1441,33 @@ class TelegramBotService:
             raise ValueError(usage)
         return left.strip(), right.strip()
 
-    @staticmethod
-    def _format_person_detail(detail, heading: str) -> str:
+    def _format_person_detail(self, detail, heading: str, language: str) -> str:
         lines = [f"{heading}: {detail.display_name}"]
         if detail.aliases:
-            lines.append("Aliases: " + ", ".join(detail.aliases))
+            lines.append(self._t(language, "person_aliases_label", aliases=", ".join(detail.aliases)))
         else:
-            lines.append("Aliases: none")
+            lines.append(self._t(language, "person_aliases_none"))
         if detail.folder_paths:
-            lines.append("Linked folders:")
+            lines.append(self._t(language, "person_linked_folders_label"))
             lines.extend(f"- {folder_path}" for folder_path in detail.folder_paths)
         else:
-            lines.append("Linked folders: none")
+            lines.append(self._t(language, "person_linked_folders_none"))
         return "\n".join(lines)
 
-    @staticmethod
-    def _home_buttons() -> tuple[tuple[ButtonSpec, ...], ...]:
+    def _home_buttons(self, language: str) -> tuple[tuple[ButtonSpec, ...], ...]:
         return (
-            (ButtonSpec("Browse Years", "nav:years"), ButtonSpec("Random Memory", "nav:random")),
-            (ButtonSpec("People", "nav:people"), ButtonSpec("Home", "nav:home")),
+            (
+                ButtonSpec(self._t(language, "button_browse_years"), "nav:years"),
+                ButtonSpec(self._t(language, "button_people"), "nav:people"),
+            ),
+            (
+                ButtonSpec(self._t(language, "button_random_memory"), "nav:random"),
+                ButtonSpec(self._t(language, "button_search_help"), "nav:search_help"),
+            ),
+            (
+                ButtonSpec(self._t(language, "button_settings"), "settings:open"),
+                ButtonSpec(self._t(language, "button_home"), "nav:home"),
+            ),
         )
 
 
@@ -1128,6 +1491,7 @@ class TelegramBotApp:
         for command in (
             "start",
             "help",
+            "settings",
             "login",
             "logout",
             "years",
@@ -1142,7 +1506,9 @@ class TelegramBotApp:
             "stats",
         ):
             application.add_handler(CommandHandler(command, self._handle))
-        application.add_handler(CallbackQueryHandler(self._handle_callback, pattern=r"^nav:"))
+        application.add_handler(
+            CallbackQueryHandler(self._handle_callback, pattern=r"^(nav:|settings:|language:)")
+        )
         if MessageHandler is not None and filters is not None:
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_text))
         return application

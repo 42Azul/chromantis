@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from chromantis.app.interpreter import InterpretedRequest, RuleQueryInterpreter
 from chromantis.db.repository import (
     AuthorizedChat,
+    ChatPreferences,
     IndexStats,
     InviteCode,
     PersonDetail,
@@ -204,6 +205,24 @@ class ApplicationService:
 
     def get_dynamic_chat(self, chat_id: int) -> AuthorizedChat | None:
         return self.repository.get_authorized_chat(chat_id)
+
+    def get_chat_preferences(self, chat_id: int) -> ChatPreferences | None:
+        return self.repository.get_chat_preferences(chat_id)
+
+    def get_chat_language(self, chat_id: int) -> str | None:
+        return self.repository.get_chat_language(chat_id)
+
+    def set_chat_language(
+        self,
+        chat_id: int,
+        language: str,
+        actor_chat_id: int | None = None,
+    ) -> ChatPreferences:
+        return self.repository.set_chat_language(
+            chat_id=chat_id,
+            language=language,
+            actor_chat_id=actor_chat_id,
+        )
 
     def is_authorized_chat(self, chat_id: int | None) -> bool:
         return self.resolve_principal(chat_id).role != "none"
