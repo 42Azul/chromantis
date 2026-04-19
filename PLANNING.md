@@ -19,7 +19,7 @@ Chromantis currently provides:
 - deterministic path parsing and deterministic tagging
 - SQLite persistence with migration-aware startup
 - deterministic search over years, year ranges, titles, tags, and curated people aliases
-- a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, plain-text query handling, and invite-based authorization
+- a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, plain-text query handling, and explicit `owner`/`admin`/`viewer` auth management
 - a shared application/query service used by both Telegram and the local HTTP API
 - a local read-only HTTP API for stats, search, browse, and people listing
 
@@ -118,27 +118,46 @@ Current architecture map:
 - `Repository.init_schema()` works on both fresh and legacy DB files
 - schema changes include compatibility coverage
 
-## Ready Next
+### MVP 4A — Explicit Telegram Auth and Admin Management
 
-### MVP 4 — Complete Auth and Admin Model
+**Status:** `Done`
 
-**Status:** `Ready Next`
-
-**Goal:** Make auth, roles, and admin operations explicit and manageable for a small family deployment.
+**Goal:** Make Telegram auth, roles, and small-deployment admin operations explicit instead of relying on implicit allowlist behavior.
 
 **Deliverables:**
 
-- formalize `owner`, `admin`, and `viewer` semantics
-- stop relying on implicit allowlist behavior as a hidden role system
-- add invite management commands:
+- explicit effective principal resolution for `owner`, `admin`, `viewer`, and unauthenticated chats
+- static owner and static viewer compatibility through allowlists without implicit admin fallback
+- Telegram invite management:
   - list active invites
-  - revoke invite
+  - revoke active invites
   - show invite expiry and usage
-- add chat management commands:
-  - change role
-  - revoke access
-- expose equivalent auth/admin operations through the local API
-- expand audit events for role and invite lifecycle changes
+- Telegram chat management:
+  - list effective authorized chats and auth mode
+  - change dynamic chat role
+  - revoke dynamic chat access
+- expanded audit events for role changes, invite revocation, and actor-aware access revocation
+
+**Acceptance:**
+
+- role checks are consistent across Telegram commands
+- role changes and invite revocations are auditable
+- existing DBs still migrate without manual intervention
+
+## Ready Next
+
+### MVP 4B — Local API Auth/Admin Parity
+
+**Status:** `Ready Next`
+
+**Goal:** Expose the same explicit auth and admin operations through the local API so future clients do not depend on Telegram-only administration.
+
+**Deliverables:**
+
+- expose effective principal and chat-management operations through the local API
+- expose invite listing, creation, and revocation through the local API
+- keep API behavior aligned with Telegram role rules and audit behavior
+- document the stable request and response shapes for a future UI
 
 **Acceptance:**
 

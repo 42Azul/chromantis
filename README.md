@@ -151,7 +151,11 @@ python scripts/run_bot.py
 - `/people link <canonical> | <folder-path>`
 - `/people unlink <canonical> | <folder-path>`
 - `/invite [viewer|admin] [days]`
+- `/invite list`
+- `/invite revoke <code>`
 - `/authorized`
+- `/authorized role <chat-id> <viewer|admin|owner>`
+- `/authorized revoke <chat-id>`
 - `/whoami`
 - `/stats`
 - `/login <access-code>`
@@ -174,8 +178,8 @@ By default, `run_bot.py` now prints a 6-digit access code at startup. A new Tele
 /login 123456
 ```
 
-to become authorized. Authorized chats are stored in SQLite and survive bot restarts.
-Admins can also generate short-lived invite codes with `/invite viewer` or `/invite admin 3`.
+to become authorized as a `viewer`. Authorized chats are stored in SQLite and survive bot restarts.
+Owners and admins can generate short-lived viewer invites with `/invite viewer`, and owners can generate admin invites with `/invite admin 3`.
 
 If you want a stable code instead of a generated one, set:
 
@@ -183,9 +187,23 @@ If you want a stable code instead of a generated one, set:
 TELEGRAM_ACCESS_CODE=123456
 ```
 
-If you prefer fixed chat IDs, keep using `TELEGRAM_CHAT_ALLOWLIST`. Allowlisted chats are always authorized and cannot be logged out from Telegram.
+Chromantis now uses explicit roles:
 
-If you set `TELEGRAM_ADMIN_CHAT_ALLOWLIST`, only those chats can use `/people add`, `/people alias`, `/people rename`, `/people link`, and `/people unlink`. If you leave it empty, every authorized chat is treated as an admin for curated metadata.
+- `viewer`: search, browse, and plain-text retrieval only
+- `admin`: viewer access plus people curation, invite listing, viewer invites, and viewer access revocation
+- `owner`: admin access plus admin invites, role changes, and admin revocation
+
+If you prefer fixed viewer chat IDs, keep using `TELEGRAM_CHAT_ALLOWLIST`. Those chats are treated as static viewers, always authorized, and cannot be role-changed or logged out from Telegram.
+
+If you set `TELEGRAM_ADMIN_CHAT_ALLOWLIST`, those chats are treated as static owners. They always stay authorized and cannot be role-changed or logged out from Telegram. If you leave it empty, owner-only actions stay unavailable until a static owner is configured.
+
+Useful admin flows:
+
+- `/invite list`: list active invites with role, expiry, and usage
+- `/invite revoke <code>`: revoke an active invite
+- `/authorized`: list effective authorized chats and auth modes
+- `/authorized role <chat-id> <viewer|admin|owner>`: change a dynamic chat role, owner only
+- `/authorized revoke <chat-id>`: revoke a dynamic chat, admin for viewers and owner for admins
 
 ## Local API
 

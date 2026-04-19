@@ -160,7 +160,12 @@ class TelegramBotService:
         session_clearer: Callable[[int], None] | None = None,
     ):
         if isinstance(app_service, SearchService):
-            self.app_service = ApplicationService(app_service.repository, access_code=access_code)
+            self.app_service = ApplicationService(
+                app_service.repository,
+                access_code=access_code,
+                static_viewer_chat_ids=chat_allowlist,
+                static_owner_chat_ids=admin_chat_allowlist,
+            )
         else:
             self.app_service = app_service
         self.chat_allowlist = chat_allowlist
@@ -200,6 +205,8 @@ class TelegramBotService:
                 "Commands: /years, /folders <query>, /images [count] <query>, "
                 "/random [count] [query], /more [count], /people, /invite, /authorized, "
                 "/whoami, /stats, /logout\n"
+                "Admin: /invite list, /invite revoke <code>, /authorized role <chat-id> "
+                "<viewer|admin|owner>, /authorized revoke <chat-id>\n"
                 "You can also send plain text like 'show me 3 city photos from 2021'."
             )
         if command == "/login":
@@ -231,7 +238,7 @@ class TelegramBotService:
         if command == "/invite":
             return self._handle_invite(args, chat_id=chat_id)
         if command == "/authorized":
-            return self._handle_authorized(chat_id=chat_id)
+            return self._handle_authorized_args(args, chat_id=chat_id)
         if command == "/people":
             return self._handle_people(command_text=command_text, chat_id=chat_id)
         if command == "/folders":
@@ -383,14 +390,12 @@ class TelegramBotService:
             return BotReply("Login by access code is not enabled.")
         if not args:
             return BotReply("Usage: /login <access-code>")
-        default_role = "viewer" if (self.chat_allowlist or self.admin_chat_allowlist) else "admin"
         try:
             authorized_chat = self.app_service.authorize_with_code(
                 chat_id,
                 args,
                 username=username,
                 first_name=first_name,
-                default_role=default_role,
             )
         except ValueError as exc:
             logger.warning("Failed login attempt for chat_id=%s", chat_id)
@@ -406,11 +411,10 @@ class TelegramBotService:
             return BotReply("Unable to logout this chat.")
         if not authorized:
             return BotReply("This chat is not authorized.")
-        if chat_id in self.chat_allowlist:
-            return BotReply("This chat is authorized by the static allowlist and cannot be logged out.")
-        if self.auth_revoker is None:
-            return BotReply("Authorization storage is not available.")
-        self.auth_revoker(chat_id)
+        principal = self.app_service.resolve_principal(chat_id)
+        if principal.auth_mode.startswith("static_"):
+            return BotReply("This chat is authorized by static configuration and cannot be logged out.")
+        self.app_service.revoke_own_access(chat_id)
         self._clear_session(chat_id)
         logger.info("Revoked authorization for chat_id=%s", chat_id)
         return BotReply("Chat authorization removed.")
@@ -418,15 +422,17 @@ class TelegramBotService:
     def _whoami_reply(
         self, chat_id: int | None, username: str | None, first_name: str | None
     ) -> BotReply:
-        auth_mode = "dynamic"
-        if chat_id in self.chat_allowlist:
-            auth_mode = "allowlist"
+        principal = self.app_service.resolve_principal(
+            chat_id,
+            username=username,
+            first_name=first_name,
+        )
         role = self._role_for_chat(chat_id)
         return BotReply(
             f"Chat ID: {chat_id}\n"
-            f"Username: {username or '-'}\n"
-            f"First name: {first_name or '-'}\n"
-            f"Auth mode: {auth_mode}\n"
+            f"Username: {principal.username or '-'}\n"
+            f"First name: {principal.first_name or '-'}\n"
+            f"Auth mode: {principal.auth_mode}\n"
             f"Role: {role}\n"
             f"Admin: {'yes' if self._is_admin(chat_id) else 'no'}"
         )
@@ -443,13 +449,30 @@ class TelegramBotService:
         return BotReply(format_years(self.app_service.list_years(parsed.year_from, parsed.year_to)))
 
     def _handle_invite(self, args: str, chat_id: int | None) -> BotReply:
+        parts = [part for part in args.split(" ") if part]
+        if not parts:
+            parts = ["viewer"]
+        if parts[0].lower() == "list":
+            if not self._is_admin(chat_id):
+                return BotReply("Admin privileges are required for /invite list.")
+            invites = self.app_service.list_invites(active_only=True)
+            if not invites:
+                return BotReply("No active invites.")
+            lines = ["Active invites:"]
+            for invite in invites:
+                lines.append(
+                    f"- {invite.code}: role={invite.role}, uses={invite.used_count}/{invite.max_uses}, "
+                    f"expires={invite.expires_at or '-'}"
+                )
+            return BotReply("\n".join(lines))
+        if parts[0].lower() == "revoke":
+            if len(parts) != 2:
+                return BotReply("Usage: /invite revoke <code>")
+            return self._revoke_invite_reply(parts[1], chat_id)
         if not self._is_admin(chat_id):
             return BotReply("Admin privileges are required for /invite.")
-        role = "viewer"
+        role = parts[0].lower()
         ttl_days = 7
-        parts = [part for part in args.split(" ") if part]
-        if parts:
-            role = parts[0].lower()
         if role not in {"viewer", "admin"}:
             return BotReply("Usage: /invite [viewer|admin] [days]")
         if role == "admin" and not self._is_owner(chat_id):
@@ -458,23 +481,43 @@ class TelegramBotService:
             if not parts[1].isdigit():
                 return BotReply("Usage: /invite [viewer|admin] [days]")
             ttl_days = max(1, min(int(parts[1]), 30))
-        invite = self.app_service.create_invite(role=role, created_by_chat_id=chat_id, ttl_days=ttl_days)
+        invite = self.app_service.create_invite(
+            role=role,
+            created_by_chat_id=chat_id,
+            ttl_days=ttl_days,
+        )
         return BotReply(
             f"Invite created.\nRole: {invite.role}\nCode: {invite.code}\nExpires: {invite.expires_at}"
         )
 
     def _handle_authorized(self, chat_id: int | None) -> BotReply:
+        return self._handle_authorized_args("", chat_id)
+
+    def _handle_authorized_args(self, args: str, chat_id: int | None) -> BotReply:
         if not self._is_admin(chat_id):
             return BotReply("Admin privileges are required for /authorized.")
-        chats = self.app_service.list_authorized_chats()
-        if not chats:
-            return BotReply("No authorized chats.")
-        lines = ["Authorized chats:"]
-        for chat in chats:
-            lines.append(
-                f"- {chat.chat_id}: role={chat.role}, username={chat.username or '-'}, first_name={chat.first_name or '-'}"
-            )
-        return BotReply("\n".join(lines))
+        parts = [part for part in args.split(" ") if part]
+        if not parts:
+            chats = self.app_service.list_effective_authorized_chats()
+            if not chats:
+                return BotReply("No authorized chats.")
+            lines = ["Authorized chats:"]
+            for chat in chats:
+                lines.append(
+                    f"- {chat.chat_id}: role={chat.role}, auth_mode={chat.auth_mode}, "
+                    f"username={chat.username or '-'}, first_name={chat.first_name or '-'}"
+                )
+            return BotReply("\n".join(lines))
+        action = parts[0].lower()
+        if action == "role":
+            if len(parts) != 3:
+                return BotReply("Usage: /authorized role <chat-id> <viewer|admin|owner>")
+            return self._set_chat_role_reply(parts[1], parts[2], actor_chat_id=chat_id)
+        if action == "revoke":
+            if len(parts) != 2:
+                return BotReply("Usage: /authorized revoke <chat-id>")
+            return self._revoke_chat_reply(parts[1], actor_chat_id=chat_id)
+        return BotReply("Usage: /authorized, /authorized role <chat-id> <viewer|admin|owner>, /authorized revoke <chat-id>")
 
     def _handle_people(self, command_text: str, chat_id: int | None) -> BotReply:
         _, _, raw_args = command_text.partition(" ")
@@ -526,6 +569,71 @@ class TelegramBotService:
             "Usage: /people, /people show <name>, /people add <display-name>, "
             "/people alias <canonical> | <alias>, /people rename <canonical> | <new>, "
             "/people link <canonical> | <folder-path>, /people unlink <canonical> | <folder-path>"
+        )
+
+    def _set_chat_role_reply(self, raw_chat_id: str, role: str, actor_chat_id: int | None) -> BotReply:
+        if not self._is_owner(actor_chat_id):
+            return BotReply("Owner privileges are required for /authorized role.")
+        try:
+            target_chat_id = int(raw_chat_id)
+        except ValueError:
+            return BotReply("Usage: /authorized role <chat-id> <viewer|admin|owner>")
+        try:
+            principal = self.app_service.set_chat_role(
+                target_chat_id,
+                role=role.lower(),
+                actor_chat_id=actor_chat_id,
+            )
+        except ValueError as exc:
+            return BotReply(str(exc))
+        return BotReply(
+            f"Chat role updated.\nChat ID: {principal.chat_id}\nRole: {principal.role}\nAuth mode: {principal.auth_mode}"
+        )
+
+    def _revoke_chat_reply(self, raw_chat_id: str, actor_chat_id: int | None) -> BotReply:
+        try:
+            target_chat_id = int(raw_chat_id)
+        except ValueError:
+            return BotReply("Usage: /authorized revoke <chat-id>")
+        target = self.app_service.resolve_principal(target_chat_id)
+        if target.role == "none":
+            return BotReply("Chat is not authorized.")
+        if target.auth_mode.startswith("static_"):
+            return BotReply("Static chats cannot be revoked.")
+        if target.role in {"admin", "owner"} and not self._is_owner(actor_chat_id):
+            return BotReply("Owner privileges are required to revoke admin access.")
+        if target.role == "viewer" and not self._is_admin(actor_chat_id):
+            return BotReply("Admin privileges are required for /authorized revoke.")
+        try:
+            self.app_service.revoke_chat_access(
+                target_chat_id,
+                actor_chat_id=actor_chat_id,
+                reason="admin_revoke",
+            )
+        except ValueError as exc:
+            return BotReply(str(exc))
+        if target_chat_id == actor_chat_id:
+            self._clear_session(target_chat_id)
+        return BotReply(f"Chat access revoked for {target_chat_id}.")
+
+    def _revoke_invite_reply(self, code: str, actor_chat_id: int | None) -> BotReply:
+        invites = {
+            invite.code: invite
+            for invite in self.app_service.list_invites(active_only=True)
+        }
+        invite = invites.get(code.strip())
+        if invite is None:
+            return BotReply("Unknown invite code.")
+        if invite.role == "admin" and not self._is_owner(actor_chat_id):
+            return BotReply("Owner privileges are required to revoke admin invites.")
+        if invite.role == "viewer" and not self._is_admin(actor_chat_id):
+            return BotReply("Admin privileges are required for /invite revoke.")
+        try:
+            revoked = self.app_service.revoke_invite(code, actor_chat_id=actor_chat_id)
+        except ValueError as exc:
+            return BotReply(str(exc))
+        return BotReply(
+            f"Invite revoked.\nRole: {revoked.role}\nCode: {revoked.code}\nRevoked: {revoked.revoked_at}"
         )
 
     def _list_people_reply(self) -> BotReply:
@@ -945,31 +1053,16 @@ class TelegramBotService:
         self.session_clearer(chat_id)
 
     def _is_authorized(self, chat_id: int | None) -> bool:
-        if chat_id is None:
-            return False
-        if chat_id in self.chat_allowlist:
-            return True
-        if self.auth_checker is not None and self.auth_checker(chat_id):
-            return True
-        return False
+        return self.app_service.is_authorized_chat(chat_id)
 
     def _role_for_chat(self, chat_id: int | None) -> str:
-        if chat_id is None:
-            return "none"
-        if chat_id in self.admin_chat_allowlist:
-            return "admin"
-        role = self.app_service.get_dynamic_role(chat_id)
-        if role:
-            return role
-        if chat_id in self.chat_allowlist:
-            return "viewer" if self.admin_chat_allowlist else "admin"
-        return "none"
+        return self.app_service.resolve_principal(chat_id).role
 
     def _is_admin(self, chat_id: int | None) -> bool:
         return self._role_for_chat(chat_id) in {"owner", "admin"}
 
     def _is_owner(self, chat_id: int | None) -> bool:
-        return self._is_admin(chat_id)
+        return self._role_for_chat(chat_id) == "owner"
 
     def _require_admin(self, chat_id: int | None) -> None:
         if not self._is_admin(chat_id):

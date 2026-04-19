@@ -25,11 +25,19 @@ class AuthorizedPrincipal:
 
 
 class ApplicationService:
-    def __init__(self, repository: Repository, access_code: str | None = None):
+    def __init__(
+        self,
+        repository: Repository,
+        access_code: str | None = None,
+        static_viewer_chat_ids: tuple[int, ...] = (),
+        static_owner_chat_ids: tuple[int, ...] = (),
+    ):
         self.repository = repository
         self.search = SearchService(repository)
         self.interpreter = RuleQueryInterpreter()
         self.access_code = access_code
+        self.static_viewer_chat_ids = frozenset(static_viewer_chat_ids)
+        self.static_owner_chat_ids = frozenset(static_owner_chat_ids)
 
     def list_years(self, year_from: int | None = None, year_to: int | None = None) -> list[YearSummary]:
         return self.search.list_year_summaries(year_from=year_from, year_to=year_to)
@@ -163,7 +171,6 @@ class ApplicationService:
         code: str,
         username: str | None = None,
         first_name: str | None = None,
-        default_role: str = "viewer",
     ) -> AuthorizedChat:
         stripped = code.strip()
         if not stripped:
@@ -182,27 +189,137 @@ class ApplicationService:
             chat_id,
             username=username,
             first_name=first_name,
-            role=default_role,
+            role="viewer",
         )
-        role = self.repository.get_chat_role(chat_id) or default_role
-        authorized_at = next(
-            chat.authorized_at
-            for chat in self.repository.list_authorized_chats()
-            if chat.chat_id == chat_id
-        )
-        return AuthorizedChat(
-            chat_id=chat_id,
-            username=username,
-            first_name=first_name,
-            role=role,
-            authorized_at=authorized_at,
-        )
+        authorized_chat = self.repository.get_authorized_chat(chat_id)
+        if authorized_chat is None:
+            raise ValueError("Chat authorization could not be stored.")
+        return authorized_chat
 
     def list_authorized_chats(self) -> list[AuthorizedChat]:
         return self.repository.list_authorized_chats()
 
     def get_dynamic_role(self, chat_id: int) -> str | None:
         return self.repository.get_chat_role(chat_id)
+
+    def get_dynamic_chat(self, chat_id: int) -> AuthorizedChat | None:
+        return self.repository.get_authorized_chat(chat_id)
+
+    def is_authorized_chat(self, chat_id: int | None) -> bool:
+        return self.resolve_principal(chat_id).role != "none"
+
+    def resolve_principal(
+        self,
+        chat_id: int | None,
+        username: str | None = None,
+        first_name: str | None = None,
+    ) -> AuthorizedPrincipal:
+        if chat_id is None:
+            return AuthorizedPrincipal(
+                chat_id=0,
+                role="none",
+                username=username,
+                first_name=first_name,
+                auth_mode="none",
+            )
+        dynamic = self.repository.get_authorized_chat(chat_id)
+        if chat_id in self.static_owner_chat_ids:
+            return AuthorizedPrincipal(
+                chat_id=chat_id,
+                role="owner",
+                username=dynamic.username if dynamic else username,
+                first_name=dynamic.first_name if dynamic else first_name,
+                auth_mode="static_owner",
+            )
+        if chat_id in self.static_viewer_chat_ids:
+            return AuthorizedPrincipal(
+                chat_id=chat_id,
+                role="viewer",
+                username=dynamic.username if dynamic else username,
+                first_name=dynamic.first_name if dynamic else first_name,
+                auth_mode="static_viewer",
+            )
+        if dynamic is not None:
+            return AuthorizedPrincipal(
+                chat_id=chat_id,
+                role=dynamic.role,
+                username=dynamic.username if dynamic.username is not None else username,
+                first_name=dynamic.first_name if dynamic.first_name is not None else first_name,
+                auth_mode="dynamic",
+            )
+        return AuthorizedPrincipal(
+            chat_id=chat_id,
+            role="none",
+            username=username,
+            first_name=first_name,
+            auth_mode="none",
+        )
+
+    def list_effective_authorized_chats(self) -> list[AuthorizedPrincipal]:
+        principals: dict[int, AuthorizedPrincipal] = {}
+        dynamic_chats = {
+            chat.chat_id: chat
+            for chat in self.repository.list_authorized_chats()
+        }
+        static_ids = self.static_viewer_chat_ids | self.static_owner_chat_ids
+        for chat_id in sorted(static_ids):
+            dynamic = dynamic_chats.get(chat_id)
+            principals[chat_id] = self.resolve_principal(
+                chat_id,
+                username=dynamic.username if dynamic else None,
+                first_name=dynamic.first_name if dynamic else None,
+            )
+        for chat in dynamic_chats.values():
+            if chat.chat_id in principals:
+                continue
+            principals[chat.chat_id] = AuthorizedPrincipal(
+                chat_id=chat.chat_id,
+                role=chat.role,
+                username=chat.username,
+                first_name=chat.first_name,
+                auth_mode="dynamic",
+            )
+        return sorted(principals.values(), key=lambda item: (item.chat_id, item.auth_mode))
+
+    def set_chat_role(
+        self,
+        chat_id: int,
+        role: str,
+        actor_chat_id: int | None = None,
+    ) -> AuthorizedPrincipal:
+        principal = self.resolve_principal(chat_id)
+        if principal.auth_mode.startswith("static_"):
+            raise ValueError("Static chats cannot be role-changed.")
+        chat = self.repository.set_chat_role(chat_id, role=role, actor_chat_id=actor_chat_id)
+        return AuthorizedPrincipal(
+            chat_id=chat.chat_id,
+            role=chat.role,
+            username=chat.username,
+            first_name=chat.first_name,
+            auth_mode="dynamic",
+        )
+
+    def revoke_chat_access(
+        self,
+        chat_id: int,
+        actor_chat_id: int | None = None,
+        reason: str = "admin_revoke",
+    ) -> None:
+        principal = self.resolve_principal(chat_id)
+        if principal.auth_mode.startswith("static_"):
+            raise ValueError("Static chats cannot be revoked.")
+        self.repository.revoke_chat_access(
+            chat_id=chat_id,
+            actor_chat_id=actor_chat_id,
+            reason=reason,
+        )
+
+    def revoke_own_access(self, chat_id: int) -> None:
+        self.revoke_chat_access(
+            chat_id=chat_id,
+            actor_chat_id=chat_id,
+            reason="self_logout",
+        )
 
     def create_invite(
         self,
@@ -220,3 +337,6 @@ class ApplicationService:
 
     def list_invites(self, active_only: bool = True) -> list[InviteCode]:
         return self.repository.list_invites(active_only=active_only)
+
+    def revoke_invite(self, code: str, actor_chat_id: int | None = None) -> InviteCode:
+        return self.repository.revoke_invite(code=code, actor_chat_id=actor_chat_id)

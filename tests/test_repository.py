@@ -53,3 +53,40 @@ class RepositoryMigrationTests(unittest.TestCase):
             }
             self.assertIn("idx_authorized_chats_role", index_names)
             migrated_connection.close()
+
+    def test_authorize_chat_accepts_owner_role(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "chromantis.db"
+            repository = Repository(str(db_path))
+            repository.init_schema()
+
+            repository.authorize_chat(1, username="owner", role="owner")
+
+            self.assertEqual(repository.get_chat_role(1), "owner")
+
+    def test_revoke_chat_access_records_actor_and_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "chromantis.db"
+            repository = Repository(str(db_path))
+            repository.init_schema()
+            repository.authorize_chat(1, username="viewer", role="viewer")
+
+            repository.revoke_chat_access(1, actor_chat_id=99, reason="admin_revoke")
+
+            self.assertFalse(repository.is_chat_authorized(1))
+            event = repository.list_audit_events(limit=1)[0]
+            self.assertEqual(event.action, "revoke_chat_access")
+            self.assertEqual(event.actor_chat_id, 99)
+            self.assertIn('"reason": "admin_revoke"', event.details_json)
+
+    def test_revoke_invite_marks_invite_revoked(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "chromantis.db"
+            repository = Repository(str(db_path))
+            repository.init_schema()
+            invite = repository.create_invite(role="viewer", created_by_chat_id=1)
+
+            revoked = repository.revoke_invite(invite.code, actor_chat_id=2)
+
+            self.assertIsNotNone(revoked.revoked_at)
+            self.assertEqual(repository.list_invites(active_only=True), [])

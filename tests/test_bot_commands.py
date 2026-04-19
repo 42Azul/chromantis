@@ -15,6 +15,8 @@ from chromantis.source import ArchiveScanner, LocalArchiveSource
 PHOTOS_ROOT = (
     Path(__file__).parent / "fixtures" / "ftp_tree" / "server_root" / "photos" / "archive"
 )
+VIEWER_CHAT_ID = 1234
+OWNER_CHAT_ID = 9999
 
 
 class TelegramBotServiceTests(unittest.TestCase):
@@ -27,7 +29,8 @@ class TelegramBotServiceTests(unittest.TestCase):
         scanner.scan()
         self.service = TelegramBotService(
             SearchService(repository),
-            chat_allowlist=(1234,),
+            chat_allowlist=(VIEWER_CHAT_ID,),
+            admin_chat_allowlist=(OWNER_CHAT_ID,),
             stats_provider=repository.get_index_stats,
             access_code="246810",
             auth_checker=repository.is_chat_authorized,
@@ -43,7 +46,7 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_years_command(self) -> None:
-        reply = self.service.handle_command("/years", chat_id=1234)
+        reply = self.service.handle_command("/years", chat_id=VIEWER_CHAT_ID)
         self.assertIn("2019", reply.text)
         self.assertIn("2021", reply.text)
         self.assertIn("folder(s)", reply.text)
@@ -51,16 +54,23 @@ class TelegramBotServiceTests(unittest.TestCase):
     def test_whoami_command(self) -> None:
         reply = self.service.handle_command(
             "/whoami",
-            chat_id=1234,
+            chat_id=VIEWER_CHAT_ID,
             username="tester",
             first_name="Test",
         )
-        self.assertIn("Chat ID: 1234", reply.text)
-        self.assertIn("Auth mode: allowlist", reply.text)
+        self.assertIn(f"Chat ID: {VIEWER_CHAT_ID}", reply.text)
+        self.assertIn("Auth mode: static_viewer", reply.text)
+        self.assertIn("Role: viewer", reply.text)
+        self.assertIn("Admin: no", reply.text)
+
+    def test_whoami_reports_static_owner(self) -> None:
+        reply = self.service.handle_command("/whoami", chat_id=OWNER_CHAT_ID)
+        self.assertIn("Auth mode: static_owner", reply.text)
+        self.assertIn("Role: owner", reply.text)
         self.assertIn("Admin: yes", reply.text)
 
     def test_random_command_returns_image_path(self) -> None:
-        reply = self.service.handle_command("/random city", chat_id=1234)
+        reply = self.service.handle_command("/random city", chat_id=VIEWER_CHAT_ID)
         self.assertEqual(len(reply.image_paths), 1)
         self.assertTrue(reply.buttons)
 
@@ -69,17 +79,17 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertEqual(reply.text, "Unauthorized chat. Use /login <access-code>.")
 
     def test_stats_command(self) -> None:
-        reply = self.service.handle_command("/stats", chat_id=1234)
+        reply = self.service.handle_command("/stats", chat_id=VIEWER_CHAT_ID)
         self.assertIn("Indexed folders:", reply.text)
         self.assertIn("Indexed images:", reply.text)
 
     def test_years_accepts_range(self) -> None:
-        reply = self.service.handle_command("/years 2019-2021", chat_id=1234)
+        reply = self.service.handle_command("/years 2019-2021", chat_id=VIEWER_CHAT_ID)
         self.assertIn("2019", reply.text)
         self.assertIn("2021", reply.text)
 
     def test_years_rejects_non_year_arguments(self) -> None:
-        reply = self.service.handle_command("/years city", chat_id=1234)
+        reply = self.service.handle_command("/years city", chat_id=VIEWER_CHAT_ID)
         self.assertEqual(reply.text, "Usage: /years or /years 2018-2021")
 
     def test_start_for_unauthorized_chat_shows_login_message(self) -> None:
@@ -87,7 +97,7 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("/login <access-code>", reply.text)
 
     def test_start_for_authorized_chat_shows_home_buttons(self) -> None:
-        reply = self.service.handle_command("/start", chat_id=1234)
+        reply = self.service.handle_command("/start", chat_id=VIEWER_CHAT_ID)
 
         labels = {button.label for row in reply.buttons for button in row}
         self.assertIn("Browse Years", labels)
@@ -107,12 +117,13 @@ class TelegramBotServiceTests(unittest.TestCase):
         )
         self.assertEqual(reply.text, "Chat authorized. Use /help to see available commands.")
         self.assertTrue(self.repository.is_chat_authorized(999))
+        self.assertEqual(self.repository.get_chat_role(999), "viewer")
 
         help_reply = self.service.handle_command("/help", chat_id=999)
         self.assertIn("/logout", help_reply.text)
 
     def test_invite_authorizes_new_viewer_chat(self) -> None:
-        invite_reply = self.service.handle_command("/invite viewer 5", chat_id=1234)
+        invite_reply = self.service.handle_command("/invite viewer 5", chat_id=OWNER_CHAT_ID)
         self.assertIn("Invite created.", invite_reply.text)
         code = next(
             line.split(": ", 1)[1]
@@ -140,11 +151,11 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIsNone(self.repository.get_chat_session(999))
 
     def test_logout_does_not_revoke_static_allowlist(self) -> None:
-        reply = self.service.handle_command("/logout", chat_id=1234)
-        self.assertIn("static allowlist", reply.text)
+        reply = self.service.handle_command("/logout", chat_id=VIEWER_CHAT_ID)
+        self.assertIn("static configuration", reply.text)
 
     def test_images_command_accepts_count_and_returns_multiple_images(self) -> None:
-        reply = self.service.handle_command("/images 2 city", chat_id=1234)
+        reply = self.service.handle_command("/images 2 city", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(reply.image_paths), 2)
         self.assertIn("Showing images: 2 image(s)", reply.text)
@@ -153,76 +164,62 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("Same Folder", labels)
 
     def test_plain_text_query_is_interpreted(self) -> None:
-        reply = self.service.handle_text_input("show me 2 city photos from 2021", chat_id=1234)
+        reply = self.service.handle_text_input("show me 2 city photos from 2021", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(reply.image_paths), 2)
         self.assertIn("Showing images: 2 image(s)", reply.text)
 
     def test_people_add_and_show_commands(self) -> None:
-        create_reply = self.service.handle_command("/people add Pablo", chat_id=1234)
+        create_reply = self.service.handle_command("/people add Pablo", chat_id=OWNER_CHAT_ID)
         self.assertIn("Person created: Pablo", create_reply.text)
 
         alias_reply = self.service.handle_command(
             "/people alias Pablo | Pablito",
-            chat_id=1234,
+            chat_id=OWNER_CHAT_ID,
         )
         self.assertIn("Alias added: Pablo", alias_reply.text)
 
         link_reply = self.service.handle_command(
             "/people link Pablo | 2021/2021-08-15_city_trip",
-            chat_id=1234,
+            chat_id=OWNER_CHAT_ID,
         )
         self.assertIn("Person linked: Pablo", link_reply.text)
 
-        show_reply = self.service.handle_command("/people show pablito", chat_id=1234)
+        show_reply = self.service.handle_command("/people show pablito", chat_id=VIEWER_CHAT_ID)
         self.assertIn("Person: Pablo", show_reply.text)
         self.assertIn("Pablito", show_reply.text)
         self.assertIn("2021/2021-08-15_city_trip", show_reply.text)
 
     def test_people_command_lists_people(self) -> None:
-        self.service.handle_command("/people add Pablo", chat_id=1234)
+        self.service.handle_command("/people add Pablo", chat_id=OWNER_CHAT_ID)
 
-        reply = self.service.handle_command("/people", chat_id=1234)
+        reply = self.service.handle_command("/people", chat_id=VIEWER_CHAT_ID)
 
         self.assertIn("Curated people:", reply.text)
         self.assertIn("Pablo", reply.text)
 
-    def test_people_write_requires_admin_when_admin_allowlist_is_configured(self) -> None:
-        restricted_service = TelegramBotService(
-            SearchService(self.repository),
-            chat_allowlist=(1234,),
-            admin_chat_allowlist=(9999,),
-            stats_provider=self.repository.get_index_stats,
-            access_code="246810",
-            auth_checker=self.repository.is_chat_authorized,
-            auth_granter=self.repository.authorize_chat,
-            auth_revoker=self.repository.revoke_chat,
-            session_loader=self.repository.get_chat_session,
-            session_saver=self.repository.save_chat_session,
-            session_clearer=self.repository.clear_chat_session,
-        )
-
-        reply = restricted_service.handle_command("/people add Pablo", chat_id=1234)
+    def test_people_write_requires_admin(self) -> None:
+        reply = self.service.handle_command("/people add Pablo", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(reply.text, "Admin privileges are required for /people write commands.")
 
     def test_images_command_supports_people_alias_and_year_range(self) -> None:
-        self.service.handle_command("/people add Pablo", chat_id=1234)
-        self.service.handle_command("/people alias Pablo | Pablito", chat_id=1234)
+        self.service.handle_command("/people add Pablo", chat_id=OWNER_CHAT_ID)
+        self.service.handle_command("/people alias Pablo | Pablito", chat_id=OWNER_CHAT_ID)
         self.service.handle_command(
             "/people link Pablo | 2021/2021-08-15_city_trip",
-            chat_id=1234,
+            chat_id=OWNER_CHAT_ID,
         )
 
-        reply = self.service.handle_command("/images 2 pablito 2020-2021", chat_id=1234)
+        reply = self.service.handle_command("/images 2 pablito 2020-2021", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(reply.image_paths), 2)
         self.assertIn('person="Pablo"', reply.text)
         self.assertIn("year_range=2020-2021", reply.text)
 
     def test_more_returns_additional_images_from_same_scope(self) -> None:
-        first = self.service.handle_command("/images 1 city", chat_id=1234)
-        second = self.service.handle_command("/more 1", chat_id=1234)
+        first = self.service.handle_command("/images 1 city", chat_id=VIEWER_CHAT_ID)
+        second = self.service.handle_command("/more 1", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(first.image_paths), 1)
         self.assertEqual(len(second.image_paths), 1)
@@ -230,8 +227,8 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("More images", second.text)
 
     def test_same_folder_callback_returns_additional_images(self) -> None:
-        first = self.service.handle_command("/images 1 city", chat_id=1234)
-        second = self.service.handle_callback("nav:same_folder", chat_id=1234)
+        first = self.service.handle_command("/images 1 city", chat_id=VIEWER_CHAT_ID)
+        second = self.service.handle_callback("nav:same_folder", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(first.image_paths), 1)
         self.assertEqual(len(second.image_paths), 1)
@@ -239,29 +236,29 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("Same folder", second.text)
 
     def test_same_year_callback_returns_images(self) -> None:
-        self.service.handle_command("/images 1 city", chat_id=1234)
-        reply = self.service.handle_callback("nav:same_year", chat_id=1234)
+        self.service.handle_command("/images 1 city", chat_id=VIEWER_CHAT_ID)
+        reply = self.service.handle_callback("nav:same_year", chat_id=VIEWER_CHAT_ID)
 
         self.assertGreaterEqual(len(reply.image_paths), 1)
         self.assertIn("Same year", reply.text)
 
     def test_back_callback_restores_previous_view(self) -> None:
-        first = self.service.handle_command("/images 1 city", chat_id=1234)
-        self.service.handle_callback("nav:same_year", chat_id=1234)
-        back = self.service.handle_callback("nav:back", chat_id=1234)
+        first = self.service.handle_command("/images 1 city", chat_id=VIEWER_CHAT_ID)
+        self.service.handle_callback("nav:same_year", chat_id=VIEWER_CHAT_ID)
+        back = self.service.handle_callback("nav:back", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(back.image_paths, first.image_paths)
         self.assertEqual(back.text, first.text)
 
     def test_refine_callback_returns_text(self) -> None:
-        self.service.handle_command("/images 2 city", chat_id=1234)
-        reply = self.service.handle_callback("nav:refine", chat_id=1234)
+        self.service.handle_command("/images 2 city", chat_id=VIEWER_CHAT_ID)
+        reply = self.service.handle_callback("nav:refine", chat_id=VIEWER_CHAT_ID)
 
         self.assertIn("Refine this search:", reply.text)
         self.assertIn("/images", reply.text)
 
     def test_mixed_folder_batch_discloses_folder_breakdown(self) -> None:
-        reply = self.service.handle_command("/images 4 summer", chat_id=1234)
+        reply = self.service.handle_command("/images 4 summer", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(reply.image_paths), 4)
         self.assertIn("Folders in this batch: 2", reply.text)
@@ -274,8 +271,8 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertNotIn("Random Similar", labels)
 
     def test_folder_picker_callback_lists_batch_folders(self) -> None:
-        self.service.handle_command("/images 4 summer", chat_id=1234)
-        reply = self.service.handle_callback("nav:folders", chat_id=1234)
+        self.service.handle_command("/images 4 summer", chat_id=VIEWER_CHAT_ID)
+        reply = self.service.handle_callback("nav:folders", chat_id=VIEWER_CHAT_ID)
 
         self.assertIn("Choose a folder from this batch:", reply.text)
         labels = [button.label for row in reply.buttons for button in row]
@@ -283,33 +280,132 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn("2019/2019-07-10_beach_day (2)", labels)
 
     def test_folder_selection_continues_with_more_from_that_folder(self) -> None:
-        self.service.handle_command("/images 3 summer", chat_id=1234)
-        self.service.handle_callback("nav:folders", chat_id=1234)
-        reply = self.service.handle_callback("nav:folder:1", chat_id=1234)
+        self.service.handle_command("/images 3 summer", chat_id=VIEWER_CHAT_ID)
+        self.service.handle_callback("nav:folders", chat_id=VIEWER_CHAT_ID)
+        reply = self.service.handle_callback("nav:folder:1", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(reply.image_paths), 1)
         self.assertIn("More from 2019/2019-07-10_beach_day", reply.text)
 
     def test_more_from_folder_picker_requires_returning_to_images(self) -> None:
-        self.service.handle_command("/images 4 summer", chat_id=1234)
-        self.service.handle_callback("nav:folders", chat_id=1234)
-        reply = self.service.handle_command("/more 1", chat_id=1234)
+        self.service.handle_command("/images 4 summer", chat_id=VIEWER_CHAT_ID)
+        self.service.handle_callback("nav:folders", chat_id=VIEWER_CHAT_ID)
+        reply = self.service.handle_command("/more 1", chat_id=VIEWER_CHAT_ID)
 
         self.assertIn("Current view is not an image batch", reply.text)
 
     def test_more_requires_previous_image_context(self) -> None:
-        reply = self.service.handle_command("/more 1", chat_id=1234)
+        reply = self.service.handle_command("/more 1", chat_id=VIEWER_CHAT_ID)
         self.assertIn("No previous image search", reply.text)
 
     def test_session_is_persisted_for_navigation(self) -> None:
-        self.service.handle_command("/images 2 city", chat_id=1234)
+        self.service.handle_command("/images 2 city", chat_id=VIEWER_CHAT_ID)
 
-        raw_session = self.repository.get_chat_session(1234)
+        raw_session = self.repository.get_chat_session(VIEWER_CHAT_ID)
 
         self.assertIsNotNone(raw_session)
         session = ChatSession.from_json(raw_session)
         self.assertIsNotNone(session.current)
         self.assertEqual(session.current.scope, "search_images")
+
+    def test_invite_list_shows_active_invites(self) -> None:
+        create_reply = self.service.handle_command("/invite viewer 5", chat_id=OWNER_CHAT_ID)
+        code = next(
+            line.split(": ", 1)[1]
+            for line in create_reply.text.splitlines()
+            if line.startswith("Code: ")
+        )
+
+        reply = self.service.handle_command("/invite list", chat_id=OWNER_CHAT_ID)
+
+        self.assertIn("Active invites:", reply.text)
+        self.assertIn(code, reply.text)
+        self.assertIn("role=viewer", reply.text)
+
+    def test_owner_can_revoke_admin_invite(self) -> None:
+        create_reply = self.service.handle_command("/invite admin 5", chat_id=OWNER_CHAT_ID)
+        code = next(
+            line.split(": ", 1)[1]
+            for line in create_reply.text.splitlines()
+            if line.startswith("Code: ")
+        )
+
+        reply = self.service.handle_command(f"/invite revoke {code}", chat_id=OWNER_CHAT_ID)
+
+        self.assertIn("Invite revoked.", reply.text)
+        self.assertIn(code, reply.text)
+
+    def test_viewer_cannot_create_or_revoke_invites(self) -> None:
+        create_reply = self.service.handle_command("/invite viewer 5", chat_id=VIEWER_CHAT_ID)
+        self.assertEqual(create_reply.text, "Admin privileges are required for /invite.")
+
+        owner_reply = self.service.handle_command("/invite viewer 5", chat_id=OWNER_CHAT_ID)
+        code = next(
+            line.split(": ", 1)[1]
+            for line in owner_reply.text.splitlines()
+            if line.startswith("Code: ")
+        )
+        revoke_reply = self.service.handle_command(f"/invite revoke {code}", chat_id=VIEWER_CHAT_ID)
+        self.assertEqual(revoke_reply.text, "Admin privileges are required for /invite revoke.")
+
+    def test_owner_can_change_dynamic_chat_role(self) -> None:
+        self.service.handle_command("/login 246810", chat_id=5678, username="viewer")
+
+        reply = self.service.handle_command("/authorized role 5678 admin", chat_id=OWNER_CHAT_ID)
+
+        self.assertIn("Chat role updated.", reply.text)
+        self.assertEqual(self.repository.get_chat_role(5678), "admin")
+
+    def test_owner_can_assign_owner_role_to_dynamic_chat(self) -> None:
+        self.service.handle_command("/login 246810", chat_id=5678)
+
+        reply = self.service.handle_command("/authorized role 5678 owner", chat_id=OWNER_CHAT_ID)
+
+        self.assertIn("Role: owner", reply.text)
+        self.assertEqual(self.repository.get_chat_role(5678), "owner")
+
+    def test_admin_role_change_requires_owner(self) -> None:
+        self.service.handle_command("/login 246810", chat_id=5678)
+        self.repository.authorize_chat(7777, role="admin")
+
+        reply = self.service.handle_command("/authorized role 5678 admin", chat_id=7777)
+
+        self.assertEqual(reply.text, "Owner privileges are required for /authorized role.")
+
+    def test_admin_can_revoke_viewer_but_not_admin(self) -> None:
+        self.repository.authorize_chat(7777, role="admin")
+        self.service.handle_command("/login 246810", chat_id=5678)
+        self.repository.authorize_chat(6789, role="admin")
+
+        viewer_reply = self.service.handle_command("/authorized revoke 5678", chat_id=7777)
+        admin_reply = self.service.handle_command("/authorized revoke 6789", chat_id=7777)
+
+        self.assertEqual(viewer_reply.text, "Chat access revoked for 5678.")
+        self.assertFalse(self.repository.is_chat_authorized(5678))
+        self.assertEqual(admin_reply.text, "Owner privileges are required to revoke admin access.")
+        self.assertTrue(self.repository.is_chat_authorized(6789))
+
+    def test_authorized_list_includes_static_and_dynamic_auth_modes(self) -> None:
+        self.service.handle_command("/login 246810", chat_id=5678, username="guest")
+
+        reply = self.service.handle_command("/authorized", chat_id=OWNER_CHAT_ID)
+
+        self.assertIn(f"- {VIEWER_CHAT_ID}: role=viewer, auth_mode=static_viewer", reply.text)
+        self.assertIn(f"- {OWNER_CHAT_ID}: role=owner, auth_mode=static_owner", reply.text)
+        self.assertIn("- 5678: role=viewer, auth_mode=dynamic, username=guest", reply.text)
+
+    def test_static_chat_cannot_be_role_changed_or_revoked(self) -> None:
+        role_reply = self.service.handle_command(
+            f"/authorized role {VIEWER_CHAT_ID} admin",
+            chat_id=OWNER_CHAT_ID,
+        )
+        revoke_reply = self.service.handle_command(
+            f"/authorized revoke {VIEWER_CHAT_ID}",
+            chat_id=OWNER_CHAT_ID,
+        )
+
+        self.assertEqual(role_reply.text, "Static chats cannot be role-changed.")
+        self.assertEqual(revoke_reply.text, "Static chats cannot be revoked.")
 
     def test_app_uses_image_fetcher_for_remote_images(self) -> None:
         fetched_paths: list[str] = []

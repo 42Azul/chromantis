@@ -216,13 +216,29 @@ class Repository:
             ).fetchone()
         return row is not None
 
-    def get_chat_role(self, chat_id: int) -> str | None:
+    def get_authorized_chat(self, chat_id: int) -> AuthorizedChat | None:
         with self.connect() as connection:
             row = connection.execute(
-                "SELECT role FROM authorized_chats WHERE chat_id = ?",
+                """
+                SELECT chat_id, username, first_name, role, authorized_at
+                FROM authorized_chats
+                WHERE chat_id = ?
+                """,
                 (chat_id,),
             ).fetchone()
-        return None if row is None else str(row["role"])
+        if row is None:
+            return None
+        return AuthorizedChat(
+            chat_id=row["chat_id"],
+            username=row["username"],
+            first_name=row["first_name"],
+            role=row["role"],
+            authorized_at=row["authorized_at"],
+        )
+
+    def get_chat_role(self, chat_id: int) -> str | None:
+        chat = self.get_authorized_chat(chat_id)
+        return None if chat is None else chat.role
 
     def authorize_chat(
         self,
@@ -231,6 +247,8 @@ class Repository:
         first_name: str | None = None,
         role: str = "viewer",
     ) -> None:
+        if role not in {"viewer", "admin", "owner"}:
+            raise ValueError("Chat role must be viewer, admin, or owner.")
         authorized_at = datetime.now(timezone.utc).isoformat()
         with self.connect() as connection:
             connection.execute(
@@ -255,21 +273,82 @@ class Repository:
             )
             connection.commit()
 
-    def revoke_chat(self, chat_id: int) -> None:
+    def set_chat_role(self, chat_id: int, role: str, actor_chat_id: int | None = None) -> AuthorizedChat:
+        if role not in {"viewer", "admin", "owner"}:
+            raise ValueError("Chat role must be viewer, admin, or owner.")
         with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT chat_id, username, first_name, authorized_at
+                FROM authorized_chats
+                WHERE chat_id = ?
+                """,
+                (chat_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Chat is not dynamically authorized.")
+            connection.execute(
+                """
+                UPDATE authorized_chats
+                SET role = ?
+                WHERE chat_id = ?
+                """,
+                (role, chat_id),
+            )
+            self._record_audit(
+                connection,
+                action="set_chat_role",
+                target_type="chat",
+                target_id=str(chat_id),
+                actor_chat_id=actor_chat_id,
+                details={"role": role},
+            )
+            connection.commit()
+        return AuthorizedChat(
+            chat_id=row["chat_id"],
+            username=row["username"],
+            first_name=row["first_name"],
+            role=role,
+            authorized_at=row["authorized_at"],
+        )
+
+    def revoke_chat_access(
+        self,
+        chat_id: int,
+        actor_chat_id: int | None = None,
+        reason: str = "admin_revoke",
+    ) -> None:
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM authorized_chats
+                WHERE chat_id = ?
+                """,
+                (chat_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Chat is not dynamically authorized.")
             connection.execute(
                 "DELETE FROM authorized_chats WHERE chat_id = ?",
                 (chat_id,),
             )
             self._record_audit(
                 connection,
-                action="revoke_chat",
+                action="revoke_chat_access",
                 target_type="chat",
                 target_id=str(chat_id),
-                actor_chat_id=chat_id,
-                details={},
+                actor_chat_id=actor_chat_id,
+                details={"reason": reason},
             )
             connection.commit()
+
+    def revoke_chat(self, chat_id: int) -> None:
+        self.revoke_chat_access(
+            chat_id=chat_id,
+            actor_chat_id=chat_id,
+            reason="self_logout",
+        )
 
     def list_authorized_chats(self) -> list[AuthorizedChat]:
         with self.connect() as connection:
@@ -438,6 +517,50 @@ class Repository:
                 params,
             ).fetchall()
         return [self._row_to_invite(row) for row in rows]
+
+    def revoke_invite(self, code: str, actor_chat_id: int | None = None) -> InviteCode:
+        stripped = code.strip()
+        revoked_at = datetime.now(timezone.utc).isoformat()
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT code, role, created_by_chat_id, max_uses, used_count, expires_at, revoked_at, created_at
+                FROM invite_codes
+                WHERE code = ?
+                """,
+                (stripped,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Unknown invite code.")
+            if row["revoked_at"]:
+                raise ValueError("Invite is already revoked.")
+            connection.execute(
+                """
+                UPDATE invite_codes
+                SET revoked_at = ?
+                WHERE code = ?
+                """,
+                (revoked_at, stripped),
+            )
+            self._record_audit(
+                connection,
+                action="revoke_invite",
+                target_type="invite",
+                target_id=stripped,
+                actor_chat_id=actor_chat_id,
+                details={},
+            )
+            connection.commit()
+        return InviteCode(
+            code=row["code"],
+            role=row["role"],
+            created_by_chat_id=row["created_by_chat_id"],
+            max_uses=row["max_uses"],
+            used_count=row["used_count"],
+            expires_at=row["expires_at"],
+            revoked_at=revoked_at,
+            created_at=row["created_at"],
+        )
 
     def list_audit_events(self, limit: int = 50) -> list[AuditEvent]:
         with self.connect() as connection:

@@ -29,7 +29,12 @@ def main() -> None:
     access_code = config.telegram_access_code or f"{secrets.randbelow(1_000_000):06d}"
 
     source = build_archive_source(config)
-    app_service = ApplicationService(repository, access_code=access_code)
+    app_service = ApplicationService(
+        repository,
+        access_code=access_code,
+        static_viewer_chat_ids=config.telegram_chat_allowlist,
+        static_owner_chat_ids=config.telegram_admin_chat_allowlist,
+    )
 
     service = TelegramBotService(
         app_service,
@@ -59,20 +64,20 @@ def main() -> None:
         f"Current index: folders={stats.folders} images={stats.images} tags={stats.tags}"
     )
     if config.telegram_chat_allowlist:
-        print(f"Allowed chats: {', '.join(str(chat_id) for chat_id in config.telegram_chat_allowlist)}")
+        print(f"Static viewer chats: {', '.join(str(chat_id) for chat_id in config.telegram_chat_allowlist)}")
     else:
-        print("Allowed chats: dynamic auth via /login")
+        print("Static viewer chats: none")
     if config.telegram_admin_chat_allowlist:
         print(
-            f"Admin chats: {', '.join(str(chat_id) for chat_id in config.telegram_admin_chat_allowlist)}"
+            f"Static owner chats: {', '.join(str(chat_id) for chat_id in config.telegram_admin_chat_allowlist)}"
         )
     else:
-        print("Admin chats: role-based via stored auth or invites")
+        print("Static owner chats: none")
     print(f"Stored authorized chats: {len(authorized_chats)}")
     if config.telegram_access_code:
-        print(f"Access code: {access_code} (from TELEGRAM_ACCESS_CODE)")
+        print(f"Access code: {access_code} (from TELEGRAM_ACCESS_CODE, grants viewer access)")
     else:
-        print(f"Access code: {access_code} (generated for this bot session)")
+        print(f"Access code: {access_code} (generated for this bot session, grants viewer access)")
         print("Use /login <access-code> from Telegram to authorize a new chat.")
     if stats.images == 0:
         print(
