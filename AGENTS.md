@@ -4,6 +4,8 @@
 
 Runtime code lives under `src/`, tests under `tests/`, and entry scripts under `scripts/`. Keep the current domain split intact: `source/` for archive access, `parsing/` for deterministic metadata extraction, `db/` for SQLite persistence and migrations, `app/` for shared product logic, `api/` for the local HTTP layer, and `bot/` for Telegram-specific delivery.
 
+`PLANNING.md` is the project progress ledger. When continuing the project, check `PLANNING.md` first to see what is already done, what is missing, and what MVP is next. New feature proposals should be grounded in that roadmap state, and completed MVPs should update `PLANNING.md` in the same change whenever feasible.
+
 ## Build, Test, and Development Commands
 
 There is no committed build system yet, so contributors should add tooling together with the first production code. When introducing a stack, document the canonical commands in `README.md` and keep them stable. Expected examples:
@@ -26,7 +28,7 @@ When changing SQLite schema or startup behavior, add a regression test for exist
 
 ## Commit & Pull Request Guidelines
 
-The repository has no commit history yet, so adopt short imperative commit messages such as `Add FTP path parser` or `Document indexing workflow`. Keep commits focused. Pull requests should include a concise summary, linked issue when relevant, test evidence, and screenshots or chat transcripts for user-facing bot behavior.
+Adopt short imperative commit messages such as `Add FTP path parser` or `Document indexing workflow`. Keep commits focused. Pull requests should include a concise summary, linked issue when relevant, test evidence, and screenshots or chat transcripts for user-facing bot behavior.
 
 ## Security & Configuration Tips
 

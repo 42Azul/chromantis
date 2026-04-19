@@ -1,259 +1,286 @@
-# Chromantis Planning
+# Chromantis Roadmap
 
-> A searchable visual memory over FTP photo folders, designed to evolve from deterministic indexing into LLM-assisted retrieval through chat.
+This file tracks delivery status, upcoming MVPs, and the implementation direction of the project. Use it as the roadmap and progress ledger for Chromantis.
 
-## Overview
+`README.md` explains how to run the current system. This document explains what is already shipped, what is ready next, and what is intentionally deferred.
 
-Chromantis is a project to turn a large set of photo folders stored on an FTP server into a structured, searchable knowledge base that can be queried from a chatbot interface, starting with Telegram.
+## Status Legend
 
-The source data is organized mostly like this:
+- `Done`: shipped and reflected in the current codebase
+- `Ready Next`: next implementation target, scoped enough to build now
+- `Planned Later`: intentionally deferred
+- `Open Risks`: unresolved cross-cutting concerns
 
-```text
-/year/folder-name-describing-content-with-date/photos...
-```
+## Current State
 
-Example:
+Chromantis currently provides:
 
-```text
-/2021/2021-08-15_trip_to_cadiz/IMG_001.jpg
-/2021/2021-08-15_trip_to_cadiz/IMG_002.jpg
-/2023/2023-12-24_christmas_family_dinner/DSC_1203.jpg
-```
+- source-agnostic, read-only archive indexing from either FTP or a local root
+- deterministic path parsing and deterministic tagging
+- SQLite persistence with migration-aware startup
+- deterministic search over years, year ranges, titles, tags, and curated people aliases
+- a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, plain-text query handling, and invite-based authorization
+- a shared application/query service used by both Telegram and the local HTTP API
+- a local read-only HTTP API for stats, search, browse, and people listing
 
-The long-term idea is inspired by the notion of a personal knowledge base that can be queried in natural language: a user sends a thought, memory, hint, question, or rough description to a bot, and the system returns the most relevant image, folder, year, or set of matches.
+Not implemented yet:
 
-At first, the system should remain **simple, deterministic, and debuggable**:
+- embeddings, captions, OCR, EXIF extraction, image analysis, or model-based reranking
+- incremental sync or scheduled indexing
+- a browser/admin UI
 
-* scan folders from FTP
-* extract path-based metadata
-* normalize names and dates
-* store structured records in a local database
-* support basic tagging and search
-* expose a Telegram bot for retrieval
+Current architecture map:
 
-Later, the system can evolve into richer image understanding:
+- `source/` and `parsing/`: archive access and deterministic metadata extraction
+- `db/`: SQLite schema, migrations, persistence, and audit storage
+- `search/`: deterministic retrieval logic
+- `app/`: shared product/query logic and rule-based request interpretation
+- `api/`: local HTTP surface
+- `bot/`: Telegram-specific interaction layer
 
-* automatic captions
-* semantic embeddings
-* visual similarity search
-* face/event/location clustering
-* LLM-assisted query rewriting and reasoning
+## Shipped MVPs
 
----
+### MVP 0 — Archive Foundation
 
-## Goals
+**Status:** `Done`
 
-### Initial goal
+**Goal:** Build a reliable archive index without changing the original photo source.
 
-Build a reliable index of all folders and images from FTP so that a chatbot can answer questions like:
+**Deliverables:**
 
-* "Show me Christmas photos from 2023"
-* "Find the folder for the Cádiz trip"
-* "Photos from summer 2021"
-* "Give me images from that dinner with family"
-* "What folders exist for 2020?"
-* "Return a random memory from 2019"
+- archive scanning from FTP and local roots
+- read-only source access and root confinement
+- deterministic path parsing and tag derivation
+- SQLite indexing and full reindex flow
+- scan progress logging and depth-limited traversal
 
-### Long-term goal
+**Acceptance:**
 
-Evolve the system into a multimodal personal retrieval engine where the user can ask vague or natural questions and still get useful results:
+- indexing works from the configured source root
+- no archive write operations are used
+- scanner, parser, and source safety behavior are covered by tests
 
-* "That day at the beach when we were with Pablo"
-* "Do I have pictures of blue boats?"
-* "Find old birthday dinners"
-* "Show me something happy from 2018"
+### MVP 1 — Search and Retrieval
 
----
+**Status:** `Done`
 
-## Product idea
+**Goal:** Make folders and images retrievable through deterministic search and Telegram delivery.
 
-Chromantis should behave like a **visual memory layer** on top of an existing folder hierarchy.
+**Deliverables:**
 
-It is not meant to replace the current file structure at first. Instead, it should:
+- folder and image search
+- exact year and inclusive year-range queries
+- curated people aliases and folder links
+- deterministic reasons attached to results
+- Telegram media replies, multi-image flows, session continuation, and mixed-folder disclosure
 
-1. observe the structure
-2. extract consistent metadata
-3. enrich it with tags and normalized fields
-4. expose it through a chatbot-friendly interface
+**Acceptance:**
 
-This makes the first version low-risk and highly practical.
+- `/folders`, `/images`, `/random`, `/more`, and `/years` work against the SQLite index
+- people aliases and year ranges affect retrieval correctly
+- results explain why they matched
 
----
+### MVP 2 — Product Service Layer
 
-## Guiding principles
+**Status:** `Done`
 
-### 1. Deterministic first
+**Goal:** Move product logic out of Telegram handlers and make it reusable.
 
-Before adding LLMs, build a system that works with path parsing, rules, tags, and indexed metadata.
+**Deliverables:**
 
-### 2. Preserve source of truth
+- shared application/query service
+- local read-only HTTP API
+- invite-based auth and stored chat roles
+- audit storage for auth and curation actions
+- rule-based plain-text interpretation for Telegram
 
-The FTP folder layout remains the original source. Chromantis builds a searchable layer on top.
+**Acceptance:**
 
-### 3. Incremental enrichment
+- Telegram and API run on the same shared query layer
+- invites can authorize new chats
+- plain-language text is rewritten into deterministic search actions
+- API behavior and legacy DB migration are covered by tests
 
-Start with year, folder name, date, image path, and derived tags. Later add captions, embeddings, OCR, EXIF, and image analysis.
+### MVP 3 — Stability and Migration Safety
 
-### 4. Traceable retrieval
+**Status:** `Done`
 
-Every result should clearly explain why it matched:
+**Goal:** Keep local deployments stable while the schema evolves.
 
-* year match
-* folder title match
-* tag match
-* semantic match
-* random selection within filtered scope
+**Deliverables:**
 
-### 5. Easy to reindex
+- migration-safe startup for legacy SQLite databases
+- schema regression tests for older local DBs
+- explicit contributor guidance to preserve startup compatibility
 
-The system should support change detection and incremental refreshes when new folders or files are added.
+**Acceptance:**
 
----
+- `Repository.init_schema()` works on both fresh and legacy DB files
+- schema changes include compatibility coverage
 
-## Core use cases
+## Ready Next
 
-### Folder retrieval
+### MVP 4 — Complete Auth and Admin Model
 
-User asks for a known trip, event, or period, and the bot returns the matching folder or a shortlist.
+**Status:** `Ready Next`
 
-### Image retrieval
+**Goal:** Make auth, roles, and admin operations explicit and manageable for a small family deployment.
 
-User asks for photos matching a year, event, or keyword, and the bot returns one or more images.
+**Deliverables:**
 
-### Random memory
+- formalize `owner`, `admin`, and `viewer` semantics
+- stop relying on implicit allowlist behavior as a hidden role system
+- add invite management commands:
+  - list active invites
+  - revoke invite
+  - show invite expiry and usage
+- add chat management commands:
+  - change role
+  - revoke access
+- expose equivalent auth/admin operations through the local API
+- expand audit events for role and invite lifecycle changes
 
-User asks for a random memory, optionally constrained by year, person, event, or rough theme.
+**Acceptance:**
 
-### Structured browsing through chat
+- role checks are consistent between bot and API
+- role changes and invite revocations are auditable
+- existing DBs still migrate without manual intervention
 
-User asks:
+### MVP 5 — Query API Maturation
 
-* "What do I have from 2022?"
-* "List folders with Christmas"
-* "Which years contain beach trips?"
+**Status:** `Ready Next`
 
-### Future semantic retrieval
+**Goal:** Turn the local API into a stable query surface for future clients.
 
-User asks something fuzzy, and the system combines metadata search with AI-generated enrichments.
+**Deliverables:**
 
----
+- normalize API response envelopes and query parameter conventions
+- add endpoints for session-aware continuation:
+  - continue current scope
+  - same folder
+  - same year
+  - related images
+- add people detail endpoints
+- add auth/admin endpoints needed by a future UI
+- add a plain-text interpretation endpoint on top of the existing rule interpreter
 
-## Proposed architecture
+**Acceptance:**
 
-### 1. FTP scanner
+- every current Telegram retrieval flow has an equivalent API path
+- archive access remains read-only
+- response shapes are stable enough for a later UI client
 
-Responsible for walking the FTP tree and discovering folders and image files.
+### MVP 6 — Better Non-Technical Telegram UX
 
-Responsibilities:
+**Status:** `Ready Next`
 
-* connect to FTP
-* recursively scan directories
-* detect image files
-* capture path, size, timestamps if available
-* identify new / removed / changed files
+**Goal:** Make Telegram usable without relying on command memorization.
 
-Potential implementation detail:
+**Deliverables:**
 
-* periodic sync job
-* manual reindex command
-* checksum or mtime-based change detection
+- stronger guided home flow after `/start`
+- clearer browse entry points for years, people, random memory, and search
+- better empty-state and no-result suggestions
+- disambiguation for ambiguous plain-text requests
+- guided admin curation flows instead of only pipe-based syntax
+- recent searches and favorite or pinned searches per chat
 
-### 2. Metadata extractor
+**Acceptance:**
 
-Parses folder and file paths into structured fields.
+- a non-technical user can retrieve images without needing slash commands
+- existing command flows still work
+- conversation-state behavior stays covered by tests
 
-Example derived fields:
+### MVP 7 — Query Interpreter Abstraction
 
-* `year`
-* `folder_name_raw`
-* `folder_name_normalized`
-* `event_date` (if derivable)
-* `keywords_from_path`
-* `filename`
-* `extension`
-* `full_path`
+**Status:** `Ready Next`
 
-Example:
+**Goal:** Prepare for richer natural-language handling without making paid APIs mandatory.
 
-```text
-/2023/2023-12-24_christmas_family_dinner/IMG_1024.jpg
-```
+**Deliverables:**
 
-Can become:
+- define an interpreter interface in `app/`
+- keep the current rule-based interpreter as the default implementation
+- add provider slots for:
+  - a local small model
+  - an external LLM provider later
+- add confidence and clarification behavior
+- keep retrieval deterministic after interpretation
 
-```json
-{
-  "year": 2023,
-  "event_date": "2023-12-24",
-  "folder_name_raw": "2023-12-24_christmas_family_dinner",
-  "folder_title": "christmas family dinner",
-  "tags": ["christmas", "family", "dinner"],
-  "filename": "IMG_1024.jpg",
-  "path": "/2023/2023-12-24_christmas_family_dinner/IMG_1024.jpg"
-}
-```
+**Acceptance:**
 
-### 3. Index database
+- interpreter providers are swappable without changing bot or API clients
+- low-confidence requests ask for clarification instead of guessing
+- default deployment remains local and low-cost
 
-Stores canonical records for folders, files, tags, and future enrichments.
+## Planned Later
 
-Good first options:
+### MVP 8 — Image Enrichment Pipeline
 
-* SQLite for local simplicity
-* PostgreSQL if multi-user or remote hosting becomes important
+**Status:** `Planned Later`
 
-Suggested entities:
+**Goal:** Add optional image understanding on top of deterministic indexing.
 
-### folders
+**Deliverables:**
 
-* id
-* year
-* folder_path
-* folder_name_raw
-* folder_name_normalized
-* event_date
-* title
-* created_at
-* updated_at
+- captions
+- OCR text
+- object tags
+- provenance by model and version
+- optional enrichment signals in search
 
-### images
+**Acceptance:**
 
-* id
-* folder_id
-* file_path
-* filename
-* extension
-* ftp_modified_at
-* checksum (optional)
-* width / height (future)
-* exif_date (future)
-* created_at
-* updated_at
+- enrichment is stored separately from source facts and deterministic fields
+- deterministic-only mode still works without enrichment
 
-### tags
+### MVP 9 — Sync and Operations
 
-* id
-* tag
-* source (`path`, `manual`, `ai`)
+**Status:** `Planned Later`
 
-### image_tags
+**Goal:** Improve long-running operation and maintenance.
 
-* image_id
-* tag_id
+**Deliverables:**
 
-### folder_tags
+- incremental sync or change detection
+- scheduled indexing
+- operational summaries and health reporting
+- optional reprocessing queues for enrichment
 
-* folder_id
-* tag_id
+**Acceptance:**
 
-### embeddings (future)
+- large archives no longer require only full rescans for routine updates
+- operational state is visible without reading raw logs
 
-* entity_type
-* entity_id
-* model
-* vector_reference
-* created_at
+### MVP 10 — Future UI
 
-### 4. Search layer
+**Status:** `Planned Later`
 
-The logic that converts a user request into retrieval.
+**Goal:** Add a browser/admin interface on top of the same product layer.
+
+**Deliverables:**
+
+- visual search and browsing UI
+- admin/configuration UI
+- people and invite management UI
+- search history and favorites UI
+
+**Acceptance:**
+
+- the UI reuses the existing API rather than reimplementing product logic
+- Telegram remains a supported client, not a separate code path
+
+## Open Risks
+
+- SQLite migration compatibility must remain stable as schema grows.
+- Auth semantics should become explicit without making small-family deployment heavy.
+- Telegram UX complexity must not leak into `app/` or `search/`.
+- Future AI interpretation should stay explainable and must not silently replace deterministic retrieval.
+- Archive access must remain strictly read-only in both FTP and local modes.
+
+## Maintenance Note
+
+- When a milestone lands, move it from `Ready Next` to `Done`.
+- Update the existing MVP entry instead of appending loose notes elsewhere.
+- Use this file as the progress ledger when resuming work, proposing features, or deciding what is still missing.
+- When a new client or subsystem is added, anchor it to the existing `app/` and `api/` direction instead of creating a parallel roadmap.
