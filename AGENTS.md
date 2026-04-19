@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-The repository is currently in a planning stage. [`README.md`](README.md) defines the product direction, and `chromantis.png` is a reference asset. As implementation begins, keep runtime code under `src/`, tests under `tests/`, and any static assets under `assets/` or `docs/`. Mirror the domain described in the README: scanner, metadata extraction, indexing, and bot integration should remain separate modules.
+Runtime code lives under `src/`, tests under `tests/`, and entry scripts under `scripts/`. Keep the current domain split intact: `source/` for archive access, `parsing/` for deterministic metadata extraction, `db/` for SQLite persistence and migrations, `app/` for shared product logic, `api/` for the local HTTP layer, and `bot/` for Telegram-specific delivery.
 
 ## Build, Test, and Development Commands
 
@@ -21,6 +21,8 @@ Use 4 spaces for Python and 2 spaces for JavaScript or JSON. Prefer descriptive,
 ## Testing Guidelines
 
 Place tests in `tests/` and name them after the behavior they cover, such as `test_path_parser.py` or `telegram-bot.search.spec.ts`. Prefer deterministic unit tests around path parsing, metadata normalization, and indexing because the project goal is traceable retrieval. Include regression coverage for any bug fix.
+
+When changing SQLite schema or startup behavior, add a regression test for existing-database compatibility. `Repository.init_schema()` must work both on a fresh database and on older local databases created by previous versions.
 
 ## Commit & Pull Request Guidelines
 

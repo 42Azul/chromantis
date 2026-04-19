@@ -54,6 +54,9 @@ class ConfigTests(unittest.TestCase):
                 "TELEGRAM_CHAT_ALLOWLIST",
                 "TELEGRAM_ADMIN_CHAT_ALLOWLIST",
                 "TELEGRAM_ACCESS_CODE",
+                "API_BIND_HOST",
+                "API_PORT",
+                "API_TOKEN",
             ):
                 os.environ.pop(key, None)
 
@@ -66,6 +69,9 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.telegram_chat_allowlist, (10, 20))
         self.assertEqual(config.telegram_admin_chat_allowlist, (20,))
         self.assertEqual(config.telegram_access_code, "654321")
+        self.assertEqual(config.api_bind_host, "127.0.0.1")
+        self.assertEqual(config.api_port, 8787)
+        self.assertIsNone(config.api_token)
 
     def test_from_env_reads_local_source_root(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -85,3 +91,27 @@ class ConfigTests(unittest.TestCase):
 
         self.assertEqual(config.source_type, "local")
         self.assertTrue(config.source_root.endswith("tests/fixtures/ftp_tree/server_root/photos/archive"))
+
+    def test_from_env_reads_api_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dotenv_path = Path(temp_dir) / ".env"
+            dotenv_path.write_text(
+                "\n".join(
+                    [
+                        "SOURCE_TYPE=ftp",
+                        "SOURCE_ROOT=/photos/archive",
+                        "API_BIND_HOST=0.0.0.0",
+                        "API_PORT=9001",
+                        "API_TOKEN=test-token",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            for key in ("SOURCE_TYPE", "SOURCE_ROOT", "API_BIND_HOST", "API_PORT", "API_TOKEN"):
+                os.environ.pop(key, None)
+
+            config = AppConfig.from_env(str(dotenv_path))
+
+        self.assertEqual(config.api_bind_host, "0.0.0.0")
+        self.assertEqual(config.api_port, 9001)
+        self.assertEqual(config.api_token, "test-token")

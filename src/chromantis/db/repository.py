@@ -1,8 +1,10 @@
 from __future__ import annotations
+import json
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from chromantis.db.schema import SCHEMA_SQL
@@ -30,7 +32,31 @@ class AuthorizedChat:
     chat_id: int
     username: str | None
     first_name: str | None
+    role: str
     authorized_at: str
+
+
+@dataclass(frozen=True)
+class InviteCode:
+    code: str
+    role: str
+    created_by_chat_id: int | None
+    max_uses: int
+    used_count: int
+    expires_at: str | None
+    revoked_at: str | None
+    created_at: str
+
+
+@dataclass(frozen=True)
+class AuditEvent:
+    id: int
+    actor_chat_id: int | None
+    action: str
+    target_type: str
+    target_id: str
+    details_json: str
+    created_at: str
 
 
 @dataclass(frozen=True)
@@ -77,6 +103,8 @@ class Repository:
     def init_schema(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA_SQL)
+            self._migrate_schema(connection)
+            connection.commit()
 
     @contextmanager
     def session(self):
@@ -188,21 +216,42 @@ class Repository:
             ).fetchone()
         return row is not None
 
+    def get_chat_role(self, chat_id: int) -> str | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT role FROM authorized_chats WHERE chat_id = ?",
+                (chat_id,),
+            ).fetchone()
+        return None if row is None else str(row["role"])
+
     def authorize_chat(
-        self, chat_id: int, username: str | None = None, first_name: str | None = None
+        self,
+        chat_id: int,
+        username: str | None = None,
+        first_name: str | None = None,
+        role: str = "viewer",
     ) -> None:
         authorized_at = datetime.now(timezone.utc).isoformat()
         with self.connect() as connection:
             connection.execute(
                 """
-                INSERT INTO authorized_chats (chat_id, username, first_name, authorized_at)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO authorized_chats (chat_id, username, first_name, role, authorized_at)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(chat_id) DO UPDATE SET
                     username = excluded.username,
                     first_name = excluded.first_name,
+                    role = excluded.role,
                     authorized_at = excluded.authorized_at
                 """,
-                (chat_id, username, first_name, authorized_at),
+                (chat_id, username, first_name, role, authorized_at),
+            )
+            self._record_audit(
+                connection,
+                action="authorize_chat",
+                target_type="chat",
+                target_id=str(chat_id),
+                actor_chat_id=chat_id,
+                details={"role": role, "username": username, "first_name": first_name},
             )
             connection.commit()
 
@@ -212,13 +261,21 @@ class Repository:
                 "DELETE FROM authorized_chats WHERE chat_id = ?",
                 (chat_id,),
             )
+            self._record_audit(
+                connection,
+                action="revoke_chat",
+                target_type="chat",
+                target_id=str(chat_id),
+                actor_chat_id=chat_id,
+                details={},
+            )
             connection.commit()
 
     def list_authorized_chats(self) -> list[AuthorizedChat]:
         with self.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT chat_id, username, first_name, authorized_at
+                SELECT chat_id, username, first_name, role, authorized_at
                 FROM authorized_chats
                 ORDER BY authorized_at ASC
                 """
@@ -228,10 +285,202 @@ class Repository:
                 chat_id=row["chat_id"],
                 username=row["username"],
                 first_name=row["first_name"],
+                role=row["role"],
                 authorized_at=row["authorized_at"],
             )
             for row in rows
         ]
+
+    def create_invite(
+        self,
+        role: str,
+        created_by_chat_id: int | None,
+        ttl_days: int = 7,
+        max_uses: int = 1,
+    ) -> InviteCode:
+        if role not in {"viewer", "admin"}:
+            raise ValueError("Invite role must be viewer or admin.")
+        if ttl_days < 1:
+            raise ValueError("Invite TTL must be at least 1 day.")
+        if max_uses < 1:
+            raise ValueError("Invite max_uses must be at least 1.")
+        created_at = datetime.now(timezone.utc)
+        expires_at = (created_at + timedelta(days=ttl_days)).isoformat()
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        invite = InviteCode(
+            code=code,
+            role=role,
+            created_by_chat_id=created_by_chat_id,
+            max_uses=max_uses,
+            used_count=0,
+            expires_at=expires_at,
+            revoked_at=None,
+            created_at=created_at.isoformat(),
+        )
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO invite_codes (
+                    code, role, created_by_chat_id, max_uses, used_count,
+                    expires_at, revoked_at, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    invite.code,
+                    invite.role,
+                    invite.created_by_chat_id,
+                    invite.max_uses,
+                    invite.used_count,
+                    invite.expires_at,
+                    invite.revoked_at,
+                    invite.created_at,
+                ),
+            )
+            self._record_audit(
+                connection,
+                action="create_invite",
+                target_type="invite",
+                target_id=invite.code,
+                actor_chat_id=created_by_chat_id,
+                details={
+                    "role": role,
+                    "ttl_days": ttl_days,
+                    "max_uses": max_uses,
+                },
+            )
+            connection.commit()
+        return invite
+
+    def redeem_invite(
+        self,
+        code: str,
+        chat_id: int,
+        username: str | None = None,
+        first_name: str | None = None,
+    ) -> AuthorizedChat:
+        now = datetime.now(timezone.utc)
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT code, role, created_by_chat_id, max_uses, used_count, expires_at, revoked_at, created_at
+                FROM invite_codes
+                WHERE code = ?
+                """,
+                (code.strip(),),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Invalid access code.")
+            if row["revoked_at"]:
+                raise ValueError("This invite has been revoked.")
+            if row["expires_at"] and datetime.fromisoformat(row["expires_at"]) < now:
+                raise ValueError("This invite has expired.")
+            if row["used_count"] >= row["max_uses"]:
+                raise ValueError("This invite has already been used.")
+            authorized_at = now.isoformat()
+            connection.execute(
+                """
+                INSERT INTO authorized_chats (chat_id, username, first_name, role, authorized_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    username = excluded.username,
+                    first_name = excluded.first_name,
+                    role = excluded.role,
+                    authorized_at = excluded.authorized_at
+                """,
+                (chat_id, username, first_name, row["role"], authorized_at),
+            )
+            connection.execute(
+                """
+                UPDATE invite_codes
+                SET used_count = used_count + 1
+                WHERE code = ?
+                """,
+                (code.strip(),),
+            )
+            self._record_audit(
+                connection,
+                action="redeem_invite",
+                target_type="invite",
+                target_id=code.strip(),
+                actor_chat_id=chat_id,
+                details={"role": row["role"], "username": username, "first_name": first_name},
+            )
+            connection.commit()
+        return AuthorizedChat(
+            chat_id=chat_id,
+            username=username,
+            first_name=first_name,
+            role=str(row["role"]),
+            authorized_at=authorized_at,
+        )
+
+    def list_invites(self, active_only: bool = True) -> list[InviteCode]:
+        filters = []
+        params: list[object] = []
+        now = datetime.now(timezone.utc).isoformat()
+        if active_only:
+            filters.append("revoked_at IS NULL")
+            filters.append("(expires_at IS NULL OR expires_at >= ?)")
+            filters.append("used_count < max_uses")
+            params.append(now)
+        where = ""
+        if filters:
+            where = "WHERE " + " AND ".join(filters)
+        with self.connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT code, role, created_by_chat_id, max_uses, used_count, expires_at, revoked_at, created_at
+                FROM invite_codes
+                {where}
+                ORDER BY created_at DESC
+                """,
+                params,
+            ).fetchall()
+        return [self._row_to_invite(row) for row in rows]
+
+    def list_audit_events(self, limit: int = 50) -> list[AuditEvent]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, actor_chat_id, action, target_type, target_id, details_json, created_at
+                FROM audit_events
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            AuditEvent(
+                id=row["id"],
+                actor_chat_id=row["actor_chat_id"],
+                action=row["action"],
+                target_type=row["target_type"],
+                target_id=row["target_id"],
+                details_json=row["details_json"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
+    def record_audit_event(
+        self,
+        action: str,
+        target_type: str,
+        target_id: str,
+        details: dict[str, object],
+        actor_chat_id: int | None = None,
+    ) -> None:
+        with self.connect() as connection:
+            self._record_audit(
+                connection,
+                action=action,
+                target_type=target_type,
+                target_id=target_id,
+                details=details,
+                actor_chat_id=actor_chat_id,
+            )
+            connection.commit()
 
     def get_chat_session(self, chat_id: int) -> str | None:
         with self.connect() as connection:
@@ -688,4 +937,57 @@ class Repository:
             display_name=person_row["display_name"],
             aliases=tuple(row["alias"] for row in aliases),
             folder_paths=tuple(row["folder_path"] for row in folder_rows),
+        )
+
+    @staticmethod
+    def _row_to_invite(row: sqlite3.Row) -> InviteCode:
+        return InviteCode(
+            code=row["code"],
+            role=row["role"],
+            created_by_chat_id=row["created_by_chat_id"],
+            max_uses=row["max_uses"],
+            used_count=row["used_count"],
+            expires_at=row["expires_at"],
+            revoked_at=row["revoked_at"],
+            created_at=row["created_at"],
+        )
+
+    @staticmethod
+    def _record_audit(
+        connection: sqlite3.Connection,
+        action: str,
+        target_type: str,
+        target_id: str,
+        details: dict[str, object],
+        actor_chat_id: int | None = None,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO audit_events (
+                actor_chat_id, action, target_type, target_id, details_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                actor_chat_id,
+                action,
+                target_type,
+                target_id,
+                json.dumps(details, sort_keys=True),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+    @staticmethod
+    def _has_column(connection: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+        rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        return any(row["name"] == column_name for row in rows)
+
+    def _migrate_schema(self, connection: sqlite3.Connection) -> None:
+        if not self._has_column(connection, "authorized_chats", "role"):
+            connection.execute(
+                "ALTER TABLE authorized_chats ADD COLUMN role TEXT NOT NULL DEFAULT 'viewer'"
+            )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_authorized_chats_role ON authorized_chats(role)"
         )

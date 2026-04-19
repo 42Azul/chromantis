@@ -86,6 +86,13 @@ class TelegramBotServiceTests(unittest.TestCase):
         reply = self.service.handle_command("/start", chat_id=999)
         self.assertIn("/login <access-code>", reply.text)
 
+    def test_start_for_authorized_chat_shows_home_buttons(self) -> None:
+        reply = self.service.handle_command("/start", chat_id=1234)
+
+        labels = {button.label for row in reply.buttons for button in row}
+        self.assertIn("Browse Years", labels)
+        self.assertIn("Random Memory", labels)
+
     def test_login_requires_valid_code(self) -> None:
         reply = self.service.handle_command("/login 000000", chat_id=999)
         self.assertEqual(reply.text, "Invalid access code.")
@@ -103,6 +110,25 @@ class TelegramBotServiceTests(unittest.TestCase):
 
         help_reply = self.service.handle_command("/help", chat_id=999)
         self.assertIn("/logout", help_reply.text)
+
+    def test_invite_authorizes_new_viewer_chat(self) -> None:
+        invite_reply = self.service.handle_command("/invite viewer 5", chat_id=1234)
+        self.assertIn("Invite created.", invite_reply.text)
+        code = next(
+            line.split(": ", 1)[1]
+            for line in invite_reply.text.splitlines()
+            if line.startswith("Code: ")
+        )
+
+        login_reply = self.service.handle_command(
+            f"/login {code}",
+            chat_id=5678,
+            username="viewer",
+            first_name="Viewer",
+        )
+
+        self.assertEqual(login_reply.text, "Chat authorized. Use /help to see available commands.")
+        self.assertEqual(self.repository.get_chat_role(5678), "viewer")
 
     def test_logout_revokes_dynamic_authorization(self) -> None:
         self.repository.authorize_chat(999, username="tester", first_name="Test")
@@ -125,6 +151,12 @@ class TelegramBotServiceTests(unittest.TestCase):
         labels = {button.label for row in reply.buttons for button in row}
         self.assertIn("More", labels)
         self.assertIn("Same Folder", labels)
+
+    def test_plain_text_query_is_interpreted(self) -> None:
+        reply = self.service.handle_text_input("show me 2 city photos from 2021", chat_id=1234)
+
+        self.assertEqual(len(reply.image_paths), 2)
+        self.assertIn("Showing images: 2 image(s)", reply.text)
 
     def test_people_add_and_show_commands(self) -> None:
         create_reply = self.service.handle_command("/people add Pablo", chat_id=1234)

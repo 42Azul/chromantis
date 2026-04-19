@@ -76,6 +76,9 @@ class AppConfig:
     telegram_chat_allowlist: tuple[int, ...]
     telegram_admin_chat_allowlist: tuple[int, ...]
     telegram_access_code: str | None
+    api_bind_host: str
+    api_port: int
+    api_token: str | None
     log_level: str
 
     @classmethod
@@ -121,5 +124,8 @@ class AppConfig:
                 os.getenv("TELEGRAM_ADMIN_CHAT_ALLOWLIST")
             ),
             telegram_access_code=os.getenv("TELEGRAM_ACCESS_CODE") or None,
+            api_bind_host=os.getenv("API_BIND_HOST", "127.0.0.1"),
+            api_port=int(os.getenv("API_PORT", "8787")),
+            api_token=os.getenv("API_TOKEN") or None,
             log_level=log_level,
         )

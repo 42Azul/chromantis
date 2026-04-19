@@ -8,10 +8,10 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from chromantis.bot.telegram_bot import TelegramBotApp, TelegramBotService
+from chromantis.app import ApplicationService
 from chromantis.config import AppConfig
 from chromantis.db.repository import Repository
 from chromantis.logging_utils import configure_logging
-from chromantis.search.service import SearchService
 from chromantis.source import build_archive_source
 
 
@@ -29,9 +29,10 @@ def main() -> None:
     access_code = config.telegram_access_code or f"{secrets.randbelow(1_000_000):06d}"
 
     source = build_archive_source(config)
+    app_service = ApplicationService(repository, access_code=access_code)
 
     service = TelegramBotService(
-        SearchService(repository),
+        app_service,
         chat_allowlist=config.telegram_chat_allowlist,
         admin_chat_allowlist=config.telegram_admin_chat_allowlist,
         stats_provider=repository.get_index_stats,
@@ -66,7 +67,7 @@ def main() -> None:
             f"Admin chats: {', '.join(str(chat_id) for chat_id in config.telegram_admin_chat_allowlist)}"
         )
     else:
-        print("Admin chats: all authorized chats")
+        print("Admin chats: role-based via stored auth or invites")
     print(f"Stored authorized chats: {len(authorized_chats)}")
     if config.telegram_access_code:
         print(f"Access code: {access_code} (from TELEGRAM_ACCESS_CODE)")

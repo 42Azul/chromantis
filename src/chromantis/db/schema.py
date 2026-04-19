@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS authorized_chats (
     chat_id INTEGER PRIMARY KEY,
     username TEXT NULL,
     first_name TEXT NULL,
+    role TEXT NOT NULL DEFAULT 'viewer',
     authorized_at TEXT NOT NULL
 );
 
@@ -76,6 +77,27 @@ CREATE TABLE IF NOT EXISTS folder_people (
     UNIQUE (folder_id, person_id)
 );
 
+CREATE TABLE IF NOT EXISTS invite_codes (
+    code TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    created_by_chat_id INTEGER NULL,
+    max_uses INTEGER NOT NULL DEFAULT 1,
+    used_count INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT NULL,
+    revoked_at TEXT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    id INTEGER PRIMARY KEY,
+    actor_chat_id INTEGER NULL,
+    action TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    details_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_folders_year ON folders(year);
 CREATE INDEX IF NOT EXISTS idx_folders_slug ON folders(folder_slug);
 CREATE INDEX IF NOT EXISTS idx_folders_event_date ON folders(event_date);
@@ -89,4 +111,8 @@ CREATE INDEX IF NOT EXISTS idx_people_normalized_name ON people(normalized_name)
 CREATE INDEX IF NOT EXISTS idx_person_aliases_person_id ON person_aliases(person_id);
 CREATE INDEX IF NOT EXISTS idx_person_aliases_normalized ON person_aliases(alias_normalized);
 CREATE INDEX IF NOT EXISTS idx_folder_people_person_id ON folder_people(person_id);
+CREATE INDEX IF NOT EXISTS idx_invite_codes_role ON invite_codes(role);
+CREATE INDEX IF NOT EXISTS idx_invite_codes_expires_at ON invite_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action);
+CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events(created_at);
 """

@@ -10,6 +10,8 @@ For product vision and roadmap, see [PLANNING.md](PLANNING.md).
 
 ```text
 src/chromantis/
+  app/                # shared application/query service and rule-based interpreter
+  api/                # local HTTP API on top of the application service
   config.py            # env loading and source-root validation
   db/                  # SQLite schema and repository
   source/              # archive source adapters and generic scanner
@@ -21,6 +23,7 @@ scripts/
   init_db.py           # create the SQLite schema
   reindex_source.py    # scan the configured source and index photos
   reindex_ftp.py       # compatibility wrapper for reindex_source.py
+  run_api.py           # start the local HTTP query API
   run_bot.py           # start the Telegram bot
 tests/
   fixtures/ftp_tree/   # local fake FTP tree
@@ -64,6 +67,9 @@ Copy `.env.example` to `.env` and set:
 - `TELEGRAM_CHAT_ALLOWLIST` optionally, comma-separated chat IDs
 - `TELEGRAM_ADMIN_CHAT_ALLOWLIST` optionally, comma-separated admin chat IDs
 - `TELEGRAM_ACCESS_CODE` optionally, a stable bot login code
+- `API_BIND_HOST` optionally, defaults to `127.0.0.1`
+- `API_PORT` optionally, defaults to `8787`
+- `API_TOKEN` optionally, required for HTTP API access when set
 - `LOG_LEVEL` optionally, for example `DEBUG` or `INFO`
 
 Use `SOURCE_TYPE=ftp` with an absolute FTP `SOURCE_ROOT` such as `/photos/archive`.
@@ -114,11 +120,18 @@ Start the Telegram bot:
 python scripts/run_bot.py
 ```
 
+Start the local HTTP API:
+
+```bash
+python scripts/run_api.py
+```
+
 Recommended first run order:
 
 ```bash
 python scripts/init_db.py
 python scripts/reindex_source.py --verbose --progress-every 1 --show-skipped
+python scripts/run_api.py
 python scripts/run_bot.py
 ```
 
@@ -137,6 +150,8 @@ python scripts/run_bot.py
 - `/people rename <canonical> | <new-display-name>`
 - `/people link <canonical> | <folder-path>`
 - `/people unlink <canonical> | <folder-path>`
+- `/invite [viewer|admin] [days]`
+- `/authorized`
 - `/whoami`
 - `/stats`
 - `/login <access-code>`
@@ -145,6 +160,7 @@ python scripts/run_bot.py
 The bot reads results from SQLite and fetches image bytes from the configured source on demand for photo replies.
 If the bot starts with an empty index, it prints a warning at startup and `/stats` will show `0` indexed images.
 Search now supports exact years, inclusive ranges like `2019-2021`, and curated people aliases inside `/folders`, `/images`, and `/random`.
+Authorized users can also send plain-language text like `show me 3 city photos from 2021`; Chromantis rewrites that into the existing deterministic search flow.
 You can ask for multiple photos in one command, and `/more` continues from the current image batch or scope in that chat.
 When a photo batch spans several folders, the bot now says so explicitly and offers a `Folders` button so users can continue inside one folder without assuming the whole batch came from the same place.
 Image replies include inline buttons for continuing the current search, switching to the same folder or year when that context is singular, getting random similar images, refining the search, and going back.
@@ -159,6 +175,7 @@ By default, `run_bot.py` now prints a 6-digit access code at startup. A new Tele
 ```
 
 to become authorized. Authorized chats are stored in SQLite and survive bot restarts.
+Admins can also generate short-lived invite codes with `/invite viewer` or `/invite admin 3`.
 
 If you want a stable code instead of a generated one, set:
 
@@ -170,11 +187,27 @@ If you prefer fixed chat IDs, keep using `TELEGRAM_CHAT_ALLOWLIST`. Allowlisted 
 
 If you set `TELEGRAM_ADMIN_CHAT_ALLOWLIST`, only those chats can use `/people add`, `/people alias`, `/people rename`, `/people link`, and `/people unlink`. If you leave it empty, every authorized chat is treated as an admin for curated metadata.
 
+## Local API
+
+Chromantis now exposes the same search/browse layer through a small local HTTP API. The API is meant for trusted local use and future UI work, not internet exposure.
+
+Available read-only endpoints:
+
+- `GET /api/v1/health`
+- `GET /api/v1/stats`
+- `GET /api/v1/years?from=2019&to=2021`
+- `GET /api/v1/folders?q=city&limit=10`
+- `GET /api/v1/images?q=city&limit=10`
+- `GET /api/v1/random?q=city&count=3`
+- `GET /api/v1/people`
+
+If `API_TOKEN` is set, send it as `Authorization: Bearer <token>` or `X-API-Token: <token>`.
+
 ## Current v1 limits
 
 - Full subtree scan only; no scheduler yet
 - No embeddings, captions, EXIF, or OCR
-- No natural-language reasoning layer
+- No model-based natural-language layer beyond the built-in rule interpreter
 - Search behavior is simple, explainable, and deterministic
 
 Early strategies:
