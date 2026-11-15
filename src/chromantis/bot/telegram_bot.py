@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from io import BytesIO
 import logging
 from pathlib import Path
+from secrets import token_hex
 from typing import Callable
 
 from chromantis.app import ApplicationService, AuthOperationError
@@ -145,6 +146,14 @@ class BotReply:
     buttons: tuple[tuple[ButtonSpec, ...], ...] = ()
 
 
+@dataclass(frozen=True)
+class PeopleEdit:
+    action: str
+    person_id: int | None = None
+    nonce: str = ""
+    folders: tuple[str, ...] = ()
+
+
 class TelegramBotService:
     def __init__(
         self,
@@ -179,6 +188,7 @@ class TelegramBotService:
         self.session_loader = session_loader
         self.session_saver = session_saver
         self.session_clearer = session_clearer
+        self.people_edits: dict[int, PeopleEdit] = {}
 
     def _chat_language(self, chat_id: int | None) -> str:
         if chat_id is None:
@@ -302,6 +312,8 @@ class TelegramBotService:
         username: str | None = None,
         first_name: str | None = None,
     ) -> BotReply:
+        if chat_id is not None:
+            self.people_edits.pop(chat_id, None)
         authorized = self._is_authorized(chat_id)
         command, _, raw_args = command_text.strip().partition(" ")
         args = raw_args.strip()
@@ -433,6 +445,8 @@ class TelegramBotService:
             )
         if not self._is_authorized(chat_id):
             return BotReply(self._t(language, "unauthorized"), buttons=self._guest_buttons(language))
+        if chat_id is not None and chat_id in self.people_edits:
+            return self._people_edit_text(chat_id, stripped, language)
         interpreted = self.app_service.interpret_text(stripped)
         logger.info(
             "Interpreted text input action=%s query=%r count=%d chat_id=%s",
@@ -470,6 +484,8 @@ class TelegramBotService:
         username: str | None = None,
         first_name: str | None = None,
     ) -> BotReply:
+        if chat_id is not None and not callback_data.startswith("people:"):
+            self.people_edits.pop(chat_id, None)
         logger.info("Handling callback=%s chat_id=%s", callback_data, chat_id)
         language = self._chat_language(chat_id)
 
@@ -505,6 +521,8 @@ class TelegramBotService:
         if not self._is_authorized(chat_id):
             return BotReply(self._t(language, "unauthorized"), buttons=self._guest_buttons(language))
 
+        if callback_data.startswith("people:") and chat_id is not None:
+            return self._people_callback(chat_id, callback_data.removeprefix("people:"), language)
         if callback_data == "nav:back":
             return self._handle_back(chat_id=chat_id)
         if callback_data == "nav:more":
@@ -712,81 +730,140 @@ class TelegramBotService:
 
     def _handle_people(self, command_text: str, chat_id: int | None, language: str) -> BotReply:
         _, _, raw_args = command_text.partition(" ")
-        args = raw_args.strip()
-        if not args:
-            return self._list_people_reply(language=language)
+        if not raw_args.strip():
+            return self._list_people_reply(language, chat_id)
 
-        action, _, remainder = args.partition(" ")
-        action = action.strip().lower()
-        remainder = remainder.strip()
+        action, _, remainder = raw_args.strip().partition(" ")
+        action, remainder = action.lower(), remainder.strip()
+        if action == "show" and remainder:
+            return self._show_person_reply(remainder, language, chat_id)
+        if action == "show":
+            return BotReply(self._t(language, "people_show_usage"))
+        if action not in {"add", "alias", "rename", "link", "unlink"}:
+            return BotReply(self._t(language, "people_usage"))
+        if not self._is_admin(chat_id):
+            return BotReply(self._t(language, "people_write_requires_admin"))
+        if action == "add":
+            if not remainder:
+                return BotReply(self._t(language, "people_add_usage"))
+            return self._write_person(action, None, remainder, chat_id, language)
         try:
-            if action == "show":
-                if not remainder:
-                    return BotReply(self._t(language, "people_show_usage"))
-                return self._show_person_reply(remainder, language=language)
-            if action == "add":
-                self._require_admin(chat_id)
-                if not remainder:
-                    return BotReply(self._t(language, "people_add_usage"))
-                detail = self.app_service.create_person(remainder, actor_chat_id=chat_id)
-                return BotReply(
-                    self._format_person_detail(
-                        detail,
-                        heading=self._t(language, "person_created"),
-                        language=language,
-                    )
-                )
-            if action == "alias":
-                self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, self._t(language, "people_alias_usage"))
-                detail = self.app_service.add_person_alias(left, right, actor_chat_id=chat_id)
-                return BotReply(
-                    self._format_person_detail(
-                        detail,
-                        heading=self._t(language, "person_alias_added"),
-                        language=language,
-                    )
-                )
-            if action == "rename":
-                self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, self._t(language, "people_rename_usage"))
-                detail = self.app_service.rename_person(left, right, actor_chat_id=chat_id)
-                return BotReply(
-                    self._format_person_detail(
-                        detail,
-                        heading=self._t(language, "person_renamed"),
-                        language=language,
-                    )
-                )
-            if action == "link":
-                self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, self._t(language, "people_link_usage"))
-                detail = self.app_service.link_person_to_folder(left, right, actor_chat_id=chat_id)
-                return BotReply(
-                    self._format_person_detail(
-                        detail,
-                        heading=self._t(language, "person_linked"),
-                        language=language,
-                    )
-                )
-            if action == "unlink":
-                self._require_admin(chat_id)
-                left, right = self._split_pipe_args(remainder, self._t(language, "people_unlink_usage"))
-                detail = self.app_service.unlink_person_from_folder(left, right, actor_chat_id=chat_id)
-                return BotReply(
-                    self._format_person_detail(
-                        detail,
-                        heading=self._t(language, "person_unlinked"),
-                        language=language,
-                    )
-                )
-        except QueryParseError as exc:
+            identifier, value = self._split_pipe_args(
+                remainder, self._t(language, f"people_{action}_usage")
+            )
+        except ValueError as exc:
             return BotReply(str(exc))
+        return self._write_person(action, identifier, value, chat_id, language)
+
+    def _write_person(
+        self, action: str, identifier: str | int | None,
+        value: str, chat_id: int | None, language: str,
+    ) -> BotReply:
+        try:
+            self._require_admin(chat_id)
+            if action == "add":
+                detail = self.app_service.create_person(value, actor_chat_id=chat_id)
+                heading = "person_created"
+            else:
+                operations = {
+                    "alias": (self.app_service.add_person_alias, "person_alias_added"),
+                    "rename": (self.app_service.rename_person, "person_renamed"),
+                    "link": (self.app_service.link_person_to_folder, "person_linked"),
+                    "unlink": (self.app_service.unlink_person_from_folder, "person_unlinked"),
+                }
+                operation, heading = operations[action]
+                assert identifier is not None
+                detail = operation(identifier, value, actor_chat_id=chat_id)
         except PermissionError:
             return BotReply(self._t(language, "people_write_requires_admin"))
         except ValueError as exc:
             return BotReply(str(exc))
-        return BotReply(self._t(language, "people_usage"))
+        return BotReply(
+            self._format_person_detail(detail, heading=self._t(language, heading), language=language),
+            buttons=self._person_buttons(detail.id, chat_id, language),
+        )
+
+    def _people_callback(self, chat_id: int, callback: str, language: str) -> BotReply:
+        action, _, value = callback.partition(":")
+        if action == "list":
+            self.people_edits.pop(chat_id, None)
+            if value.isdecimal() and len(value) <= 8:
+                return self._list_people_reply(language, chat_id, page=int(value))
+        if action == "show":
+            self.people_edits.pop(chat_id, None)
+            if value.isdecimal() and len(value) <= 18:
+                return self._show_person_reply(int(value), language, chat_id)
+        if not self._is_admin(chat_id):
+            self.people_edits.pop(chat_id, None)
+            return BotReply(self._t(language, "people_write_requires_admin"))
+        if action == "add":
+            self.people_edits[chat_id] = PeopleEdit("add")
+            return self._people_prompt("people_prompt_add", language)
+        if action in {"alias", "rename", "link", "unlink"} and value.isdecimal() and len(value) <= 18:
+            person = self.app_service.get_person_detail(int(value))
+            if person is None:
+                return BotReply(self._t(language, "unknown_person", identifier=value))
+            if action == "unlink":
+                if not person.folder_paths:
+                    return self._show_person_reply(person.id, language, chat_id)
+                edit = PeopleEdit(action, person.id, token_hex(4), person.folder_paths)
+                self.people_edits[chat_id] = edit
+                return self._people_folder_picker(edit, language)
+            self.people_edits[chat_id] = PeopleEdit(action, person.id)
+            return self._people_prompt(f"people_prompt_{action}", language)
+        if action in {"choose", "page"}:
+            nonce, _, index = value.partition(":")
+            edit = self.people_edits.get(chat_id)
+            if edit and edit.nonce and nonce == edit.nonce and index.isdecimal() and len(index) <= 8:
+                selection = int(index)
+                if action == "page":
+                    return self._people_folder_picker(edit, language, page=selection)
+                if 0 <= selection < len(edit.folders):
+                    reply = self._write_person(edit.action, edit.person_id, edit.folders[selection], chat_id, language)
+                    self.people_edits.pop(chat_id, None)
+                    return reply
+        return BotReply(self._t(language, "unknown_action"))
+
+    def _people_edit_text(self, chat_id: int, text: str, language: str) -> BotReply:
+        edit = self.people_edits[chat_id]
+        if not self._is_admin(chat_id):
+            self.people_edits.pop(chat_id, None)
+            return BotReply(self._t(language, "people_write_requires_admin"))
+        if edit.action == "unlink":
+            return self._people_folder_picker(edit, language)
+        if edit.action == "link":
+            try:
+                results = self.app_service.search_folders(text, limit=40)
+            except QueryParseError as exc:
+                return self._people_prompt("people_prompt_link", language, prefix=str(exc))
+            if not results:
+                self.people_edits[chat_id] = replace(edit, nonce="", folders=())
+                return self._people_prompt("people_prompt_link", language, prefix=self._t(language, "no_results_folders"))
+            edit = replace(edit, nonce=token_hex(4), folders=tuple(item.path for item in results))
+            self.people_edits[chat_id] = edit
+            return self._people_folder_picker(edit, language)
+        reply = self._write_person(edit.action, edit.person_id, text, chat_id, language)
+        if reply.buttons:
+            self.people_edits.pop(chat_id, None)
+            return reply
+        return self._people_prompt(f"people_prompt_{edit.action}", language, prefix=reply.text)
+
+    def _people_prompt(self, key: str, language: str, prefix: str = "") -> BotReply:
+        buttons = ((ButtonSpec(self._t(language, "button_cancel"), "people:list:0"),),)
+        return BotReply("\n\n".join(filter(None, (prefix, self._t(language, key)))), buttons=buttons)
+
+    def _people_folder_picker(self, edit: PeopleEdit, language: str, page: int = 0) -> BotReply:
+        start = min(page, (len(edit.folders) - 1) // 8) * 8
+        rows = [
+            (ButtonSpec(path[:70], f"people:choose:{edit.nonce}:{index}"),)
+            for index, path in enumerate(edit.folders[start:start + 8], start)
+        ]
+        if start:
+            rows.append((ButtonSpec(self._t(language, "button_back"), f"people:page:{edit.nonce}:{start // 8 - 1}"),))
+        if start + 8 < len(edit.folders):
+            rows.append((ButtonSpec(self._t(language, "button_next"), f"people:page:{edit.nonce}:{start // 8 + 1}"),))
+        rows.append((ButtonSpec(self._t(language, "button_cancel"), "people:list:0"),))
+        return BotReply(self._t(language, "people_choose_folder"), buttons=tuple(rows))
 
     def _set_chat_role_reply(
         self,
@@ -858,12 +935,12 @@ class TelegramBotService:
             )
         )
 
-    def _list_people_reply(self, language: str) -> BotReply:
+    def _list_people_reply(self, language: str, chat_id: int | None, page: int = 0) -> BotReply:
         people = self.app_service.list_people()
-        if not people:
-            return BotReply(self._t(language, "no_people"))
-        lines = [self._t(language, "curated_people_header")]
-        for person in people:
+        start = max(0, min(page, (len(people) - 1) // 8)) * 8
+        lines = [self._t(language, "curated_people_header" if people else "no_people")]
+        rows = []
+        for person in people[start:start + 8]:
             lines.append(
                 self._t(
                     language,
@@ -873,19 +950,39 @@ class TelegramBotService:
                     folder_count=person.folder_count,
                 )
             )
-        return BotReply("\n".join(lines))
+            rows.append((ButtonSpec(person.display_name[:70], f"people:show:{person.id}"),))
+        if start:
+            rows.append((ButtonSpec(self._t(language, "button_back"), f"people:list:{start // 8 - 1}"),))
+        if start + 8 < len(people):
+            rows.append((ButtonSpec(self._t(language, "button_next"), f"people:list:{start // 8 + 1}"),))
+        if self._is_admin(chat_id):
+            rows.append((ButtonSpec(self._t(language, "button_people_add"), "people:add"),))
+        rows.append((ButtonSpec(self._t(language, "button_home"), "nav:home"),))
+        return BotReply("\n".join(lines), buttons=tuple(rows))
 
-    def _show_person_reply(self, identifier: str, language: str) -> BotReply:
+    def _show_person_reply(self, identifier: str | int, language: str, chat_id: int | None) -> BotReply:
         detail = self.app_service.get_person_detail(identifier)
         if detail is None:
             return BotReply(self._t(language, "unknown_person", identifier=identifier))
         return BotReply(
             self._format_person_detail(
-                detail,
-                heading=self._t(language, "person_heading"),
-                language=language,
-            )
+                detail, heading=self._t(language, "person_heading"), language=language
+            ),
+            buttons=self._person_buttons(detail.id, chat_id, language),
         )
+
+    def _person_buttons(
+        self, person_id: int, chat_id: int | None, language: str
+    ) -> tuple[tuple[ButtonSpec, ...], ...]:
+        rows = []
+        if self._is_admin(chat_id):
+            for actions in (("alias", "rename"), ("link", "unlink")):
+                rows.append(tuple(
+                    ButtonSpec(self._t(language, f"button_people_{action}"), f"people:{action}:{person_id}")
+                    for action in actions
+                ))
+        rows.append((ButtonSpec(self._t(language, "button_people"), "people:list:0"),))
+        return tuple(rows)
 
     def _continue_current_scope(self, chat_id: int | None, count: int | None) -> BotReply:
         language = self._chat_language(chat_id)

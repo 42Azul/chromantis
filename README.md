@@ -175,7 +175,7 @@ When a photo batch spans several folders, the bot now says so explicitly and off
 Image replies include inline buttons for continuing the current search, switching to the same folder or year when that context is singular, getting random similar images, refining the search, and going back.
 Active browse state is stored per chat in SQLite, so `/more` and the navigation buttons survive bot restarts.
 
-Current limitation: people and alias management are still admin command flows, not guided UI flows yet. Admins currently still need commands like `/people add`, `/people alias <canonical> | <alias>`, and `/people link <canonical> | <folder-path>`. That gap is intentionally deferred to MVP 6B in `PLANNING.md`.
+Open **People** to browse person details. Admins and owners can add people, change names, add aliases, and link or unlink folders from the person’s buttons. Linking prompts for a folder name, year, or keyword and shows the matching folders. The `/people` commands remain available.
 
 ## Bot security
 

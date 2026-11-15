@@ -218,6 +218,8 @@ Current architecture map:
 
 **Goal:** Finish the remaining non-technical UX work that was intentionally deferred from MVP 6A.
 
+**Progress:** Bilingual Telegram people curation is implemented for creating, renaming, aliasing, linking, and unlinking. Recent searches, pinned searches, and richer clarification are still pending.
+
 **Deliverables:**
 
 - guided admin curation flows instead of only pipe-based syntax

@@ -241,6 +241,54 @@ class TelegramBotServiceTests(unittest.TestCase):
 
         self.assertEqual(reply.text, "Admin privileges are required for /people write commands.")
 
+    def test_people_wizard_adds_renames_links_and_unlinks(self) -> None:
+        chat = OWNER_CHAT_ID
+
+        def press(callback: str):
+            return self.service.handle_callback(callback, chat_id=chat)
+
+        def send(text: str):
+            return self.service.handle_text_input(text, chat_id=chat)
+
+        people = press("nav:people")
+        self.assertIn("people:add", [button.callback_data for row in people.buttons for button in row])
+        self.assertIn("display name", press("people:add").text)
+        self.assertIn("Person created", send("Ana Original").text)
+        person = self.service.app_service.get_person_detail("Ana Original")
+        self.assertIsNotNone(person)
+        person_id = person.id
+        press(f"people:rename:{person_id}")
+        self.assertIn("Ana Nueva", send("Ana Nueva").text)
+        press(f"people:alias:{person_id}")
+        self.assertIn("Ani", send("Ani").text)
+
+        press(f"people:link:{person_id}")
+        picker = send("city")
+        choose = picker.buttons[0][0].callback_data
+        self.assertTrue(choose.startswith("people:choose:"))
+        self.assertIn("2021/2021-08-15_city_trip", press(choose).text)
+        self.assertEqual(self.service.app_service.get_person_detail("Ani").folder_paths, ("2021/2021-08-15_city_trip",))
+        self.assertIn("Unknown", press(choose).text)
+        unlink = press(f"people:unlink:{person_id}").buttons[0][0].callback_data
+        press(unlink)
+        self.assertEqual(self.service.app_service.get_person_detail("Ani").folder_paths, ())
+
+    def test_people_wizard_cancels_and_checks_current_role(self) -> None:
+        admin = 9876
+        self.repository.authorize_chat(admin, role="admin")
+        self.service.handle_callback("people:add", chat_id=admin)
+        self.service.handle_callback("people:list:0", chat_id=admin)
+        self.service.handle_text_input("Nobody New", chat_id=admin)
+        self.assertIsNone(self.service.app_service.get_person_detail("Nobody New"))
+
+        self.service.handle_callback("people:add", chat_id=admin)
+        self.repository.set_chat_role(admin, "viewer")
+        attempted = self.service.handle_text_input("Still Nobody", chat_id=admin)
+        self.assertIn("Admin privileges", attempted.text)
+        self.assertIsNone(self.service.app_service.get_person_detail("Still Nobody"))
+        viewer_menu = self.service.handle_callback("nav:people", chat_id=admin)
+        self.assertFalse(any(button.callback_data == "people:add" for row in viewer_menu.buttons for button in row))
+
     def test_images_command_supports_people_alias_and_year_range(self) -> None:
         self.service.handle_command("/people add Pablo", chat_id=OWNER_CHAT_ID)
         self.service.handle_command("/people alias Pablo | Pablito", chat_id=OWNER_CHAT_ID)
