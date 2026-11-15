@@ -26,6 +26,16 @@ CREATE TABLE IF NOT EXISTS images (
     scan_seen_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS sync_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mode TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    summary_json TEXT,
+    error TEXT
+);
+
 CREATE TABLE IF NOT EXISTS image_enrichment (
     image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     model TEXT NOT NULL,

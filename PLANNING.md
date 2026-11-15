@@ -24,11 +24,11 @@ Chromantis currently provides:
 - a local HTTP API for search, indexed image delivery, persistent browsing, query interpretation, people curation, and role-based chat and invite administration
 - guided people curation in Telegram and per-chat recent and pinned searches shared by Telegram and the API
 - optional image enrichment with model provenance and opt-in search over captions, OCR, and object tags
+- incremental indexing with stored sync summaries, a cron recipe, and bounded enrichment retries
 
 Not implemented yet:
 
 - embeddings, EXIF extraction, or model-based reranking
-- incremental sync or scheduled indexing
 - a browser/admin UI
 
 Current architecture map:
@@ -280,11 +280,9 @@ Current architecture map:
 - enrichment is stored separately from source facts and deterministic fields
 - deterministic-only mode still works without enrichment
 
-## Ready Next
-
 ### MVP 9 — Sync and Operations
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Improve long-running operation and maintenance.
 
@@ -300,11 +298,11 @@ Current architecture map:
 - large archives no longer require only full rescans for routine updates
 - operational state is visible without reading raw logs
 
-## Planned Later
+## Ready Next
 
 ### MVP 10 — Future UI
 
-**Status:** `Planned Later`
+**Status:** `Ready Next`
 
 **Goal:** Add a browser/admin interface on top of the same product layer.
 

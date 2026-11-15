@@ -246,6 +246,9 @@ def _role(body: dict[str, object], roles: set[str], default: str | None = None) 
 def _query_route(
     path: str, params: dict[str, list[str]], app_service: ApplicationService
 ) -> tuple[int, dict[str, object]]:
+    if path == "/api/v1/sync/runs":
+        limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
+        return 200, {"items": app_service.repository.list_sync_runs(limit)}
     if path == "/api/v1/stats":
         stats = asdict(app_service.get_index_stats())
         return 200, {**stats, "item": stats}

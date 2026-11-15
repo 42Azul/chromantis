@@ -3,7 +3,7 @@ import json
 import secrets
 import sqlite3
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -18,6 +18,7 @@ class ScanSummary:
     skipped_paths: int
     deleted_folders: int
     deleted_images: int
+    unchanged_images: int = 0
 
 
 @dataclass(frozen=True)
@@ -143,13 +144,75 @@ class Repository:
         return nullcontext(connection) if connection is not None else self.session()
 
     @contextmanager
-    def auth_write(self):
+    def write_transaction(self):
         with self.session() as connection:
             connection.execute("BEGIN IMMEDIATE")
             yield connection
 
-    def begin_scan(self) -> str:
-        return datetime.now(timezone.utc).isoformat()
+    def begin_scan(self, incremental: bool) -> tuple[int, str]:
+        now = datetime.now(timezone.utc).isoformat()
+        with self.session() as connection:
+            cursor = connection.execute(
+                "INSERT INTO sync_runs (mode, status, started_at) VALUES (?, 'running', ?)",
+                ("incremental" if incremental else "full", now),
+            )
+            return int(cursor.lastrowid), now
+
+    def scan_is_superseded(self, connection: sqlite3.Connection, scan_id: int) -> bool:
+        return connection.execute(
+            "SELECT 1 FROM sync_runs WHERE id > ? AND status = 'succeeded' LIMIT 1", (scan_id,)
+        ).fetchone() is not None
+
+    def finish_scan(
+        self, scan_id: int, status: str, summary: ScanSummary | None = None,
+        error: str | None = None, *, connection: sqlite3.Connection | None = None,
+    ) -> None:
+        finished_at = datetime.now(timezone.utc).isoformat()
+        with self._existing_or_session(connection) as connection:
+            connection.execute(
+                """
+                UPDATE sync_runs SET status = ?, finished_at = ?, summary_json = ?, error = ?
+                WHERE id = ?
+                """,
+                (status, finished_at, json.dumps(asdict(summary)) if summary else None, error, scan_id),
+            )
+
+    def list_sync_runs(self, limit: int) -> list[dict[str, object]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM sync_runs ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [
+            {
+                "id": row["id"], "mode": row["mode"], "status": row["status"],
+                "started_at": row["started_at"], "finished_at": row["finished_at"],
+                "summary": json.loads(row["summary_json"]) if row["summary_json"] else None,
+                "error": row["error"],
+            }
+            for row in rows
+        ]
+
+    def indexed_image_metadata(
+        self, connection: sqlite3.Connection
+    ) -> dict[str, tuple[str, int | None, str | None]]:
+        rows = connection.execute(
+            """
+            SELECT i.file_path, f.ftp_root_path, i.file_size, i.ftp_modified_at
+            FROM images i JOIN folders f ON f.id = i.folder_id
+            """
+        )
+        return {row[0]: (row[1], row[2], row[3]) for row in rows}
+
+    def delete_missing_images(
+        self, connection: sqlite3.Connection, paths: set[str]
+    ) -> tuple[int, int]:
+        images = connection.executemany(
+            "DELETE FROM images WHERE file_path = ?", ((path,) for path in paths)
+        ).rowcount
+        folders = connection.execute(
+            "DELETE FROM folders WHERE NOT EXISTS (SELECT 1 FROM images WHERE folder_id = folders.id)"
+        ).rowcount
+        return folders, images
 
     def upsert_image_record(
         self, connection: sqlite3.Connection, record: ParsedImageRecord, scan_seen_at: str
@@ -159,43 +222,6 @@ class Repository:
         self._replace_folder_tags(connection, folder_id, record.folder_tags)
         self._replace_image_tags(connection, image_id, record.image_tags)
         return folder_id, image_id
-
-    def prune_stale(
-        self, connection: sqlite3.Connection, scan_seen_at: str
-    ) -> tuple[int, int]:
-        stale_images = connection.execute(
-            """
-            SELECT COUNT(*)
-            FROM images
-            WHERE scan_seen_at != ?
-            """,
-            (scan_seen_at,),
-        ).fetchone()[0]
-
-        connection.execute(
-            """
-            DELETE FROM images
-            WHERE scan_seen_at != ?
-            """,
-            (scan_seen_at,),
-        )
-
-        stale_folders = connection.execute(
-            """
-            SELECT COUNT(*)
-            FROM folders
-            WHERE scan_seen_at != ?
-            """,
-            (scan_seen_at,),
-        ).fetchone()[0]
-        connection.execute(
-            """
-            DELETE FROM folders
-            WHERE scan_seen_at != ?
-            """,
-            (scan_seen_at,),
-        )
-        return stale_folders, stale_images
 
     def list_years(self) -> list[int]:
         return [summary.year for summary in self.list_year_summaries()]
@@ -547,7 +573,7 @@ class Repository:
         first_name: str | None = None,
     ) -> AuthorizedChat:
         now = datetime.now(timezone.utc)
-        with self.auth_write() as connection:
+        with self.write_transaction() as connection:
             row = connection.execute(
                 """
                 SELECT code, role, created_by_chat_id, max_uses, used_count, expires_at, revoked_at, created_at

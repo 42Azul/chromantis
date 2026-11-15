@@ -195,12 +195,12 @@ class ApplicationService:
     def remember_search(self, chat_id: int | None, kind: str, query: str, count: int) -> None:
         if chat_id is None or not query.strip():
             return
-        with self.repository.auth_write() as connection:
+        with self.repository.write_transaction() as connection:
             if self.resolve_principal(chat_id, connection=connection).role != "none":
                 self.repository.record_search(connection, chat_id, kind, query.strip(), count)
 
     def set_search_pinned(self, chat_id: int, search_id: int, pinned: bool) -> SavedSearch | None:
-        with self.repository.auth_write() as connection:
+        with self.repository.write_transaction() as connection:
             if self.resolve_principal(chat_id, connection=connection).role == "none":
                 raise AuthOperationError("unauthorized", "Chat is not authorized.", 401)
             return self.repository.set_search_pinned(connection, chat_id, search_id, pinned)
@@ -358,7 +358,7 @@ class ApplicationService:
     def set_chat_role(
         self, chat_id: int, role: str, actor_chat_id: int | None
     ) -> AuthorizedPrincipal:
-        with self.repository.auth_write() as connection:
+        with self.repository.write_transaction() as connection:
             actor = self.resolve_principal(actor_chat_id, connection=connection)
             if actor.role != "owner":
                 raise AuthOperationError("authorized_role_owner_only", "Owner privileges are required.")
@@ -381,7 +381,7 @@ class ApplicationService:
         )
 
     def revoke_chat_access(self, chat_id: int, actor_chat_id: int | None) -> None:
-        with self.repository.auth_write() as connection:
+        with self.repository.write_transaction() as connection:
             actor = self.require_admin(
                 actor_chat_id, "authorized_revoke_admin_only", connection=connection
             )
@@ -401,7 +401,7 @@ class ApplicationService:
             )
 
     def revoke_own_access(self, chat_id: int) -> None:
-        with self.repository.auth_write() as connection:
+        with self.repository.write_transaction() as connection:
             principal = self.resolve_principal(chat_id, connection=connection)
             if principal.auth_mode.startswith("static_"):
                 raise ValueError("Static chats cannot be revoked.")
@@ -415,7 +415,7 @@ class ApplicationService:
     def create_invite(
         self, role: str, created_by_chat_id: int | None, ttl_days: int = 7
     ) -> InviteCode:
-        with self.repository.auth_write() as connection:
+        with self.repository.write_transaction() as connection:
             actor = self.require_admin(created_by_chat_id, "invite_requires_admin", connection=connection)
             if role == "admin" and actor.role != "owner":
                 raise AuthOperationError("invite_admin_owner_only", "Owner privileges are required.")
@@ -433,7 +433,7 @@ class ApplicationService:
         ]
 
     def revoke_invite(self, code: str, actor_chat_id: int | None) -> InviteCode:
-        with self.repository.auth_write() as connection:
+        with self.repository.write_transaction() as connection:
             actor = self.require_admin(
                 actor_chat_id, "revoke_viewer_invite_admin_only", connection=connection
             )

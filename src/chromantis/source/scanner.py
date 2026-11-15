@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from chromantis.db.repository import Repository, ScanSummary
 from chromantis.parsing.path_parser import PathParseError, PathParser
-from chromantis.source.adapters import ArchiveSource
+from chromantis.source.adapters import ArchiveEntry, ArchiveSource
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 logger = logging.getLogger(__name__)
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 class ScanResult:
     summary: ScanSummary
     skipped_paths: tuple[str, ...]
+    status: str = "succeeded"
 
 
 class ArchiveScanner:
@@ -23,128 +24,61 @@ class ArchiveScanner:
         self.repository = repository
         self.parser = parser
 
-    def scan(self, progress_every: int = 100) -> ScanResult:
-        logger.info("Starting archive scan under root %s", self.source.source_root)
-        entries = self.source.iter_entries()
-        scan_seen_at = self.repository.begin_scan()
-        skipped_paths: list[str] = []
-        folders_indexed = 0
-        images_indexed = 0
-        processed_entries = 0
-        yielded_entries = 0
-        listed_directories = 0
+    def scan(self, progress_every: int = 100, *, incremental: bool = False) -> ScanResult:
+        scan_id, started_at = self.repository.begin_scan(incremental)
+        logger.info("Starting %s scan %d", "incremental" if incremental else "full", scan_id)
+        try:
+            entries = self._list_images(progress_every)
+            result = self._update_index(scan_id, started_at, entries, incremental)
+        except (Exception, KeyboardInterrupt) as exc:
+            self.repository.finish_scan(scan_id, "failed", error=type(exc).__name__)
+            raise
+        logger.info("Scan %d %s: %s", scan_id, result.status, result.summary)
+        return result
 
-        with self.repository.session() as connection:
-            for entry in entries:
-                yielded_entries += 1
-                processed_entries += 1
-                if entry.is_dir:
-                    listed_directories += 1
-                    logger.debug("Skipping directory entry %s", entry.path)
-                    self._log_progress(
-                        processed_entries,
-                        images_indexed,
-                        listed_directories,
-                        skipped_paths,
-                        progress_every,
-                    )
-                    continue
-                if not self._is_supported_image(entry.path):
-                    logger.debug("Skipping non-image file %s", entry.path)
-                    self._log_progress(
-                        processed_entries,
-                        images_indexed,
-                        listed_directories,
-                        skipped_paths,
-                        progress_every,
-                    )
+    def _list_images(self, progress_every: int) -> dict[str, ArchiveEntry]:
+        images = {}
+        for count, entry in enumerate(self.source.iter_entries(), 1):
+            if not entry.is_dir and any(entry.path.lower().endswith(ext) for ext in IMAGE_EXTENSIONS):
+                images[entry.path] = entry
+            if progress_every > 0 and (count == 1 or count % progress_every == 0):
+                logger.info("Listed %d archive entries, found %d image paths", count, len(images))
+        return images
+
+    def _update_index(
+        self, scan_id: int, started_at: str, entries: dict[str, ArchiveEntry], incremental: bool
+    ) -> ScanResult:
+        skipped: list[str] = []
+        unchanged = indexed = 0
+        root = self.source.source_root
+        with self.repository.write_transaction() as connection:
+            if self.repository.scan_is_superseded(connection, scan_id):
+                summary = ScanSummary(0, 0, 0, 0, 0)
+                self.repository.finish_scan(scan_id, "superseded", summary, connection=connection)
+                return ScanResult(summary, (), "superseded")
+
+            previous = self.repository.indexed_image_metadata(connection)
+            for path, entry in entries.items():
+                if (
+                    incremental and entry.size is not None and entry.modified_at is not None
+                    and previous.get(path) == (root, entry.size, entry.modified_at)
+                ):
+                    unchanged += 1
                     continue
                 try:
-                    record = self.parser.parse_image_path(
-                        source_root=self.source.source_root,
-                        relative_path=entry.path,
-                        file_size=entry.size,
-                        modified_at=entry.modified_at,
-                    )
-                except PathParseError as exc:
-                    logger.debug("Skipping invalid image path %s: %s", entry.path, exc)
-                    skipped_paths.append(entry.path)
-                    self._log_progress(
-                        processed_entries,
-                        images_indexed,
-                        listed_directories,
-                        skipped_paths,
-                        progress_every,
-                    )
+                    record = self.parser.parse_image_path(root, path, entry.size, entry.modified_at)
+                except PathParseError:
+                    skipped.append(path)
                     continue
+                self.repository.upsert_image_record(connection, record, started_at)
+                indexed += 1
 
-                self.repository.upsert_image_record(connection, record, scan_seen_at)
-                logger.debug(
-                    "Indexed image %s in folder %s with tags=%s",
-                    record.file_path,
-                    record.folder_path,
-                    [tag for tag, _source in record.folder_tags],
-                )
-                folders_indexed += 1
-                images_indexed += 1
-                self._log_progress(
-                    processed_entries,
-                    images_indexed,
-                    listed_directories,
-                    skipped_paths,
-                    progress_every,
-                )
-
-            deleted_folders, deleted_images = self.repository.prune_stale(
-                connection, scan_seen_at
-            )
-
-        logger.info(
-            "Finished archive scan root=%s entries_seen=%d directories=%d images_indexed=%d skipped=%d deleted_images=%d deleted_folders=%d",
-            self.source.source_root,
-            yielded_entries,
-            listed_directories,
-            images_indexed,
-            len(skipped_paths),
-            deleted_images,
-            deleted_folders,
-        )
-
-        return ScanResult(
-            summary=ScanSummary(
-                folders_indexed=folders_indexed,
-                images_indexed=images_indexed,
-                skipped_paths=len(skipped_paths),
-                deleted_folders=deleted_folders,
-                deleted_images=deleted_images,
-            ),
-            skipped_paths=tuple(skipped_paths),
-        )
+            missing = (previous.keys() - entries.keys()) | (previous.keys() & set(skipped))
+            deleted_folders, deleted_images = self.repository.delete_missing_images(connection, missing)
+            summary = ScanSummary(indexed, indexed, len(skipped), deleted_folders, deleted_images, unchanged)
+            self.repository.finish_scan(scan_id, "succeeded", summary, connection=connection)
+        return ScanResult(summary, tuple(skipped))
 
     def fetch_image_bytes(self, relative_path: str) -> bytes:
         logger.debug("Fetching image bytes for %s", relative_path)
         return self.source.read_bytes(relative_path)
-
-    @staticmethod
-    def _log_progress(
-        processed_entries: int,
-        images_indexed: int,
-        listed_directories: int,
-        skipped_paths: list[str],
-        progress_every: int,
-    ) -> None:
-        if progress_every <= 0:
-            return
-        if processed_entries == 1 or processed_entries % progress_every == 0:
-            logger.info(
-                "Scan progress: entries_seen=%d directories=%d indexed_images=%d skipped=%d",
-                processed_entries,
-                listed_directories,
-                images_indexed,
-                len(skipped_paths),
-            )
-
-    @staticmethod
-    def _is_supported_image(path: str) -> bool:
-        lower_path = path.lower()
-        return any(lower_path.endswith(extension) for extension in IMAGE_EXTENSIONS)

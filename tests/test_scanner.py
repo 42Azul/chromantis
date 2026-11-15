@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -77,3 +76,69 @@ class FTPScannerTests(unittest.TestCase):
                     ("%nested%",),
                 ).fetchone()[0]
                 self.assertEqual(nested, 0)
+
+    def test_incremental_scan_only_updates_changed_images_and_deletes_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "archive"
+            folder = root / "2021" / "city"
+            folder.mkdir(parents=True)
+            unchanged = folder / "keep.jpg"
+            changed = folder / "change.jpg"
+            missing = folder / "remove.jpg"
+            for image in (unchanged, changed, missing):
+                image.write_bytes(b"original")
+            repository, scanner = self._build_scanner(str(Path(temp_dir) / "index.db"), root)
+            with repository.session() as connection:
+                connection.execute("DROP TABLE sync_runs")
+            repository.init_schema()
+            scanner.scan()
+
+            changed.write_bytes(b"new contents")
+            missing.unlink()
+            (folder / "new.jpg").write_bytes(b"new")
+            result = scanner.scan(incremental=True)
+
+            self.assertEqual(result.summary.images_indexed, 2)
+            self.assertEqual(result.summary.unchanged_images, 1)
+            self.assertEqual(result.summary.deleted_images, 1)
+            self.assertEqual(repository.get_index_stats().images, 3)
+            self.assertEqual(scanner.scan(incremental=True).summary.images_indexed, 0)
+            self.assertEqual(repository.list_sync_runs(1)[0]["status"], "succeeded")
+
+    def test_incomplete_listing_keeps_previous_index_and_records_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository, scanner = self._build_scanner(str(Path(temp_dir) / "index.db"), PHOTOS_ROOT)
+            scanner.scan()
+            original = scanner.source
+
+            class BrokenSource:
+                source_root = original.source_root
+
+                def iter_entries(self):
+                    yield next(original.iter_entries())
+                    raise OSError("simulated disconnect")
+
+            scanner.source = BrokenSource()
+            with self.assertRaises(OSError):
+                scanner.scan(incremental=True)
+            self.assertEqual(repository.get_index_stats().images, 5)
+            latest = repository.list_sync_runs(1)[0]
+            self.assertEqual((latest["status"], latest["error"]), ("failed", "OSError"))
+
+    def test_older_scan_cannot_overwrite_newer_successful_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository, scanner = self._build_scanner(str(Path(temp_dir) / "index.db"), PHOTOS_ROOT)
+            original = scanner.source
+
+            class DelayedSource:
+                source_root = original.source_root
+
+                def iter_entries(self):
+                    scanner.source = original
+                    scanner.scan(incremental=True)
+                    return iter(())
+
+            scanner.source = DelayedSource()
+            result = scanner.scan(incremental=True)
+            self.assertEqual(result.status, "superseded")
+            self.assertEqual(repository.get_index_stats().images, 5)

@@ -319,9 +319,27 @@ For captions or object tags, configure an image-model adapter with `--command`. 
 
 Set `ENRICHMENT_SEARCH=true` and restart the API and bot to include these fields in image and random-image searches. Matches explain which terms used enrichment, and year and curated-person filters still apply. The default deployment continues to search indexed metadata without running a model.
 
+### Scheduled indexing and status
+
+After the initial index, use incremental mode for routine updates.
+
+```bash
+python scripts/reindex_source.py --incremental --progress-every 500
+```
+
+Incremental mode lists archive metadata and updates only changed or new records. A missing timestamp or size causes that image to be reparsed. Missing images are removed only after a successful listing, and a late-running scan cannot overwrite a newer completed index. Run the full command without `--incremental` after changing parsing rules or when refreshing all derived metadata.
+
+To schedule an incremental scan on a NAS with cron, add an entry with paths adjusted to the checkout. The example runs daily at 03:20 in the NAS's timezone.
+
+```cron
+20 3 * * * cd /path/to/chromantis && .venv/bin/python scripts/reindex_source.py --incremental >> data/sync.log 2>&1
+```
+
+Use `GET /api/v1/sync/runs?limit=10` to see start and finish times, run status, and counts of indexed, unchanged, skipped, and deleted items. It uses the same authentication as archive search. To process new or failed enrichment jobs, run or schedule `scripts/enrich_images.py` as a separate bounded batch.
+
 ## Current v1 limits
 
-- Full subtree scan only; no scheduler yet
+- Incremental indexing still enumerates the configured subtree for reliable change and deletion detection
 - Optional image enrichment covers captions, OCR, and object tags. Embeddings and EXIF are outside this pipeline.
 - Optional model interpretation requires a configured adapter
 - Search behavior is simple, explainable, and deterministic

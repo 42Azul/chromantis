@@ -50,7 +50,7 @@ def browse(
     count: int | None = None, folder_path: str | None = None, year: int | None = None,
 ) -> dict[str, object]:
     repository = app.repository
-    with repository.auth_write() as connection:
+    with repository.write_transaction() as connection:
         if app.resolve_principal(chat_id, connection=connection).role == "none":
             raise AuthOperationError("unauthorized", "Chat is not authorized.", 401)
         stored = repository.get_api_browse_session(connection, chat_id)

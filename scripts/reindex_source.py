@@ -19,6 +19,11 @@ def parse_args() -> argparse.Namespace:
         description="Reindex Chromantis from the configured archive source."
     )
     parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Update changed and new images using archive size and modification time.",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -57,7 +62,8 @@ def main() -> None:
         f"{MAX_SCAN_DEPTH} directories below root "
         "(root/year/folder/image only)"
     )
-    result = scanner.scan(progress_every=args.progress_every)
+    result = scanner.scan(progress_every=args.progress_every, incremental=args.incremental)
+    print(f"Scan status: {result.status}")
     print(result.summary)
     if args.show_skipped and result.skipped_paths:
         print("Skipped paths:")

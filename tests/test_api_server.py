@@ -242,3 +242,12 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(self.request("PATCH", path, "admin-token", {"pinned": True})[0], 404)
         self.assertEqual(self.request("PATCH", path, "viewer-token", {"pinned": True})[0], 200)
         self.assertTrue(self.request("GET", "/searches?pinned=true", "viewer-token")[1]["items"][0]["pinned"])
+
+    def test_sync_status_reports_recent_runs(self) -> None:
+        self.start_api()
+        self.assertEqual(self.request("GET", "/sync/runs")[0], 401)
+        status, data = self.request("GET", "/sync/runs?limit=1", "read-token")
+        self.assertEqual(status, 200)
+        run, = data["items"]
+        self.assertEqual((run["mode"], run["status"]), ("full", "succeeded"))
+        self.assertEqual(run["summary"]["images_indexed"], 5)
