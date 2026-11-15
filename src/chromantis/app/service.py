@@ -12,6 +12,7 @@ from chromantis.db.repository import (
     PersonDetail,
     PersonSummary,
     Repository,
+    SavedSearch,
     YearSummary,
 )
 from chromantis.search.service import SearchResult, SearchService
@@ -188,6 +189,19 @@ class ApplicationService:
             details={"identifier": identifier, "folder_path": folder_path},
         )
         return detail
+
+    def remember_search(self, chat_id: int | None, kind: str, query: str, count: int) -> None:
+        if chat_id is None or not query.strip():
+            return
+        with self.repository.auth_write() as connection:
+            if self.resolve_principal(chat_id, connection=connection).role != "none":
+                self.repository.record_search(connection, chat_id, kind, query.strip(), count)
+
+    def set_search_pinned(self, chat_id: int, search_id: int, pinned: bool) -> SavedSearch | None:
+        with self.repository.auth_write() as connection:
+            if self.resolve_principal(chat_id, connection=connection).role == "none":
+                raise AuthOperationError("unauthorized", "Chat is not authorized.", 401)
+            return self.repository.set_search_pinned(connection, chat_id, search_id, pinned)
 
     def get_index_stats(self) -> IndexStats:
         return self.repository.get_index_stats()

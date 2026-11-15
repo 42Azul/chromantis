@@ -71,6 +71,9 @@ def browse(
             )
             if not items and current is not None and action not in {"search", "random"}:
                 return replace(current, items=()).response(len(history) > 1)
+            if action in {"search", "random"} and batch.query.strip():
+                kind = "images" if action == "search" else "random"
+                repository.record_search(connection, chat_id, kind, batch.query.strip(), batch.count)
             seen = tuple(dict.fromkeys((*batch.seen, *(item.path for item in items))))
             history = [*history[-9:], replace(batch, items=tuple(items), seen=seen)]
         repository.save_api_browse_session(

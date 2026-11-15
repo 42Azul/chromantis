@@ -177,6 +177,8 @@ Active browse state is stored per chat in SQLite, so `/more` and the navigation 
 
 Open **People** to browse person details. Admins and owners can add people, change names, add aliases, and link or unlink folders from the person’s buttons. Linking prompts for a folder name, year, or keyword and shows the matching folders. The `/people` commands remain available.
 
+Open **Recent searches** to rerun or pin a query, and **Pinned searches** to revisit or unpin favorites. Searches are private to the chat and stored in SQLite. Natural-language prompts with multiple separate years ask for one year or an inclusive range.
+
 ## Bot security
 
 By default, `run_bot.py` now prints a 6-digit access code at startup. A new Telegram chat must send:
@@ -264,10 +266,12 @@ A principal contains `chat_id`, `role`, `username`, `first_name`, and `auth_mode
 | `GET /api/v1/image` | URL-encoded `?path=<indexed-image-path>` | Original image bytes |
 | `GET /api/v1/browse` | Chat token | Active browse batch |
 | `POST /api/v1/browse` | Chat token and `{"action":"search","q":"beach 2021","count":3}` | Updated browse batch |
+| `GET /api/v1/searches` | Chat token, optional `pinned=true`, `limit`, and `offset` | `{"items": [search]}` |
+| `PATCH /api/v1/searches/{id}` | Chat token and `{"pinned":true}` | `{"item": search}` |
 
 A person detail has `id`, `display_name`, `aliases`, and `folder_paths`. Browse batches have `items`, `scope`, `q`, `count`, `folders`, `years`, and `can_go_back`. Each image result includes its indexed path, title, year, folder, and match reason. Stats also expose a single-object `item` envelope alongside their original top-level fields. List endpoints return an `items` array.
 
-Browse actions are `search`, `random`, `more`, `same_folder`, `same_year`, `related`, and `back`. `q` is optional for `search` and `random`. An optional `count` accepts 1–50. When a batch spans several folders or years, supply `folder` and/or `year` to select the context for `same_folder`, `same_year`, or `related`. A missing context returns 409. To browse a specific folder or year, pass that context with the corresponding action. Exhausted continuations return an empty `items` array and keep the last available batch. Sessions persist in SQLite per chat and are independent of Telegram browse history.
+Browse actions are `search`, `random`, `more`, `same_folder`, `same_year`, `related`, and `back`. `q` is optional for `search` and `random`. An optional `count` accepts 1–50. When a batch spans several folders or years, supply `folder` and/or `year` to select the context for `same_folder`, `same_year`, or `related`. A missing context returns 409. To browse a specific folder or year, pass that context with the corresponding action. Exhausted continuations return an empty `items` array and keep the last available batch. Sessions persist in SQLite per chat and are independent of Telegram browse history. Recent and pinned searches are shared across API and Telegram for the same chat. A search entry contains `id`, `kind`, `query`, `count`, `searched_at`, and `pinned`.
 
 Admins and owners can curate people with these routes. Each successful write returns the updated person as `{"item": person}`.
 

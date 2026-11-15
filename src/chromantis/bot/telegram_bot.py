@@ -275,9 +275,13 @@ class TelegramBotService:
         buttons = self._home_buttons(language) if self._is_authorized(chat_id) else self._guest_buttons(language)
         return BotReply(text=self._t(language, "search_help_text"), buttons=buttons)
 
-    def _clarification_reply(self, chat_id: int | None) -> BotReply:
+    def _clarification_reply(self, chat_id: int | None, clarification: str | None = None) -> BotReply:
         language = self._chat_language(chat_id)
-        return BotReply(text=self._t(language, "clarify_text"), buttons=self._suggestion_buttons(language, chat_id))
+        keys = {"several_years": "clarify_several_years", "folders": "clarify_folders"}
+        return BotReply(
+            text=self._t(language, keys.get(clarification, "clarify_text")),
+            buttons=self._suggestion_buttons(language, chat_id),
+        )
 
     def _suggestion_buttons(
         self,
@@ -379,6 +383,7 @@ class TelegramBotService:
                 results = self.app_service.search_folders(args)
             except QueryParseError as exc:
                 return BotReply(str(exc))
+            self.app_service.remember_search(chat_id, "folders", args, 10)
             if not results:
                 return self._empty_reply(self._t(language, "no_results_folders"), chat_id=chat_id)
             return BotReply(format_search_results("folders", results, language=language))
@@ -388,6 +393,7 @@ class TelegramBotService:
                 results = self.app_service.search_images(query, limit=count)
             except QueryParseError as exc:
                 return BotReply(str(exc))
+            self.app_service.remember_search(chat_id, "images", query, count)
             if not results:
                 return self._empty_reply(self._t(language, "no_results_images"), chat_id=chat_id)
             view = self._make_image_view(
@@ -406,6 +412,7 @@ class TelegramBotService:
                 results = self.app_service.random_images(query, count=count)
             except QueryParseError as exc:
                 return BotReply(str(exc))
+            self.app_service.remember_search(chat_id, "random", query, count)
             if not results:
                 logger.info("No random image result for args=%r", args)
                 return self._empty_reply(self._t(language, "no_results_images"), chat_id=chat_id)
@@ -456,7 +463,7 @@ class TelegramBotService:
             chat_id,
         )
         if interpreted.needs_clarification:
-            return self._clarification_reply(chat_id=chat_id)
+            return self._clarification_reply(chat_id, interpreted.clarification)
         if interpreted.action == "years":
             return BotReply(
                 format_years(self.app_service.list_years(), language=language),
@@ -523,6 +530,8 @@ class TelegramBotService:
 
         if callback_data.startswith("people:") and chat_id is not None:
             return self._people_callback(chat_id, callback_data.removeprefix("people:"), language)
+        if callback_data.startswith("saved:") and chat_id is not None:
+            return self._saved_search_callback(chat_id, callback_data.removeprefix("saved:"), language)
         if callback_data == "nav:back":
             return self._handle_back(chat_id=chat_id)
         if callback_data == "nav:more":
@@ -728,6 +737,52 @@ class TelegramBotService:
             return self._revoke_chat_reply(parts[1], actor_chat_id=chat_id, language=language)
         return BotReply(self._t(language, "authorized_usage"))
 
+    def _saved_search_callback(self, chat_id: int, callback: str, language: str) -> BotReply:
+        action, _, value = callback.partition(":")
+        if not value.isascii() or not value.isdecimal() or len(value) > 18:
+            return BotReply(self._t(language, "unknown_action"))
+        number = int(value)
+        if action in {"recent", "pinned"}:
+            return self._saved_searches_reply(chat_id, action, number, language)
+        if action == "run":
+            search = self.app_service.repository.get_saved_search(chat_id, number)
+            if search is None:
+                return self._saved_searches_reply(chat_id, "recent", 0, language)
+            args = search.query if search.kind == "folders" else f"{search.count} {search.query}"
+            return self.handle_command(f"/{search.kind} {args}", chat_id=chat_id)
+        if action in {"pin", "unpin"}:
+            try:
+                self.app_service.set_search_pinned(chat_id, number, action == "pin")
+            except AuthOperationError:
+                return BotReply(self._t(language, "unauthorized"), buttons=self._guest_buttons(language))
+            return self._saved_searches_reply(chat_id, "recent" if action == "pin" else "pinned", 0, language)
+        return BotReply(self._t(language, "unknown_action"))
+
+    def _saved_searches_reply(self, chat_id: int, kind: str, page: int, language: str) -> BotReply:
+        page = min(page, 100_000)
+        searches = self.app_service.repository.list_saved_searches(
+            chat_id, pinned_only=kind == "pinned", limit=9, offset=page * 8
+        )
+        rows = []
+        for search in searches[:8]:
+            label = self._t(language, f"saved_kind_{search.kind}", query=search.query[:44])
+            pin_action = "unpin" if search.pinned else "pin"
+            rows.append((
+                ButtonSpec(label, f"saved:run:{search.id}"),
+                ButtonSpec(self._t(language, f"button_saved_{pin_action}"), f"saved:{pin_action}:{search.id}"),
+            ))
+        if page:
+            rows.append((ButtonSpec(self._t(language, "button_back"), f"saved:{kind}:{page - 1}"),))
+        if len(searches) > 8:
+            rows.append((ButtonSpec(self._t(language, "button_next"), f"saved:{kind}:{page + 1}"),))
+        other = "recent" if kind == "pinned" else "pinned"
+        rows.append((
+            ButtonSpec(self._t(language, f"button_saved_{other}"), f"saved:{other}:0"),
+            ButtonSpec(self._t(language, "button_home"), "nav:home"),
+        ))
+        text = self._t(language, f"saved_{kind}_title" if searches else f"saved_{kind}_empty")
+        return BotReply(text, buttons=tuple(rows))
+
     def _handle_people(self, command_text: str, chat_id: int | None, language: str) -> BotReply:
         _, _, raw_args = command_text.partition(" ")
         if not raw_args.strip():
@@ -791,7 +846,7 @@ class TelegramBotService:
                 return self._list_people_reply(language, chat_id, page=int(value))
         if action == "show":
             self.people_edits.pop(chat_id, None)
-            if value.isdecimal() and len(value) <= 18:
+            if value.isascii() and value.isdecimal() and len(value) <= 18:
                 return self._show_person_reply(int(value), language, chat_id)
         if not self._is_admin(chat_id):
             self.people_edits.pop(chat_id, None)
@@ -799,7 +854,7 @@ class TelegramBotService:
         if action == "add":
             self.people_edits[chat_id] = PeopleEdit("add")
             return self._people_prompt("people_prompt_add", language)
-        if action in {"alias", "rename", "link", "unlink"} and value.isdecimal() and len(value) <= 18:
+        if action in {"alias", "rename", "link", "unlink"} and value.isascii() and value.isdecimal() and len(value) <= 18:
             person = self.app_service.get_person_detail(int(value))
             if person is None:
                 return BotReply(self._t(language, "unknown_person", identifier=value))
@@ -1472,7 +1527,7 @@ class TelegramBotService:
             ),
             (
                 ButtonSpec(self._t(language, "button_settings"), "settings:open"),
-                ButtonSpec(self._t(language, "button_home"), "nav:home"),
+                ButtonSpec(self._t(language, "button_saved_recent"), "saved:recent:0"),
             ),
         )
 

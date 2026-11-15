@@ -37,6 +37,16 @@ class AuthorizedChat:
 
 
 @dataclass(frozen=True)
+class SavedSearch:
+    id: int
+    kind: str
+    query: str
+    count: int
+    searched_at: str
+    pinned: bool
+
+
+@dataclass(frozen=True)
 class ChatPreferences:
     chat_id: int
     language: str
@@ -432,6 +442,7 @@ class Repository:
                 (chat_id,),
             )
             connection.execute("DELETE FROM api_browse_sessions WHERE chat_id = ?", (chat_id,))
+            connection.execute("DELETE FROM saved_searches WHERE chat_id = ?", (chat_id,))
             self._record_audit(
                 connection,
                 action="revoke_chat_access",
@@ -701,6 +712,72 @@ class Repository:
                 actor_chat_id=actor_chat_id,
             )
             connection.commit()
+
+    def record_search(
+        self, connection: sqlite3.Connection, chat_id: int, kind: str, query: str, count: int
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO saved_searches (chat_id, kind, query, result_count, searched_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(chat_id, kind, query, result_count)
+            DO UPDATE SET searched_at = excluded.searched_at
+            """,
+            (chat_id, kind, query, count, datetime.now(timezone.utc).isoformat()),
+        )
+        self._prune_recent_searches(connection, chat_id)
+
+    def list_saved_searches(
+        self, chat_id: int, pinned_only: bool = False, limit: int = 20, offset: int = 0
+    ) -> list[SavedSearch]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM saved_searches WHERE chat_id = ? AND (? = 0 OR pinned = 1)
+                ORDER BY searched_at DESC, id DESC LIMIT ? OFFSET ?
+                """,
+                (chat_id, pinned_only, limit, offset),
+            ).fetchall()
+        return [self._row_to_saved_search(row) for row in rows]
+
+    def get_saved_search(self, chat_id: int, search_id: int) -> SavedSearch | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM saved_searches WHERE id = ? AND chat_id = ?", (search_id, chat_id)
+            ).fetchone()
+        return None if row is None else self._row_to_saved_search(row)
+
+    def set_search_pinned(
+        self, connection: sqlite3.Connection, chat_id: int, search_id: int, pinned: bool
+    ) -> SavedSearch | None:
+        connection.execute(
+            "UPDATE saved_searches SET pinned = ? WHERE id = ? AND chat_id = ?",
+            (pinned, search_id, chat_id),
+        )
+        row = connection.execute(
+            "SELECT * FROM saved_searches WHERE id = ? AND chat_id = ?", (search_id, chat_id)
+        ).fetchone()
+        self._prune_recent_searches(connection, chat_id)
+        return None if row is None else self._row_to_saved_search(row)
+
+    @staticmethod
+    def _prune_recent_searches(connection: sqlite3.Connection, chat_id: int) -> None:
+        connection.execute(
+            """
+            DELETE FROM saved_searches WHERE id IN (
+                SELECT id FROM saved_searches WHERE chat_id = ? AND pinned = 0
+                ORDER BY searched_at DESC, id DESC LIMIT -1 OFFSET 20
+            )
+            """,
+            (chat_id,),
+        )
+
+    @staticmethod
+    def _row_to_saved_search(row: sqlite3.Row) -> SavedSearch:
+        return SavedSearch(
+            row["id"], row["kind"], row["query"], row["result_count"],
+            row["searched_at"], bool(row["pinned"]),
+        )
 
     def get_api_browse_session(self, connection: sqlite3.Connection, chat_id: int) -> str | None:
         row = connection.execute(

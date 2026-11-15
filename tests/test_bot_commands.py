@@ -241,6 +241,34 @@ class TelegramBotServiceTests(unittest.TestCase):
 
         self.assertEqual(reply.text, "Admin privileges are required for /people write commands.")
 
+    def test_recent_search_can_be_pinned_resumed_and_unpinned(self) -> None:
+        chat = VIEWER_CHAT_ID
+        self.service.handle_command("/images 1 city", chat_id=chat)
+        page = self.service.handle_callback("saved:recent:0", chat_id=chat)
+        run, pin = page.buttons[0]
+        self.assertIn("city", run.label)
+        self.service.handle_callback(pin.callback_data, chat_id=chat)
+        pinned = self.service.handle_callback("saved:pinned:0", chat_id=chat)
+        run, unpin = pinned.buttons[0]
+        self.assertIn("Unpin", unpin.label)
+        self.assertTrue(self.service.handle_callback(run.callback_data, chat_id=chat).image_paths)
+        self.assertFalse(self.service.handle_callback(run.callback_data, chat_id=OWNER_CHAT_ID).image_paths)
+        self.service.handle_callback(unpin.callback_data, chat_id=chat)
+        self.assertFalse(self.repository.list_saved_searches(chat, pinned_only=True))
+        self.assertEqual(len(self.repository.list_saved_searches(chat)), 1)
+
+    def test_plain_text_distinguishes_separate_years_from_an_inclusive_range(self) -> None:
+        ambiguous = self.service.handle_text_input(
+            "photos from 2019 or 2021", chat_id=VIEWER_CHAT_ID
+        )
+        self.assertIn("Which year", ambiguous.text)
+        self.assertFalse(ambiguous.image_paths)
+        folders = self.service.handle_text_input("show me folders", chat_id=VIEWER_CHAT_ID)
+        self.assertIn("Which folders", folders.text)
+        result = self.service.handle_text_input("photos from 2019–2021", chat_id=VIEWER_CHAT_ID)
+        self.assertTrue(result.image_paths)
+        self.assertIn("2019-2021", self.repository.list_saved_searches(VIEWER_CHAT_ID)[0].query)
+
     def test_people_wizard_adds_renames_links_and_unlinks(self) -> None:
         chat = OWNER_CHAT_ID
 

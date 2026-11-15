@@ -143,3 +143,24 @@ class RepositoryMigrationTests(unittest.TestCase):
             repository.revoke_chat_access(1)
             with repository.session() as connection:
                 self.assertIsNone(repository.get_api_browse_session(connection, 1))
+
+
+    def test_saved_search_migration_retains_pins_and_bounds_recent_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository = Repository(str(Path(temp_dir) / "chromantis.db"))
+            repository.init_schema()
+            with repository.session() as connection:
+                connection.execute("DROP TABLE saved_searches")
+            repository.authorize_chat(1)
+            repository.init_schema()
+            with repository.session() as connection:
+                repository.record_search(connection, 1, "images", "pinned", 1)
+            saved = repository.list_saved_searches(1)[0]
+            with repository.session() as connection:
+                repository.set_search_pinned(connection, 1, saved.id, True)
+                for index in range(21):
+                    repository.record_search(connection, 1, "images", str(index), 1)
+            self.assertEqual(len(repository.list_saved_searches(1, limit=50)), 21)
+            self.assertEqual(repository.list_saved_searches(1, pinned_only=True)[0].id, saved.id)
+            repository.revoke_chat_access(1)
+            self.assertEqual(repository.list_saved_searches(1), [])

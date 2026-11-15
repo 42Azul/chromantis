@@ -63,6 +63,17 @@ CREATE TABLE IF NOT EXISTS api_browse_sessions (
     session_json TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS saved_searches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('images', 'random', 'folders')),
+    query TEXT NOT NULL,
+    result_count INTEGER NOT NULL,
+    searched_at TEXT NOT NULL,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (chat_id, kind, query, result_count)
+);
+
 CREATE TABLE IF NOT EXISTS chat_preferences (
     chat_id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -119,6 +130,7 @@ CREATE INDEX IF NOT EXISTS idx_images_filename ON images(filename);
 CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
 CREATE INDEX IF NOT EXISTS idx_authorized_chats_authorized_at ON authorized_chats(authorized_at);
 CREATE INDEX IF NOT EXISTS idx_bot_chat_sessions_updated_at ON bot_chat_sessions(updated_at);
+CREATE INDEX IF NOT EXISTS idx_saved_searches_recent ON saved_searches(chat_id, searched_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_preferences_language ON chat_preferences(language);
 CREATE INDEX IF NOT EXISTS idx_people_normalized_name ON people(normalized_name);
 CREATE INDEX IF NOT EXISTS idx_person_aliases_person_id ON person_aliases(person_id);

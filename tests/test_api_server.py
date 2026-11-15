@@ -228,3 +228,17 @@ class ApiServerTests(unittest.TestCase):
             self.assertEqual(response.read(), (PHOTOS_ROOT / path).read_bytes())
         finally:
             connection.close()
+
+
+    def test_searches_are_private_to_the_chat_and_can_be_pinned(self) -> None:
+        self.start_api()
+        self.request("POST", "/browse", "viewer-token", {"action": "search", "q": "city", "count": 1})
+        status, data = self.request("GET", "/searches", "viewer-token")
+        self.assertEqual(status, 200)
+        search = data["items"][0]
+        self.assertEqual((search["kind"], search["query"], search["count"]), ("images", "city", 1))
+        path = f"/searches/{search['id']}"
+        self.assertEqual(self.request("GET", "/searches", "admin-token"), (200, {"items": []}))
+        self.assertEqual(self.request("PATCH", path, "admin-token", {"pinned": True})[0], 404)
+        self.assertEqual(self.request("PATCH", path, "viewer-token", {"pinned": True})[0], 200)
+        self.assertTrue(self.request("GET", "/searches?pinned=true", "viewer-token")[1]["items"][0]["pinned"])

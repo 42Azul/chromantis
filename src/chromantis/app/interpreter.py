@@ -4,10 +4,17 @@ import re
 from dataclasses import dataclass
 
 from chromantis.parsing.path_parser import normalize_text
+from chromantis.search.query_parser import YEAR_RANGE_RE, YEAR_RE
 
 FILLER_WORDS = {
     "a",
     "all",
+    "album",
+    "albums",
+    "folder",
+    "folders",
+    "carpeta",
+    "carpetas",
     "an",
     "do",
     "find",
@@ -64,6 +71,7 @@ class InterpretedRequest:
     query: str
     count: int
     needs_clarification: bool = False
+    clarification: str | None = None
 
 
 class RuleQueryInterpreter:
@@ -79,7 +87,7 @@ class RuleQueryInterpreter:
     COUNT_RE = re.compile(r"\b(\d{1,2})\b")
 
     def interpret(self, text: str) -> InterpretedRequest:
-        raw = text.strip()
+        raw = text.strip().replace("–", "-")
         lowered = raw.lower()
         if self.YEARS_HINT_RE.search(lowered) and not re.search(r"\b(19|20)\d{2}\b", lowered):
             return InterpretedRequest(action="years", query="", count=1)
@@ -96,15 +104,27 @@ class RuleQueryInterpreter:
             count = max(1, min(int(count_match.group(1)), 10))
 
         query = self._normalize_query(raw)
+        clarification = None
+        years = YEAR_RE.findall(YEAR_RANGE_RE.sub("", raw))
+        if len(set(years)) > 1:
+            clarification = "several_years"
+        elif not query:
+            clarification = "folders" if action == "folders" else "query"
         return InterpretedRequest(
             action=action,
             query=query,
             count=count,
-            needs_clarification=(action != "years" and not query),
+            needs_clarification=clarification is not None,
+            clarification=clarification,
         )
 
     def _normalize_query(self, text: str) -> str:
+        ranges = [
+            (match.group(1), match.group(2)) for match in YEAR_RANGE_RE.finditer(text)
+        ]
         cleaned = normalize_text(text.strip())
+        for start, end in ranges:
+            cleaned = re.sub(rf"\b{start} {end}\b", f"{start}-{end}", cleaned, count=1)
         cleaned = re.sub(r"[?!.:,]+", " ", cleaned)
         tokens = []
         for token in cleaned.split():

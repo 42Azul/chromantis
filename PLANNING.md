@@ -22,6 +22,7 @@ Chromantis currently provides:
 - a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, guided onboarding, per-chat English/Spanish language preferences, plain-text query handling, and explicit `owner`/`admin`/`viewer` auth management
 - a shared application/query service used by both Telegram and the local HTTP API
 - a local HTTP API for search, indexed image delivery, persistent browsing, query interpretation, people curation, and role-based chat and invite administration
+- guided people curation in Telegram and per-chat recent and pinned searches shared by Telegram and the API
 
 Not implemented yet:
 
@@ -210,15 +211,11 @@ Current architecture map:
 - existing command flows still work
 - conversation-state behavior stays covered by tests
 
-## Ready Next
-
 ### MVP 6B — Guided Curation and Saved Search UX
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Finish the remaining non-technical UX work that was intentionally deferred from MVP 6A.
-
-**Progress:** Bilingual Telegram people curation is implemented for creating, renaming, aliasing, linking, and unlinking. Recent searches, pinned searches, and richer clarification are still pending.
 
 **Deliverables:**
 
@@ -240,6 +237,8 @@ Current architecture map:
 - people and alias management no longer depend on `|`-based command syntax
 - repeated retrieval flows can be resumed from recent or pinned searches
 - conversation-state behavior stays covered by tests
+
+## Ready Next
 
 ### MVP 7 — Query Interpreter Abstraction
 

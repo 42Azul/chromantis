@@ -77,6 +77,29 @@ def _dispatch(
             if method == "GET":
                 return 200, browse(app_service, chat_id, "current")
             return 200, _browse_request(app_service, chat_id, body or {})
+        if path == "/api/v1/searches" and method == "GET":
+            if chat_id is None:
+                return 401, {"error": "A chat token is required"}
+            pinned = params.get("pinned", ["false"])[0]
+            if pinned not in {"true", "false"}:
+                raise ValueError("pinned must be true or false.")
+            limit = _bounded_limit(params.get("limit", ["20"])[0], default=20)
+            offset = _optional_int(params.get("offset", [None])[0]) or 0
+            if not 0 <= offset < 2**63:
+                raise ValueError("Invalid offset.")
+            searches = app_service.repository.list_saved_searches(chat_id, pinned == "true", limit, offset)
+            return 200, {"items": [asdict(search) for search in searches]}
+        if method == "PATCH" and path.rpartition("/")[0] == "/api/v1/searches":
+            if chat_id is None:
+                return 401, {"error": "A chat token is required"}
+            search_id = _positive_id(path.rpartition("/")[2])
+            pinned = (body or {}).get("pinned")
+            if not isinstance(pinned, bool):
+                raise ValueError("pinned must be true or false.")
+            search = app_service.set_search_pinned(chat_id, search_id, pinned)
+            if search is None:
+                return 404, {"error": "Search not found"}
+            return 200, {"item": asdict(search)}
         if path == "/api/v1/interpret" and method == "POST":
             text = _text(body or {}, "text")
             return 200, {"item": asdict(app_service.interpret_text(text))}
@@ -147,7 +170,7 @@ def _people_admin_route(
     if not path.startswith(prefix + "/"):
         return 404, {"error": "Not found"}
     identifier, _, action = path.removeprefix(prefix + "/").partition("/")
-    person_id = _person_id(identifier)
+    person_id = _positive_id(identifier)
     if app.get_person_detail(person_id) is None:
         return 404, {"error": "Person not found"}
     if method == "PATCH" and not action:
@@ -164,10 +187,10 @@ def _people_admin_route(
     return 200, {"item": asdict(detail)}
 
 
-def _person_id(identifier: str) -> int:
+def _positive_id(identifier: str) -> int:
     value = int(identifier)
     if not 1 <= value < 2**63:
-        raise ValueError("Invalid person ID.")
+        raise ValueError("Invalid ID.")
     return value
 
 
@@ -246,7 +269,7 @@ def _query_route(
         return 200, {"items": [asdict(item) for item in app_service.list_people()]}
     if path.startswith("/api/v1/people/"):
         identifier = unquote(path.removeprefix("/api/v1/people/"))
-        detail = app_service.get_person_detail(_person_id(identifier))
+        detail = app_service.get_person_detail(_positive_id(identifier))
         if detail is None:
             return 404, {"error": "Person not found"}
         return 200, {"item": asdict(detail)}
