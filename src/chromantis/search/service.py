@@ -48,7 +48,7 @@ class SearchService:
         logger.debug("Listing curated people: %s", people)
         return people
 
-    def get_person_detail(self, identifier: str) -> PersonDetail | None:
+    def get_person_detail(self, identifier: str | int) -> PersonDetail | None:
         detail = self.repository.get_person_detail(identifier)
         logger.debug("Fetched person detail identifier=%r detail=%s", identifier, detail)
         return detail
@@ -58,7 +58,7 @@ class SearchService:
         logger.info("Created person display_name=%r id=%d", display_name, detail.id)
         return detail
 
-    def rename_person(self, identifier: str, new_display_name: str) -> PersonDetail:
+    def rename_person(self, identifier: str | int, new_display_name: str) -> PersonDetail:
         detail = self.repository.rename_person(identifier, new_display_name)
         logger.info(
             "Renamed person identifier=%r new_display_name=%r id=%d",
@@ -68,17 +68,17 @@ class SearchService:
         )
         return detail
 
-    def add_person_alias(self, identifier: str, alias: str) -> PersonDetail:
+    def add_person_alias(self, identifier: str | int, alias: str) -> PersonDetail:
         detail = self.repository.add_person_alias(identifier, alias)
         logger.info("Added person alias identifier=%r alias=%r id=%d", identifier, alias, detail.id)
         return detail
 
-    def link_person_to_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+    def link_person_to_folder(self, identifier: str | int, folder_path: str) -> PersonDetail:
         detail = self.repository.link_person_to_folder(identifier, folder_path)
         logger.info("Linked person identifier=%r folder=%r id=%d", identifier, folder_path, detail.id)
         return detail
 
-    def unlink_person_from_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+    def unlink_person_from_folder(self, identifier: str | int, folder_path: str) -> PersonDetail:
         detail = self.repository.unlink_person_from_folder(identifier, folder_path)
         logger.info(
             "Unlinked person identifier=%r folder=%r id=%d",
@@ -175,23 +175,21 @@ class SearchService:
     def images_in_folder(
         self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = ()
     ) -> list[SearchResult]:
+        excluded = set(exclude_paths)
         with self.repository.connect() as connection:
-            sql = self._image_search_sql()
-            params: list[object] = [folder_path]
-            filters = ["f.folder_path = ?"]
-            if exclude_paths:
-                placeholders = ", ".join("?" for _ in exclude_paths)
-                filters.append(f"i.file_path NOT IN ({placeholders})")
-                params.extend(exclude_paths)
             rows = connection.execute(
                 f"""
-                {sql}
-                HAVING {" AND ".join(filters)}
+                {self._image_search_sql()}
+                HAVING f.folder_path = ?
                 ORDER BY i.file_path ASC
                 """,
-                params,
+                (folder_path,),
             ).fetchall()
-        results = [self._row_to_image_result(row, "same-folder") for row in rows[:limit]]
+        results = [
+            self._row_to_image_result(row, "same-folder")
+            for row in rows
+            if row["file_path"] not in excluded
+        ][:limit]
         logger.info(
             "Folder image search folder_path=%r exclude=%d returned %d results",
             folder_path,

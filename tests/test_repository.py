@@ -127,3 +127,19 @@ class RepositoryMigrationTests(unittest.TestCase):
             with ThreadPoolExecutor(max_workers=2) as pool:
                 self.assertEqual(sorted(pool.map(redeem, (2, 3))), [False, True])
             self.assertEqual(len(repository.list_authorized_chats()), 1)
+
+
+    def test_api_browse_sessions_are_added_to_existing_database(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository = Repository(str(Path(temp_dir) / "chromantis.db"))
+            repository.init_schema()
+            with repository.session() as connection:
+                connection.execute("DROP TABLE api_browse_sessions")
+            repository.authorize_chat(1)
+            repository.init_schema()
+            with repository.session() as connection:
+                repository.save_api_browse_session(connection, 1, "[]")
+                self.assertEqual(repository.get_api_browse_session(connection, 1), "[]")
+            repository.revoke_chat_access(1)
+            with repository.session() as connection:
+                self.assertIsNone(repository.get_api_browse_session(connection, 1))

@@ -4,6 +4,7 @@ import json
 import tempfile
 from http.client import HTTPConnection
 from threading import Thread
+from urllib.parse import urlencode
 import unittest
 from pathlib import Path
 
@@ -72,6 +73,7 @@ class ApiServerTests(unittest.TestCase):
         self.server = ApiServer(("127.0.0.1", 0), make_api_handler(
             self.app_service, api_token="read-token",
             api_chat_tokens=((101, "owner-token"), (102, "admin-token"), (103, "viewer-token")),
+            image_fetcher=LocalArchiveSource(str(PHOTOS_ROOT)).read_bytes,
         ))
         thread = Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         thread.start()
@@ -133,3 +135,96 @@ class ApiServerTests(unittest.TestCase):
         self.assertIsNotNone(payload["item"]["revoked_at"])
         event = self.repository.list_audit_events()[0]
         self.assertEqual((event.action, event.actor_chat_id, event.target_id), ("revoke_invite", 101, code))
+
+
+    def test_browse_continues_excluding_previous_images_and_can_go_back(self) -> None:
+        self.start_api()
+        token = "viewer-token"
+        self.assertEqual(self.request("GET", "/browse", "read-token")[0], 401)
+        self.assertEqual(self.request("GET", "/browse", "admin-token")[0], 404)
+        status, first = self.request("POST", "/browse", token, {"action": "search", "q": "city", "count": 1})
+        self.assertEqual(status, 200)
+        self.assertEqual(first["years"], [2021])
+        self.assertEqual(len(first["folders"]), 1)
+        self.assertFalse(first["can_go_back"])
+        self.assertEqual(self.request("GET", "/browse", token), (200, first))
+        self.assertEqual(self.request("GET", "/browse", "admin-token")[0], 404)
+
+        status, second = self.request("POST", "/browse", token, {"action": "more"})
+        self.assertEqual(status, 200)
+        self.assertNotEqual(second["items"][0]["path"], first["items"][0]["path"])
+        self.assertTrue(second["can_go_back"])
+        self.assertEqual(self.request("POST", "/browse", token, {"action": "more"})[1]["items"], [])
+        self.assertEqual(self.request("GET", "/browse", token), (200, second))
+        self.assertEqual(self.request("POST", "/browse", token, {"action": "back"}), (200, first))
+
+    def test_browse_can_switch_to_folder_and_year_and_returns_conflicts_for_missing_context(self) -> None:
+        self.start_api()
+        token = "viewer-token"
+        self.request("POST", "/browse", token, {"action": "search", "q": "city", "count": 1})
+        status, in_folder = self.request("POST", "/browse", token, {"action": "same_folder"})
+        self.assertEqual((status, in_folder["scope"], in_folder["years"]), (200, "same_folder", [2021]))
+        self.request("POST", "/browse", token, {"action": "back"})
+        status, in_year = self.request("POST", "/browse", token, {"action": "same_year"})
+        self.assertEqual((status, in_year["scope"], in_year["years"]), (200, "same_year", [2021]))
+        self.request("POST", "/browse", token, {"action": "search", "count": 5})
+        self.assertEqual(self.request("POST", "/browse", token, {"action": "related"})[0], 409)
+        self.assertEqual(self.request("POST", "/browse", token, {"action": "more", "count": True})[0], 400)
+
+    def test_browse_related_keeps_anchor_for_continuation(self) -> None:
+        with self.repository.session() as connection:
+            for index in (1, 2):
+                record = PathParser().parse_image_path(
+                    str(PHOTOS_ROOT), f"2021/2021-08-16_city_walk/IMG_{index}.jpg", None, None
+                )
+                self.repository.upsert_image_record(connection, record, "test")
+        self.start_api()
+        token = "viewer-token"
+        self.request("POST", "/browse", token, {"action": "search", "q": "city", "count": 1})
+        status, related = self.request("POST", "/browse", token, {"action": "related"})
+        self.assertEqual((status, related["scope"]), (200, "related_images"))
+        self.assertEqual(related["folders"], ["2021/2021-08-16_city_walk"])
+        status, continuation = self.request("POST", "/browse", token, {"action": "more"})
+        self.assertEqual((status, continuation["folders"]), (200, related["folders"]))
+        self.assertNotEqual(continuation["items"][0]["path"], related["items"][0]["path"])
+
+    def test_browser_can_curate_and_view_person_details(self) -> None:
+        self.start_api()
+        status, person = self.request("POST", "/admin/people", "admin-token", {"display_name": "Ana"})
+        self.assertEqual(status, 201)
+        person_id = person["item"]["id"]
+        path = f"/admin/people/{person_id}"
+        self.assertEqual(self.request("PATCH", path, "viewer-token", {"display_name": "Other"})[0], 403)
+        self.assertEqual(self.request("PATCH", path, "admin-token", {"display_name": "Anita"})[0], 200)
+        self.assertEqual(self.request("POST", path + "/aliases", "admin-token", {"alias": "Anni"})[0], 200)
+        folder = "2021/2021-08-15_city_trip"
+        self.assertEqual(self.request("POST", path + "/folders", "admin-token", {"path": folder})[0], 200)
+        status, detail = self.request("GET", f"/people/{person_id}", "read-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(detail["item"]["display_name"], "Anita")
+        self.assertIn("Anni", detail["item"]["aliases"])
+        self.assertIn(folder, detail["item"]["folder_paths"])
+        self.assertEqual(self.request("DELETE", path + "/folders?" + urlencode({"path": folder}), "admin-token")[0], 200)
+        self.assertEqual(self.request("GET", f"/people/{person_id}", "read-token")[1]["item"]["folder_paths"], [])
+        self.assertEqual(self.repository.list_audit_events()[0].actor_chat_id, 102)
+
+    def test_interpretation_and_indexed_image_download(self) -> None:
+        self.start_api()
+        status, data = self.request("POST", "/interpret", "read-token", {"text": "show me 2 city photos from 2021"})
+        self.assertEqual(status, 200)
+        self.assertEqual(data["item"]["action"], "images")
+        self.assertEqual(data["item"]["count"], 2)
+        self.assertIn("city", data["item"]["query"])
+        self.assertEqual(self.request("GET", "/image?path=../readme.txt", "read-token")[0], 404)
+        path = "2021/2021-08-15_city_trip/IMG_001.jpg"
+        url = "/api/v1/image?" + urlencode({"path": path})
+        connection = HTTPConnection(*self.server.server_address, timeout=2)
+        try:
+            connection.request("GET", url, headers={"Authorization": "Bearer read-token"})
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.getheader("Content-Type"), "image/jpeg")
+            self.assertEqual(response.getheader("X-Content-Type-Options"), "nosniff")
+            self.assertEqual(response.read(), (PHOTOS_ROOT / path).read_bytes())
+        finally:
+            connection.close()

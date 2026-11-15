@@ -96,10 +96,31 @@ class ApplicationService:
             randomize=randomize,
         )
 
+    def images_for_scope(
+        self,
+        scope: str,
+        query: str,
+        count: int,
+        folder_path: str | None = None,
+        year: int | None = None,
+        exclude_paths: tuple[str, ...] = (),
+    ) -> list[SearchResult]:
+        if scope == "search_images":
+            return self.search_images(query, limit=count, exclude_paths=exclude_paths)
+        if scope == "random_images":
+            return self.random_images(query, count=count, exclude_paths=exclude_paths)
+        if scope == "same_folder" and folder_path:
+            return self.images_in_folder(folder_path, count, exclude_paths)
+        if scope == "same_year" and year is not None:
+            return self.images_in_year(year, count, exclude_paths)
+        if scope == "related_images" and folder_path and year is not None:
+            return self.related_images(folder_path, year, count, exclude_paths, randomize=True)
+        return []
+
     def list_people(self) -> list[PersonSummary]:
         return self.search.list_people()
 
-    def get_person_detail(self, identifier: str) -> PersonDetail | None:
+    def get_person_detail(self, identifier: str | int) -> PersonDetail | None:
         return self.search.get_person_detail(identifier)
 
     def create_person(self, display_name: str, actor_chat_id: int | None = None) -> PersonDetail:
@@ -115,7 +136,7 @@ class ApplicationService:
 
     def rename_person(
         self,
-        identifier: str,
+        identifier: str | int,
         new_display_name: str,
         actor_chat_id: int | None = None,
     ) -> PersonDetail:
@@ -130,7 +151,7 @@ class ApplicationService:
         return detail
 
     def add_person_alias(
-        self, identifier: str, alias: str, actor_chat_id: int | None = None
+        self, identifier: str | int, alias: str, actor_chat_id: int | None = None
     ) -> PersonDetail:
         detail = self.search.add_person_alias(identifier, alias)
         self.repository.record_audit_event(
@@ -143,7 +164,7 @@ class ApplicationService:
         return detail
 
     def link_person_to_folder(
-        self, identifier: str, folder_path: str, actor_chat_id: int | None = None
+        self, identifier: str | int, folder_path: str, actor_chat_id: int | None = None
     ) -> PersonDetail:
         detail = self.search.link_person_to_folder(identifier, folder_path)
         self.repository.record_audit_event(
@@ -156,7 +177,7 @@ class ApplicationService:
         return detail
 
     def unlink_person_from_folder(
-        self, identifier: str, folder_path: str, actor_chat_id: int | None = None
+        self, identifier: str | int, folder_path: str, actor_chat_id: int | None = None
     ) -> PersonDetail:
         detail = self.search.unlink_person_from_folder(identifier, folder_path)
         self.repository.record_audit_event(

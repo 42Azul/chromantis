@@ -58,6 +58,11 @@ CREATE TABLE IF NOT EXISTS bot_chat_sessions (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS api_browse_sessions (
+    chat_id INTEGER PRIMARY KEY,
+    session_json TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS chat_preferences (
     chat_id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,

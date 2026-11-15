@@ -21,7 +21,7 @@ Chromantis currently provides:
 - deterministic search over years, year ranges, titles, tags, and curated people aliases
 - a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, guided onboarding, per-chat English/Spanish language preferences, plain-text query handling, and explicit `owner`/`admin`/`viewer` auth management
 - a shared application/query service used by both Telegram and the local HTTP API
-- a local HTTP API for stats, search, browse, people listing, and role-based chat and invite administration
+- a local HTTP API for search, indexed image delivery, persistent browsing, query interpretation, people curation, and role-based chat and invite administration
 
 Not implemented yet:
 
@@ -163,11 +163,9 @@ Current architecture map:
 - role changes and invite revocations are auditable
 - existing DBs still migrate without manual intervention
 
-## Ready Next
-
 ### MVP 5 — Query API Maturation
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Turn the local API into a stable query surface for future clients.
 
@@ -179,9 +177,10 @@ Current architecture map:
   - same folder
   - same year
   - related images
-- add people detail endpoints
+- add people detail and audited curation endpoints
 - add auth/admin endpoints needed by a future UI
 - add a plain-text interpretation endpoint on top of the existing rule interpreter
+- deliver indexed photo bytes through the configured read-only source
 
 **Acceptance:**
 
@@ -210,6 +209,8 @@ Current architecture map:
 - a non-technical user can retrieve images without needing slash commands
 - existing command flows still work
 - conversation-state behavior stays covered by tests
+
+## Ready Next
 
 ### MVP 6B — Guided Curation and Saved Search UX
 

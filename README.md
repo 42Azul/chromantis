@@ -255,6 +255,30 @@ API_CHAT_TOKENS={"123456789":"replace-with-generated-token"}
 
 A principal contains `chat_id`, `role`, `username`, `first_name`, and `auth_mode` (`static_owner`, `static_viewer`, or `dynamic`). An invite contains `code`, `role`, `created_by_chat_id`, `max_uses`, `used_count`, `expires_at`, `revoked_at`, and `created_at`. New invites have one use. TTL defaults to seven days and accepts 1–30 days. Errors contain `error`, with `code` for role and state errors. Role changes, chat revocations, and invite changes are recorded with the acting chat ID.
 
+### Query and browse API
+
+| Method and path | Request | Success response |
+| --- | --- | --- |
+| `GET /api/v1/people/{id}` | Numeric ID from the people list | `{"item": person}` |
+| `POST /api/v1/interpret` | `{"text":"show me 3 beach photos from 2021"}` | `{"item":{"action":"images","query":"beach 2021","count":3,"needs_clarification":false}}` |
+| `GET /api/v1/image` | URL-encoded `?path=<indexed-image-path>` | Original image bytes |
+| `GET /api/v1/browse` | Chat token | Active browse batch |
+| `POST /api/v1/browse` | Chat token and `{"action":"search","q":"beach 2021","count":3}` | Updated browse batch |
+
+A person detail has `id`, `display_name`, `aliases`, and `folder_paths`. Browse batches have `items`, `scope`, `q`, `count`, `folders`, `years`, and `can_go_back`. Each image result includes its indexed path, title, year, folder, and match reason. Stats also expose a single-object `item` envelope alongside their original top-level fields. List endpoints return an `items` array.
+
+Browse actions are `search`, `random`, `more`, `same_folder`, `same_year`, `related`, and `back`. `q` is optional for `search` and `random`. An optional `count` accepts 1–50. When a batch spans several folders or years, supply `folder` and/or `year` to select the context for `same_folder`, `same_year`, or `related`. A missing context returns 409. To browse a specific folder or year, pass that context with the corresponding action. Exhausted continuations return an empty `items` array and keep the last available batch. Sessions persist in SQLite per chat and are independent of Telegram browse history.
+
+Admins and owners can curate people with these routes. Each successful write returns the updated person as `{"item": person}`.
+
+| Method and path | Data |
+| --- | --- |
+| `POST /api/v1/admin/people` | `{"display_name":"Ana"}` |
+| `PATCH /api/v1/admin/people/{id}` | `{"display_name":"Anita"}` |
+| `POST /api/v1/admin/people/{id}/aliases` | `{"alias":"Anni"}` |
+| `POST /api/v1/admin/people/{id}/folders` | `{"path":"2021/2021-08-15_city_trip"}` |
+| `DELETE /api/v1/admin/people/{id}/folders` | URL-encoded `?path=<folder-path>` |
+
 ## Current v1 limits
 
 - Full subtree scan only; no scheduler yet

@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
+from ftplib import Error as FtpError
 from hmac import compare_digest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from mimetypes import guess_type
 from urllib.parse import parse_qs, unquote, urlparse
 
 from chromantis.app import ApplicationService, AuthOperationError
+from chromantis.app.browse import browse
+
+
+@dataclass(frozen=True)
+class PhotoPayload:
+    content: bytes
+    content_type: str
 
 
 def handle_api_get(
@@ -16,7 +26,9 @@ def handle_api_get(
     auth_header: str | None = None,
     x_api_token: str | None = None,
 ) -> tuple[int, dict[str, object]]:
-    return _dispatch("GET", path, app_service, api_token, (), auth_header, x_api_token)
+    status, payload = _dispatch("GET", path, app_service, api_token, (), auth_header, x_api_token)
+    assert isinstance(payload, dict)
+    return status, payload
 
 
 def _dispatch(
@@ -28,8 +40,12 @@ def _dispatch(
     auth_header: str | None,
     x_api_token: str | None,
     body: dict[str, object] | None = None,
-) -> tuple[int, dict[str, object]]:
-    parsed = urlparse(url)
+    image_fetcher: Callable[[str], bytes] | None = None,
+) -> tuple[int, dict[str, object] | PhotoPayload]:
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return 400, {"error": "Invalid request URL"}
     path = parsed.path
     if method == "GET" and path == "/api/v1/health":
         return 200, {"status": "ok"}
@@ -50,12 +66,24 @@ def _dispatch(
         return 401, {"error": "Unauthorized"}
 
     try:
+        params = parse_qs(parsed.query)
         if path == "/api/v1/auth/me" or path.startswith("/api/v1/admin/"):
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
-            return _auth_route(method, path, app_service, chat_id, body or {})
+            return _auth_route(method, path, app_service, chat_id, body or {}, params)
+        if path == "/api/v1/browse" and method in {"GET", "POST"}:
+            if chat_id is None:
+                return 401, {"error": "A chat token is required"}
+            if method == "GET":
+                return 200, browse(app_service, chat_id, "current")
+            return 200, _browse_request(app_service, chat_id, body or {})
+        if path == "/api/v1/interpret" and method == "POST":
+            text = _text(body or {}, "text")
+            return 200, {"item": asdict(app_service.interpret_text(text))}
+        if path == "/api/v1/image" and method == "GET":
+            return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
         if method == "GET":
-            return _query_route(path, parse_qs(parsed.query), app_service)
+            return _query_route(path, params, app_service)
         return 404, {"error": "Not found"}
     except AuthOperationError as exc:
         return exc.status, {"error": str(exc), "code": exc.code}
@@ -69,6 +97,7 @@ def _auth_route(
     app_service: ApplicationService,
     chat_id: int,
     body: dict[str, object],
+    params: dict[str, list[str]],
 ) -> tuple[int, dict[str, object]]:
     if method == "GET" and path == "/api/v1/auth/me":
         return 200, {"item": asdict(app_service.resolve_principal(chat_id))}
@@ -97,7 +126,91 @@ def _auth_route(
     if method == "DELETE" and resource == "/api/v1/admin/invites" and key:
         code = unquote(key)
         return 200, {"item": asdict(app_service.revoke_invite(code, chat_id))}
+    if path.startswith("/api/v1/admin/people"):
+        return _people_admin_route(method, path, app_service, chat_id, body, params)
     return 404, {"error": "Not found"}
+
+
+def _people_admin_route(
+    method: str,
+    path: str,
+    app: ApplicationService,
+    chat_id: int,
+    body: dict[str, object],
+    params: dict[str, list[str]],
+) -> tuple[int, dict[str, object]]:
+    app.require_admin(chat_id, "people_write_requires_admin")
+    prefix = "/api/v1/admin/people"
+    if method == "POST" and path == prefix:
+        detail = app.create_person(_text(body, "display_name"), actor_chat_id=chat_id)
+        return 201, {"item": asdict(detail)}
+    if not path.startswith(prefix + "/"):
+        return 404, {"error": "Not found"}
+    identifier, _, action = path.removeprefix(prefix + "/").partition("/")
+    person_id = _person_id(identifier)
+    if app.get_person_detail(person_id) is None:
+        return 404, {"error": "Person not found"}
+    if method == "PATCH" and not action:
+        detail = app.rename_person(person_id, _text(body, "display_name"), actor_chat_id=chat_id)
+    elif method == "POST" and action == "aliases":
+        detail = app.add_person_alias(person_id, _text(body, "alias"), actor_chat_id=chat_id)
+    elif method == "POST" and action == "folders":
+        detail = app.link_person_to_folder(person_id, _text(body, "path"), actor_chat_id=chat_id)
+    elif method == "DELETE" and action == "folders":
+        folder = _text({"path": params.get("path", [""])[0]}, "path")
+        detail = app.unlink_person_from_folder(person_id, folder, actor_chat_id=chat_id)
+    else:
+        return 404, {"error": "Not found"}
+    return 200, {"item": asdict(detail)}
+
+
+def _person_id(identifier: str) -> int:
+    value = int(identifier)
+    if not 1 <= value < 2**63:
+        raise ValueError("Invalid person ID.")
+    return value
+
+
+def _text(data: dict[str, object], key: str) -> str:
+    value = data.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{key} must be a non-empty string.")
+    return value.strip()
+
+
+def _browse_request(
+    app: ApplicationService, chat_id: int, body: dict[str, object]
+) -> dict[str, object]:
+    action = _text(body, "action")
+    q, count, folder, year = (body.get(key) for key in ("q", "count", "folder", "year"))
+    if q is not None and not isinstance(q, str):
+        raise ValueError("q must be a string.")
+    if count is not None and (type(count) is not int or not 1 <= count <= 50):
+        raise ValueError("count must be an integer between 1 and 50.")
+    if folder is not None and (not isinstance(folder, str) or not folder.strip()):
+        raise ValueError("folder must be a non-empty string.")
+    if year is not None and (type(year) is not int or not 1000 <= year <= 9999):
+        raise ValueError("year must be a four-digit integer.")
+    return browse(app, chat_id, action, q=q or "", count=count, folder_path=folder, year=year)
+
+
+def _read_image(
+    path: str, app: ApplicationService, image_fetcher: Callable[[str], bytes] | None
+) -> tuple[int, dict[str, object] | PhotoPayload]:
+    if not path:
+        return 400, {"error": "path is required"}
+    if image_fetcher is None or not app.repository.is_indexed_image(path):
+        return 404, {"error": "Image not found"}
+    try:
+        content = image_fetcher(path)
+    except (FileNotFoundError, ValueError):
+        return 404, {"error": "Image no longer available"}
+    except (FtpError, OSError):
+        return 502, {"error": "Archive unavailable"}
+    content_type = guess_type(path)[0] or "application/octet-stream"
+    if not content_type.startswith("image/"):
+        content_type = "application/octet-stream"
+    return 200, PhotoPayload(content, content_type)
 
 
 def _role(body: dict[str, object], roles: set[str], default: str | None = None) -> str:
@@ -111,7 +224,8 @@ def _query_route(
     path: str, params: dict[str, list[str]], app_service: ApplicationService
 ) -> tuple[int, dict[str, object]]:
     if path == "/api/v1/stats":
-        return 200, asdict(app_service.get_index_stats())
+        stats = asdict(app_service.get_index_stats())
+        return 200, {**stats, "item": stats}
     if path == "/api/v1/years":
         year_from = _optional_int(params.get("from", [None])[0])
         year_to = _optional_int(params.get("to", [None])[0])
@@ -130,6 +244,12 @@ def _query_route(
         return 200, {"items": [asdict(item) for item in app_service.random_images(query, count=count)]}
     if path == "/api/v1/people":
         return 200, {"items": [asdict(item) for item in app_service.list_people()]}
+    if path.startswith("/api/v1/people/"):
+        identifier = unquote(path.removeprefix("/api/v1/people/"))
+        detail = app_service.get_person_detail(_person_id(identifier))
+        if detail is None:
+            return 404, {"error": "Person not found"}
+        return 200, {"item": asdict(detail)}
     return 404, {"error": "Not found"}
 
 
@@ -137,6 +257,7 @@ def make_api_handler(
     app_service: ApplicationService,
     api_token: str | None = None,
     api_chat_tokens: tuple[tuple[int, str], ...] = (),
+    image_fetcher: Callable[[str], bytes] | None = None,
 ):
     class ChromantisApiHandler(BaseHTTPRequestHandler):
         server_version = "ChromantisAPI/0.1"
@@ -177,16 +298,24 @@ def make_api_handler(
                 self.headers.get("Authorization"),
                 self.headers.get("X-API-Token"),
                 body,
+                image_fetcher,
             )
-            self._write_json(status, payload)
+            if isinstance(payload, PhotoPayload):
+                self._write(status, payload.content, payload.content_type)
+            else:
+                self._write_json(status, payload)
 
         def log_message(self, format: str, *args) -> None:
             return
 
         def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
             body = json.dumps(payload, sort_keys=True).encode("utf-8")
+            self._write(status_code, body, "application/json; charset=utf-8")
+
+        def _write(self, status_code: int, body: bytes, content_type: str) -> None:
             self.send_response(status_code)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Type", content_type)
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()

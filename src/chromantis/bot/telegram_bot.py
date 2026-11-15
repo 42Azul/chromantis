@@ -1111,101 +1111,28 @@ class TelegramBotService:
         )
 
     def _continue_from_view(self, current: SessionView, count: int, language: str) -> SessionView | None:
-        if current.scope == "search_images":
-            results = self.app_service.search_images(
-                current.query,
-                limit=count,
-                exclude_paths=current.sent_paths,
-            )
-            if not results:
-                return None
-            return self._make_image_view(
-                results,
-                "intro_more_images",
-                current.scope,
-                current.query,
-                count,
-                current.sent_paths,
-                language=language,
-            )
-        if current.scope == "random_images":
-            results = self.app_service.random_images(
-                current.query,
-                count=count,
-                exclude_paths=current.sent_paths,
-            )
-            if not results:
-                return None
-            return self._make_image_view(
-                results,
-                "intro_more_random_images",
-                current.scope,
-                current.query,
-                count,
-                current.sent_paths,
-                language=language,
-            )
-        if current.scope == "same_folder":
-            if not current.folder_path:
-                return None
-            results = self.app_service.images_in_folder(
-                current.folder_path,
-                limit=count,
-                exclude_paths=current.sent_paths,
-            )
-            if not results:
-                return None
-            return self._make_image_view(
-                results,
-                "intro_more_same_folder",
-                current.scope,
-                "",
-                count,
-                current.sent_paths,
-                language=language,
-            )
-        if current.scope == "same_year":
-            if current.year is None:
-                return None
-            results = self.app_service.images_in_year(
-                current.year,
-                limit=count,
-                exclude_paths=current.sent_paths,
-            )
-            if not results:
-                return None
-            return self._make_image_view(
-                results,
-                "intro_more_year",
-                current.scope,
-                "",
-                count,
-                current.sent_paths,
-                language=language,
-                intro_kwargs={"year": current.year},
-            )
-        if current.scope == "related_images":
-            if current.folder_path is None or current.year is None:
-                return None
-            results = self.app_service.related_images(
-                current.folder_path,
-                current.year,
-                limit=count,
-                exclude_paths=current.sent_paths,
-                randomize=True,
-            )
-            if not results:
-                return None
-            return self._make_image_view(
-                results,
-                "intro_more_related_images",
-                current.scope,
-                "",
-                count,
-                current.sent_paths,
-                language=language,
-            )
-        return None
+        intros = {
+            "search_images": "intro_more_images",
+            "random_images": "intro_more_random_images",
+            "same_folder": "intro_more_same_folder",
+            "same_year": "intro_more_year",
+            "related_images": "intro_more_related_images",
+        }
+        results = self.app_service.images_for_scope(
+            current.scope, current.query, count, current.folder_path, current.year, current.sent_paths
+        )
+        if not results:
+            return None
+        return self._make_image_view(
+            results,
+            intros[current.scope],
+            current.scope,
+            current.query,
+            count,
+            current.sent_paths,
+            language=language,
+            intro_kwargs={"year": current.year} if current.scope == "same_year" else None,
+        )
 
     def _make_image_view(
         self,

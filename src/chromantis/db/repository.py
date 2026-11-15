@@ -431,6 +431,7 @@ class Repository:
                 "DELETE FROM authorized_chats WHERE chat_id = ?",
                 (chat_id,),
             )
+            connection.execute("DELETE FROM api_browse_sessions WHERE chat_id = ?", (chat_id,))
             self._record_audit(
                 connection,
                 action="revoke_chat_access",
@@ -701,6 +702,30 @@ class Repository:
             )
             connection.commit()
 
+    def get_api_browse_session(self, connection: sqlite3.Connection, chat_id: int) -> str | None:
+        row = connection.execute(
+            "SELECT session_json FROM api_browse_sessions WHERE chat_id = ?", (chat_id,)
+        ).fetchone()
+        return None if row is None else str(row["session_json"])
+
+    def save_api_browse_session(
+        self, connection: sqlite3.Connection, chat_id: int, session_json: str
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO api_browse_sessions (chat_id, session_json)
+            VALUES (?, ?)
+            ON CONFLICT(chat_id) DO UPDATE SET session_json = excluded.session_json
+            """,
+            (chat_id, session_json),
+        )
+
+    def is_indexed_image(self, path: str) -> bool:
+        with self.connect() as connection:
+            return connection.execute(
+                "SELECT 1 FROM images WHERE file_path = ?", (path,)
+            ).fetchone() is not None
+
     def get_chat_session(self, chat_id: int) -> str | None:
         with self.connect() as connection:
             row = connection.execute(
@@ -771,7 +796,7 @@ class Repository:
             connection.commit()
             return self._person_detail_by_id(connection, int(cursor.lastrowid))
 
-    def rename_person(self, identifier: str, new_display_name: str) -> PersonDetail:
+    def rename_person(self, identifier: str | int, new_display_name: str) -> PersonDetail:
         normalized_name = self._normalize_person_value(new_display_name)
         with self.connect() as connection:
             person = self._resolve_person(connection, identifier)
@@ -797,7 +822,7 @@ class Repository:
             connection.commit()
             return self._person_detail_by_id(connection, person.id)
 
-    def add_person_alias(self, identifier: str, alias: str) -> PersonDetail:
+    def add_person_alias(self, identifier: str | int, alias: str) -> PersonDetail:
         normalized_alias = self._normalize_person_value(alias)
         with self.connect() as connection:
             person = self._resolve_person(connection, identifier)
@@ -808,14 +833,14 @@ class Repository:
             connection.commit()
             return self._person_detail_by_id(connection, person.id)
 
-    def get_person_detail(self, identifier: str) -> PersonDetail | None:
+    def get_person_detail(self, identifier: str | int) -> PersonDetail | None:
         with self.connect() as connection:
             person = self._resolve_person(connection, identifier)
             if person is None:
                 return None
             return self._person_detail_by_id(connection, person.id)
 
-    def link_person_to_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+    def link_person_to_folder(self, identifier: str | int, folder_path: str) -> PersonDetail:
         with self.connect() as connection:
             person = self._resolve_person(connection, identifier)
             if person is None:
@@ -833,7 +858,7 @@ class Repository:
             connection.commit()
             return self._person_detail_by_id(connection, person.id)
 
-    def unlink_person_from_folder(self, identifier: str, folder_path: str) -> PersonDetail:
+    def unlink_person_from_folder(self, identifier: str | int, folder_path: str) -> PersonDetail:
         with self.connect() as connection:
             person = self._resolve_person(connection, identifier)
             if person is None:
@@ -1057,8 +1082,13 @@ class Repository:
             raise ValueError(f'Alias "{normalized_value}" is already assigned to another person.')
 
     def _resolve_person(
-        self, connection: sqlite3.Connection, identifier: str
+        self, connection: sqlite3.Connection, identifier: str | int
     ) -> ResolvedPerson | None:
+        if isinstance(identifier, int):
+            row = connection.execute(
+                "SELECT id, display_name FROM people WHERE id = ?", (identifier,)
+            ).fetchone()
+            return None if row is None else ResolvedPerson(row["id"], row["display_name"])
         normalized_identifier = normalize_text(identifier)
         if not normalized_identifier:
             return None
