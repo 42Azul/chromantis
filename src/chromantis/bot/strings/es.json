@@ -20,6 +20,7 @@
   "button_people_rename": "Cambiar nombre",
   "button_people_link": "Vincular carpeta",
   "button_people_unlink": "Desvincular carpeta",
+  "button_people_photos": "Fotos de álbumes vinculados",
   "people_prompt_add": "Escribe el nombre de la persona.",
   "people_prompt_alias": "Escribe el nuevo alias.",
   "people_prompt_rename": "Escribe el nuevo nombre.",

@@ -23,6 +23,7 @@ Chromantis currently provides:
 - a shared application/query service used by both Telegram and the local HTTP API, with an optional local model interpreter and a rule-based default
 - a local HTTP API for search, indexed image delivery, persistent browsing, query interpretation, people curation, and role-based chat and invite administration
 - guided people curation in Telegram and per-chat recent and pinned searches shared by Telegram and the API
+- direct photo browsing from Telegram person cards and home or command shortcuts to both search histories
 - optional image enrichment with model provenance and opt-in search over captions, OCR, and object tags
 - incremental indexing with stored sync summaries, a cron recipe, and bounded enrichment retries
 - a browser interface for visual search, browsing, people, saved searches, and role-based administration
@@ -243,6 +244,7 @@ Current architecture map:
 - common admin curation tasks are possible without memorizing pipe syntax
 - people and alias management no longer depend on `|`-based command syntax
 - repeated retrieval flows can be resumed from recent or pinned searches
+- the Telegram adapter dispatches actual people and history button updates in integration tests
 - conversation-state behavior stays covered by tests
 
 ### MVP 7 — Query Interpreter Abstraction

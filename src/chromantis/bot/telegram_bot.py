@@ -12,7 +12,7 @@ from chromantis.app import ApplicationService, AuthOperationError
 from chromantis.app.recall import RefinementError, is_refinement
 from chromantis.bot.formatters import format_search_results, format_years
 from chromantis.bot.i18n import DEFAULT_LANGUAGE, language_name, t
-from chromantis.db.repository import IndexStats
+from chromantis.db.repository import IndexStats, PersonDetail
 from chromantis.search.query_parser import QueryParseError, parse_query
 from chromantis.search.service import SearchResult, SearchService
 
@@ -384,6 +384,8 @@ class TelegramBotService:
             return self._handle_authorized_args(args, chat_id=chat_id, language=language)
         if command == "/people":
             return self._handle_people(command_text=command_text, chat_id=chat_id, language=language)
+        if command in {"/recent", "/pinned"} and chat_id is not None:
+            return self._saved_searches_reply(chat_id, command[1:], 0, language)
         if command == "/album":
             return self._handle_album(args, chat_id, language)
         if command == "/timeline":
@@ -779,7 +781,13 @@ class TelegramBotService:
         )
         rows = []
         for search in searches[:8]:
-            label = self._t(language, f"saved_kind_{search.kind}", query=search.query[:44])
+            query = search.query
+            prefix, _, value = query.partition(":")
+            if prefix == "person" and value.isascii() and value.isdecimal() and len(value) <= 18:
+                person = self.app_service.get_person_detail(int(value))
+                if person is not None:
+                    query = person.display_name
+            label = self._t(language, f"saved_kind_{search.kind}", query=query[:44])
             pin_action = "unpin" if search.pinned else "pin"
             rows.append((
                 ButtonSpec(label, f"saved:run:{search.id}"),
@@ -920,7 +928,7 @@ class TelegramBotService:
             return BotReply(str(exc))
         return BotReply(
             self._format_person_detail(detail, heading=self._t(language, heading), language=language),
-            buttons=self._person_buttons(detail.id, chat_id, language),
+            buttons=self._person_buttons(detail, chat_id, language),
         )
 
     def _people_callback(self, chat_id: int, callback: str, language: str) -> BotReply:
@@ -929,10 +937,16 @@ class TelegramBotService:
             self.people_edits.pop(chat_id, None)
             if value.isdecimal() and len(value) <= 8:
                 return self._list_people_reply(language, chat_id, page=int(value))
-        if action == "show":
+        if action in {"show", "photos"}:
             self.people_edits.pop(chat_id, None)
             if value.isascii() and value.isdecimal() and len(value) <= 18:
-                return self._show_person_reply(int(value), language, chat_id)
+                person_id = int(value)
+                if action == "show":
+                    return self._show_person_reply(person_id, language, chat_id)
+                person = self.app_service.get_person_detail(person_id)
+                if person is None:
+                    return BotReply(self._t(language, "unknown_person", identifier=value))
+                return self.handle_command(f"/images 3 person:{person.id}", chat_id=chat_id)
         if not self._is_admin(chat_id):
             self.people_edits.pop(chat_id, None)
             return BotReply(self._t(language, "people_write_requires_admin"))
@@ -1108,17 +1122,19 @@ class TelegramBotService:
             self._format_person_detail(
                 detail, heading=self._t(language, "person_heading"), language=language
             ),
-            buttons=self._person_buttons(detail.id, chat_id, language),
+            buttons=self._person_buttons(detail, chat_id, language),
         )
 
     def _person_buttons(
-        self, person_id: int, chat_id: int | None, language: str
+        self, person: PersonDetail, chat_id: int | None, language: str
     ) -> tuple[tuple[ButtonSpec, ...], ...]:
         rows = []
+        if person.folder_paths:
+            rows.append((ButtonSpec(self._t(language, "button_people_photos"), f"people:photos:{person.id}"),))
         if self._is_admin(chat_id):
             for actions in (("alias", "rename"), ("link", "unlink")):
                 rows.append(tuple(
-                    ButtonSpec(self._t(language, f"button_people_{action}"), f"people:{action}:{person_id}")
+                    ButtonSpec(self._t(language, f"button_people_{action}"), f"people:{action}:{person.id}")
                     for action in actions
                 ))
         rows.append((ButtonSpec(self._t(language, "button_people"), "people:list:0"),))
@@ -1587,7 +1603,7 @@ class TelegramBotService:
             raise ValueError(usage)
         return left.strip(), right.strip()
 
-    def _format_person_detail(self, detail, heading: str, language: str) -> str:
+    def _format_person_detail(self, detail: PersonDetail, heading: str, language: str) -> str:
         lines = [f"{heading}: {detail.display_name}"]
         if detail.aliases:
             lines.append(self._t(language, "person_aliases_label", aliases=", ".join(detail.aliases)))
@@ -1611,9 +1627,10 @@ class TelegramBotService:
                 ButtonSpec(self._t(language, "button_search_help"), "nav:search_help"),
             ),
             (
-                ButtonSpec(self._t(language, "button_settings"), "settings:open"),
                 ButtonSpec(self._t(language, "button_saved_recent"), "saved:recent:0"),
+                ButtonSpec(self._t(language, "button_saved_pinned"), "saved:pinned:0"),
             ),
+            (ButtonSpec(self._t(language, "button_settings"), "settings:open"),),
         )
 
 
@@ -1646,6 +1663,8 @@ class TelegramBotApp:
             "random",
             "more",
             "people",
+            "recent",
+            "pinned",
             "album",
             "timeline",
             "refine",

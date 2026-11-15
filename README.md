@@ -173,6 +173,8 @@ python scripts/run_bot.py
 - `/people rename <canonical> | <new-display-name>`
 - `/people link <canonical> | <folder-path>`
 - `/people unlink <canonical> | <folder-path>`
+- `/recent`
+- `/pinned`
 - `/invite [viewer|admin] [days]`
 - `/invite list`
 - `/invite revoke <code>`
@@ -197,9 +199,9 @@ When a photo batch spans several folders, the bot now says so explicitly and off
 Image replies include inline buttons for continuing the current search, switching to the same folder or year when that context is singular, getting random similar images, refining the search, and going back.
 Active browse state is stored per chat in SQLite, so `/more` and the navigation buttons survive bot restarts.
 
-Open **People** to browse person details. Admins and owners can add people, change names, add aliases, and link or unlink folders from the person’s buttons. Linking prompts for a folder name, year, or keyword and shows the matching folders. The `/people` commands remain available.
+Open **People** to browse person details. **Photos from linked albums** starts a photo search limited to that person's linked albums. Admins and owners can add people, change names, add aliases, and link or unlink folders from the person’s buttons. Linking prompts for a folder name, year, or keyword and shows the matching folders. The `/people` commands remain available.
 
-Open **Recent searches** to rerun or pin a query, and **Pinned searches** to revisit or unpin favorites. Searches are private to the chat and stored in SQLite. Natural-language prompts with multiple separate years ask for one year or an inclusive range.
+Open **Recent searches** or use `/recent` to rerun or pin a query. Open **Pinned searches** or use `/pinned` to revisit or unpin favorites. Both buttons are on the Telegram home menu. Searches are private to the chat and stored in SQLite. Natural-language prompts with multiple separate years ask for one year or an inclusive range.
 
 ## Bot security
 

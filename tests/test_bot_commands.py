@@ -622,10 +622,18 @@ class TelegramBotServiceTests(unittest.TestCase):
 
     def test_telegram_dispatches_people_and_saved_search_buttons(self) -> None:
         chat_id = OWNER_CHAT_ID
+        folder = "2021/2021-08-15_city_trip"
         self.service.handle_command("/people add Ana", chat_id=chat_id)
+        self.service.handle_command(f"/people link Ana | {folder}", chat_id=chat_id)
         self.service.handle_command("/folders city", chat_id=chat_id)
         self.service.handle_callback("language:set:es", chat_id=chat_id)
-        app = TelegramBotApp(token="dummy-token", service=self.service).build()
+        fetched_paths = []
+
+        def fetch_image(path):
+            fetched_paths.append(path)
+            return (PHOTOS_ROOT / path).read_bytes()
+
+        app = TelegramBotApp(token="dummy-token", service=self.service, image_fetcher=fetch_image).build()
         bot_user = {"id": 123, "is_bot": True, "first_name": "Chromantis", "username": "chromantis_test_bot"}
         user = {"id": chat_id, "is_bot": False, "first_name": "Owner"}
         chat = {"id": chat_id, "type": "private"}
@@ -640,8 +648,15 @@ class TelegramBotServiceTests(unittest.TestCase):
             elif action == "answerCallbackQuery":
                 result = True
             else:
-                self.assertEqual(action, "sendMessage")
-                result = {"message_id": len(calls), "date": 1, "chat": chat, "from": bot_user}
+                message = {"message_id": len(calls), "date": 1, "chat": chat, "from": bot_user}
+                if action == "sendMediaGroup":
+                    result = [
+                        {**message, "message_id": len(calls) + index}
+                        for index, _ in enumerate(parameters["media"])
+                    ]
+                else:
+                    self.assertEqual(action, "sendMessage")
+                    result = message
             return 200, json.dumps({"ok": True, "result": result}).encode()
 
         async def exercise_buttons():
@@ -660,21 +675,28 @@ class TelegramBotServiceTests(unittest.TestCase):
                     if button["text"] == label
                 )
 
-            async def tap(callback_data):
+            async def command(text):
+                await send({"message": {
+                    "message_id": update_id + 1, "date": 1, "chat": chat, "from": user, "text": text,
+                    "entities": [{"type": "bot_command", "offset": 0, "length": len(text.split()[0])}],
+                }})
+                self.assertEqual(calls[-1][0], "sendMessage")
+                return calls[-1][1]
+
+            async def tap(callback_data, responses=("sendMessage",)):
                 call_count = len(calls)
                 await send({"callback_query": {
                     "id": str(update_id), "from": user, "chat_instance": "test", "data": callback_data,
                     "message": {"message_id": call_count, "date": 1, "chat": chat, "from": bot_user},
                 }})
-                self.assertEqual([action for action, _ in calls[call_count:]], ["answerCallbackQuery", "sendMessage"])
+                self.assertEqual(
+                    [action for action, _ in calls[call_count:]],
+                    ["answerCallbackQuery", *responses],
+                )
                 return calls[-1][1]
 
             async with app:
-                await send({"message": {
-                    "message_id": 1, "date": 1, "chat": chat, "from": user, "text": "/start",
-                    "entities": [{"type": "bot_command", "offset": 0, "length": 6}],
-                }})
-                home = calls[-1][1]
+                home = await command("/start")
                 people = await tap(button("Personas", home))
                 with self.subTest(menu="people"):
                     person = await tap(button("Ana", people))
@@ -690,9 +712,33 @@ class TelegramBotServiceTests(unittest.TestCase):
                     self.assertIn("city", (await tap(button("Carpetas · city", pinned)))["text"])
                     await tap(button("Desfijar", pinned))
                     self.assertFalse(self.repository.list_saved_searches(chat_id, pinned_only=True))
+                with self.subTest(menu="shortcuts"):
+                    await tap(button("Búsquedas fijadas", home))
+                    self.assertIn("Fija una búsqueda", (await command("/pinned"))["text"])
+                    person = await tap(button("Ana", people))
+                    await tap(
+                        button("Fotos de álbumes vinculados", person),
+                        responses=("sendMediaGroup", "sendMessage"),
+                    )
+                    self.assertGreaterEqual(len(fetched_paths), 2)
+                    self.assertTrue(all(path.startswith(f"{folder}/") for path in fetched_paths))
+                    recent = await command("/recent")
+                    self.assertTrue(button("Fotos · Ana", recent).startswith("saved:run:"))
 
         with patch("telegram.request.HTTPXRequest.do_request", new=request):
             asyncio.run(exercise_buttons())
+
+    def test_viewer_can_open_person_photos_but_guest_cannot(self) -> None:
+        self.repository.create_person("2021")
+        person = self.repository.link_person_to_folder("2021", "2019/2019-07-10_beach_day")
+
+        profile = self.service.handle_command("/people show 2021", chat_id=VIEWER_CHAT_ID)
+        photos = profile.buttons[0][0].callback_data
+        self.assertEqual(photos, f"people:photos:{person.id}")
+        reply = self.service.handle_callback(photos, chat_id=VIEWER_CHAT_ID)
+        self.assertTrue(reply.image_paths)
+        self.assertTrue(all(path.startswith("2019/2019-07-10_beach_day/") for path in reply.image_paths))
+        self.assertFalse(self.service.handle_callback(photos, chat_id=999).image_paths)
 
     def test_settings_reports_current_language(self) -> None:
         self.service.handle_callback("language:set:es", chat_id=VIEWER_CHAT_ID)

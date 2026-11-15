@@ -20,6 +20,7 @@
   "button_people_rename": "Rename",
   "button_people_link": "Link folder",
   "button_people_unlink": "Unlink folder",
+  "button_people_photos": "Photos from linked albums",
   "people_prompt_add": "Send the person's display name.",
   "people_prompt_alias": "Send the new alias.",
   "people_prompt_rename": "Send the new display name.",
