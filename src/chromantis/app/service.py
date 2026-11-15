@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from sqlite3 import Connection
 
 from chromantis.app.interpreter import InterpretedRequest, RuleQueryInterpreter
 from chromantis.db.repository import (
@@ -23,6 +24,13 @@ class AuthorizedPrincipal:
     username: str | None
     first_name: str | None
     auth_mode: str
+
+
+class AuthOperationError(ValueError):
+    def __init__(self, code: str, message: str, status: int = 403):
+        super().__init__(message)
+        self.code = code
+        self.status = status
 
 
 class ApplicationService:
@@ -232,6 +240,8 @@ class ApplicationService:
         chat_id: int | None,
         username: str | None = None,
         first_name: str | None = None,
+        *,
+        connection: Connection | None = None,
     ) -> AuthorizedPrincipal:
         if chat_id is None:
             return AuthorizedPrincipal(
@@ -241,7 +251,7 @@ class ApplicationService:
                 first_name=first_name,
                 auth_mode="none",
             )
-        dynamic = self.repository.get_authorized_chat(chat_id)
+        dynamic = self.repository.get_authorized_chat(chat_id, connection=connection)
         if chat_id in self.static_owner_chat_ids:
             return AuthorizedPrincipal(
                 chat_id=chat_id,
@@ -300,16 +310,31 @@ class ApplicationService:
             )
         return sorted(principals.values(), key=lambda item: (item.chat_id, item.auth_mode))
 
-    def set_chat_role(
-        self,
-        chat_id: int,
-        role: str,
-        actor_chat_id: int | None = None,
+    def require_admin(
+        self, chat_id: int | None, error_code: str, *, connection: Connection | None = None
     ) -> AuthorizedPrincipal:
-        principal = self.resolve_principal(chat_id)
-        if principal.auth_mode.startswith("static_"):
-            raise ValueError("Static chats cannot be role-changed.")
-        chat = self.repository.set_chat_role(chat_id, role=role, actor_chat_id=actor_chat_id)
+        principal = self.resolve_principal(chat_id, connection=connection)
+        if principal.role not in {"owner", "admin"}:
+            raise AuthOperationError(error_code, "Admin privileges are required.")
+        return principal
+
+    def set_chat_role(
+        self, chat_id: int, role: str, actor_chat_id: int | None
+    ) -> AuthorizedPrincipal:
+        with self.repository.auth_write() as connection:
+            actor = self.resolve_principal(actor_chat_id, connection=connection)
+            if actor.role != "owner":
+                raise AuthOperationError("authorized_role_owner_only", "Owner privileges are required.")
+            target = self.resolve_principal(chat_id, connection=connection)
+            if target.auth_mode.startswith("static_"):
+                raise AuthOperationError(
+                    "static_chat_role", "Static chats cannot be role-changed.", 409
+                )
+            if target.role == "none":
+                raise AuthOperationError("chat_not_authorized", "Chat is not authorized.", 404)
+            chat = self.repository.set_chat_role(
+                chat_id, role=role, actor_chat_id=actor_chat_id, connection=connection
+            )
         return AuthorizedPrincipal(
             chat_id=chat.chat_id,
             role=chat.role,
@@ -318,44 +343,70 @@ class ApplicationService:
             auth_mode="dynamic",
         )
 
-    def revoke_chat_access(
-        self,
-        chat_id: int,
-        actor_chat_id: int | None = None,
-        reason: str = "admin_revoke",
-    ) -> None:
-        principal = self.resolve_principal(chat_id)
-        if principal.auth_mode.startswith("static_"):
-            raise ValueError("Static chats cannot be revoked.")
-        self.repository.revoke_chat_access(
-            chat_id=chat_id,
-            actor_chat_id=actor_chat_id,
-            reason=reason,
-        )
+    def revoke_chat_access(self, chat_id: int, actor_chat_id: int | None) -> None:
+        with self.repository.auth_write() as connection:
+            actor = self.require_admin(
+                actor_chat_id, "authorized_revoke_admin_only", connection=connection
+            )
+            target = self.resolve_principal(chat_id, connection=connection)
+            if target.role == "none":
+                raise AuthOperationError("chat_not_authorized", "Chat is not authorized.", 404)
+            if target.auth_mode.startswith("static_"):
+                raise AuthOperationError(
+                    "static_chats_cannot_be_revoked", "Static chats cannot be revoked.", 409
+                )
+            if target.role in {"admin", "owner"} and actor.role != "owner":
+                raise AuthOperationError(
+                    "authorized_revoke_owner_only", "Owner privileges are required to revoke this chat."
+                )
+            self.repository.revoke_chat_access(
+                chat_id=chat_id, actor_chat_id=actor_chat_id, connection=connection
+            )
 
     def revoke_own_access(self, chat_id: int) -> None:
-        self.revoke_chat_access(
-            chat_id=chat_id,
-            actor_chat_id=chat_id,
-            reason="self_logout",
-        )
+        with self.repository.auth_write() as connection:
+            principal = self.resolve_principal(chat_id, connection=connection)
+            if principal.auth_mode.startswith("static_"):
+                raise ValueError("Static chats cannot be revoked.")
+            self.repository.revoke_chat_access(
+                chat_id=chat_id,
+                actor_chat_id=chat_id,
+                reason="self_logout",
+                connection=connection,
+            )
 
     def create_invite(
-        self,
-        role: str,
-        created_by_chat_id: int | None,
-        ttl_days: int = 7,
-        max_uses: int = 1,
+        self, role: str, created_by_chat_id: int | None, ttl_days: int = 7
     ) -> InviteCode:
-        return self.repository.create_invite(
-            role=role,
-            created_by_chat_id=created_by_chat_id,
-            ttl_days=ttl_days,
-            max_uses=max_uses,
-        )
+        with self.repository.auth_write() as connection:
+            actor = self.require_admin(created_by_chat_id, "invite_requires_admin", connection=connection)
+            if role == "admin" and actor.role != "owner":
+                raise AuthOperationError("invite_admin_owner_only", "Owner privileges are required.")
+            if not 1 <= ttl_days <= 30:
+                raise ValueError("Invite TTL must be between 1 and 30 days.")
+            return self.repository.create_invite(
+                role=role, created_by_chat_id=created_by_chat_id, ttl_days=ttl_days, connection=connection
+            )
 
-    def list_invites(self, active_only: bool = True) -> list[InviteCode]:
-        return self.repository.list_invites(active_only=active_only)
+    def list_invites(self, actor_chat_id: int | None) -> list[InviteCode]:
+        actor = self.require_admin(actor_chat_id, "invite_list_requires_admin")
+        return [
+            invite for invite in self.repository.list_invites()
+            if invite.role == "viewer" or actor.role == "owner"
+        ]
 
-    def revoke_invite(self, code: str, actor_chat_id: int | None = None) -> InviteCode:
-        return self.repository.revoke_invite(code=code, actor_chat_id=actor_chat_id)
+    def revoke_invite(self, code: str, actor_chat_id: int | None) -> InviteCode:
+        with self.repository.auth_write() as connection:
+            actor = self.require_admin(
+                actor_chat_id, "revoke_viewer_invite_admin_only", connection=connection
+            )
+            invite = next(
+                (
+                    item for item in self.repository.list_invites(connection=connection)
+                    if item.code == code.strip() and (item.role == "viewer" or actor.role == "owner")
+                ),
+                None,
+            )
+            if invite is None:
+                raise AuthOperationError("unknown_invite_code", "Unknown active invite code.", 404)
+            return self.repository.revoke_invite(code, actor_chat_id=actor_chat_id, connection=connection)

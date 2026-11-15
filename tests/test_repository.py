@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+
 import sqlite3
 import tempfile
 import unittest
@@ -103,3 +106,24 @@ class RepositoryMigrationTests(unittest.TestCase):
 
             self.assertIsNotNone(revoked.revoked_at)
             self.assertEqual(repository.list_invites(active_only=True), [])
+
+
+    def test_one_use_invite_is_redeemed_once_across_threads(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository = Repository(str(Path(temp_dir) / "chromantis.db"))
+            repository.init_schema()
+            invite = repository.create_invite(role="viewer", created_by_chat_id=1)
+            start = Barrier(2)
+
+            def redeem(chat_id: int) -> bool:
+                start.wait(timeout=2)
+                try:
+                    repository.redeem_invite(invite.code, chat_id)
+                except ValueError as exc:
+                    self.assertEqual(str(exc), "This invite has already been used.")
+                    return False
+                return True
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                self.assertEqual(sorted(pool.map(redeem, (2, 3))), [False, True])
+            self.assertEqual(len(repository.list_authorized_chats()), 1)

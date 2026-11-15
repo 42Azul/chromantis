@@ -69,7 +69,8 @@ Copy `.env.example` to `.env` and set:
 - `TELEGRAM_ACCESS_CODE` optionally, a stable bot login code
 - `API_BIND_HOST` optionally, defaults to `127.0.0.1`
 - `API_PORT` optionally, defaults to `8787`
-- `API_TOKEN` optionally, required for HTTP API access when set
+- `API_TOKEN` optionally, a shared read-only API token
+- `API_CHAT_TOKENS` optionally, a JSON object mapping Telegram chat IDs to individual API tokens
 - `LOG_LEVEL` optionally, for example `DEBUG` or `INFO`
 
 Use `SOURCE_TYPE=ftp` with an absolute FTP `SOURCE_ROOT` such as `/photos/archive`.
@@ -185,7 +186,7 @@ By default, `run_bot.py` now prints a 6-digit access code at startup. A new Tele
 ```
 
 to become authorized as a `viewer`. Authorized chats are stored in SQLite and survive bot restarts.
-Owners and admins can generate short-lived viewer invites with `/invite viewer`, and owners can generate admin invites with `/invite admin 3`.
+Owners and admins can generate short-lived viewer invites with `/invite viewer`, and owners can generate admin invites with `/invite admin 3`. Active admin invite codes are visible only to owners.
 
 If you want a stable code instead of a generated one, set:
 
@@ -233,7 +234,26 @@ Available read-only endpoints:
 - `GET /api/v1/random?q=city&count=3`
 - `GET /api/v1/people`
 
-If `API_TOKEN` is set, send it as `Authorization: Bearer <token>` or `X-API-Token: <token>`.
+Use `Authorization: Bearer <token>` or `X-API-Token: <token>`. If either token setting is configured, the API requires a token except on `/api/v1/health`. `API_TOKEN` keeps its existing read-only access to search. Chat tokens use the current Telegram role and stop working while their chat is unauthorized.
+
+To configure an owner token, set `TELEGRAM_ADMIN_CHAT_ALLOWLIST` to the owner chat ID and put a separate token for that ID in `API_CHAT_TOKENS`. Generate one token per chat with `python -c 'import secrets; print(secrets.token_urlsafe(32))'` and restart the API after changing the configuration.
+
+```dotenv
+TELEGRAM_ADMIN_CHAT_ALLOWLIST=123456789
+API_CHAT_TOKENS={"123456789":"replace-with-generated-token"}
+```
+
+| Method and path | JSON input | Success response | Access |
+| --- | --- | --- | --- |
+| `GET /api/v1/auth/me` | | `{"item": principal}` | Any authorized chat token |
+| `GET /api/v1/admin/chats` | | `{"items": [principal]}` | Admin or owner |
+| `PATCH /api/v1/admin/chats/{chat_id}` | `{"role":"viewer"}` | `{"item": principal}` | Owner, dynamic chats |
+| `DELETE /api/v1/admin/chats/{chat_id}` | | `{"revoked":true}` | Admin for viewers, owner for any dynamic chat |
+| `GET /api/v1/admin/invites` | | `{"items": [invite]}` | Admin for active viewer invites, owner for all active invites |
+| `POST /api/v1/admin/invites` | `{"role":"viewer","ttl_days":7}` | `201 {"item": invite}` | Admin for viewer invitations, owner for admin invitations |
+| `DELETE /api/v1/admin/invites/{code}` | | `{"item": invite}` | Admin for viewer invitations, owner for admin invitations |
+
+A principal contains `chat_id`, `role`, `username`, `first_name`, and `auth_mode` (`static_owner`, `static_viewer`, or `dynamic`). An invite contains `code`, `role`, `created_by_chat_id`, `max_uses`, `used_count`, `expires_at`, `revoked_at`, and `created_at`. New invites have one use. TTL defaults to seven days and accepts 1–30 days. Errors contain `error`, with `code` for role and state errors. Role changes, chat revocations, and invite changes are recorded with the acting chat ID.
 
 ## Current v1 limits
 

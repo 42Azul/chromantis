@@ -360,6 +360,16 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertIn(code, reply.text)
         self.assertIn("role=viewer", reply.text)
 
+    def test_admin_list_omits_owner_only_invites(self) -> None:
+        self.repository.authorize_chat(9876, role="admin")
+        admin_invite = self.repository.create_invite("admin", created_by_chat_id=OWNER_CHAT_ID)
+        viewer_invite = self.repository.create_invite("viewer", created_by_chat_id=9876)
+
+        reply = self.service.handle_command("/invite list", chat_id=9876)
+
+        self.assertIn(viewer_invite.code, reply.text)
+        self.assertNotIn(admin_invite.code, reply.text)
+
     def test_owner_can_revoke_admin_invite(self) -> None:
         create_reply = self.service.handle_command("/invite admin 5", chat_id=OWNER_CHAT_ID)
         code = next(

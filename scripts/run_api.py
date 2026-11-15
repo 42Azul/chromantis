@@ -18,11 +18,17 @@ def main() -> None:
     configure_logging(config.log_level)
     repository = Repository(config.sqlite_path)
     repository.init_schema()
-    app_service = ApplicationService(repository, access_code=config.telegram_access_code)
-    handler = make_api_handler(app_service, api_token=config.api_token)
+    app_service = ApplicationService(
+        repository,
+        static_viewer_chat_ids=config.telegram_chat_allowlist,
+        static_owner_chat_ids=config.telegram_admin_chat_allowlist,
+    )
+    handler = make_api_handler(
+        app_service, api_token=config.api_token, api_chat_tokens=config.api_chat_tokens
+    )
     server = ApiServer((config.api_bind_host, config.api_port), handler)
     print(f"Starting Chromantis API on http://{config.api_bind_host}:{config.api_port}")
-    if config.api_token:
+    if config.api_token or config.api_chat_tokens:
         print("API authentication: bearer token required")
     else:
         print("API authentication: disabled (local/trusted use)")

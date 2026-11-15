@@ -21,7 +21,7 @@ Chromantis currently provides:
 - deterministic search over years, year ranges, titles, tags, and curated people aliases
 - a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, guided onboarding, per-chat English/Spanish language preferences, plain-text query handling, and explicit `owner`/`admin`/`viewer` auth management
 - a shared application/query service used by both Telegram and the local HTTP API
-- a local read-only HTTP API for stats, search, browse, and people listing
+- a local HTTP API for stats, search, browse, people listing, and role-based chat and invite administration
 
 Not implemented yet:
 
@@ -144,11 +144,9 @@ Current architecture map:
 - role changes and invite revocations are auditable
 - existing DBs still migrate without manual intervention
 
-## Ready Next
-
 ### MVP 4B — Local API Auth/Admin Parity
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Expose the same explicit auth and admin operations through the local API so future clients do not depend on Telegram-only administration.
 
@@ -164,6 +162,8 @@ Current architecture map:
 - role checks are consistent between bot and API
 - role changes and invite revocations are auditable
 - existing DBs still migrate without manual intervention
+
+## Ready Next
 
 ### MVP 5 — Query API Maturation
 

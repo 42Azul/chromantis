@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import logging
 from dataclasses import dataclass
@@ -80,6 +81,7 @@ class AppConfig:
     api_port: int
     api_token: str | None
     log_level: str
+    api_chat_tokens: tuple[tuple[int, str], ...] = ()
 
     @classmethod
     def from_env(cls, dotenv_path: str | None = None) -> "AppConfig":
@@ -108,6 +110,9 @@ class AppConfig:
             log_level,
         )
 
+        api_token = os.getenv("API_TOKEN") or None
+        api_chat_tokens = _parse_api_chat_tokens(os.getenv("API_CHAT_TOKENS"), api_token)
+
         return cls(
             source_type=source_type,
             source_root=source_root,
@@ -126,6 +131,35 @@ class AppConfig:
             telegram_access_code=os.getenv("TELEGRAM_ACCESS_CODE") or None,
             api_bind_host=os.getenv("API_BIND_HOST", "127.0.0.1"),
             api_port=int(os.getenv("API_PORT", "8787")),
-            api_token=os.getenv("API_TOKEN") or None,
+            api_token=api_token,
+            api_chat_tokens=api_chat_tokens,
             log_level=log_level,
         )
+
+
+def _parse_api_chat_tokens(
+    value: str | None, read_token: str | None
+) -> tuple[tuple[int, str], ...]:
+    if not value:
+        return ()
+    try:
+        pairs = json.loads(value)
+        if not isinstance(pairs, dict):
+            raise ValueError
+        tokens = {}
+        for key, token in pairs.items():
+            chat_id = int(key)
+            if not -(2**63) <= chat_id < 2**63 or chat_id == 0 or chat_id in tokens:
+                raise ValueError
+            if not isinstance(token, str) or not token or any(
+                not 33 <= ord(char) <= 126 for char in token
+            ):
+                raise ValueError
+            tokens[chat_id] = token
+        if len(set(tokens.values())) != len(tokens) or read_token in tokens.values():
+            raise ValueError
+        return tuple(tokens.items())
+    except (TypeError, ValueError):
+        raise ValueError(
+            "API_CHAT_TOKENS must be a JSON object mapping chat IDs to unique printable tokens."
+        ) from None

@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Callable
 
-from chromantis.app import ApplicationService
+from chromantis.app import ApplicationService, AuthOperationError
 from chromantis.bot.formatters import format_search_results, format_years
 from chromantis.bot.i18n import DEFAULT_LANGUAGE, language_name, t
 from chromantis.db.repository import IndexStats
@@ -624,9 +624,10 @@ class TelegramBotService:
         if not parts:
             parts = ["viewer"]
         if parts[0].lower() == "list":
-            if not self._is_admin(chat_id):
-                return BotReply(self._t(language, "invite_list_requires_admin"))
-            invites = self.app_service.list_invites(active_only=True)
+            try:
+                invites = self.app_service.list_invites(chat_id)
+            except AuthOperationError as exc:
+                return BotReply(self._t(language, exc.code))
             if not invites:
                 return BotReply(self._t(language, "no_active_invites"))
             lines = [self._t(language, "active_invites")]
@@ -653,17 +654,16 @@ class TelegramBotService:
         ttl_days = 7
         if role not in {"viewer", "admin"}:
             return BotReply(self._t(language, "invite_usage"))
-        if role == "admin" and not self._is_owner(chat_id):
-            return BotReply(self._t(language, "invite_admin_owner_only"))
         if len(parts) > 1:
             if not parts[1].isdigit():
                 return BotReply(self._t(language, "invite_usage"))
             ttl_days = max(1, min(int(parts[1]), 30))
-        invite = self.app_service.create_invite(
-            role=role,
-            created_by_chat_id=chat_id,
-            ttl_days=ttl_days,
-        )
+        try:
+            invite = self.app_service.create_invite(role, created_by_chat_id=chat_id, ttl_days=ttl_days)
+        except AuthOperationError as exc:
+            return BotReply(self._t(language, exc.code))
+        except ValueError as exc:
+            return BotReply(str(exc))
         return BotReply(
             self._t(
                 language,
@@ -807,6 +807,8 @@ class TelegramBotService:
                 role=role.lower(),
                 actor_chat_id=actor_chat_id,
             )
+        except AuthOperationError as exc:
+            return BotReply(self._t(language, exc.code))
         except ValueError as exc:
             return BotReply(str(exc))
         return BotReply(
@@ -829,21 +831,10 @@ class TelegramBotService:
             target_chat_id = int(raw_chat_id)
         except ValueError:
             return BotReply(self._t(language, "authorized_revoke_usage"))
-        target = self.app_service.resolve_principal(target_chat_id)
-        if target.role == "none":
-            return BotReply(self._t(language, "chat_not_authorized"))
-        if target.auth_mode.startswith("static_"):
-            return BotReply(self._t(language, "static_chats_cannot_be_revoked"))
-        if target.role in {"admin", "owner"} and not self._is_owner(actor_chat_id):
-            return BotReply(self._t(language, "authorized_revoke_owner_only"))
-        if target.role == "viewer" and not self._is_admin(actor_chat_id):
-            return BotReply(self._t(language, "authorized_revoke_admin_only"))
         try:
-            self.app_service.revoke_chat_access(
-                target_chat_id,
-                actor_chat_id=actor_chat_id,
-                reason="admin_revoke",
-            )
+            self.app_service.revoke_chat_access(target_chat_id, actor_chat_id=actor_chat_id)
+        except AuthOperationError as exc:
+            return BotReply(self._t(language, exc.code))
         except ValueError as exc:
             return BotReply(str(exc))
         if target_chat_id == actor_chat_id:
@@ -851,19 +842,10 @@ class TelegramBotService:
         return BotReply(self._t(language, "chat_access_revoked", chat_id=target_chat_id))
 
     def _revoke_invite_reply(self, code: str, actor_chat_id: int | None, language: str) -> BotReply:
-        invites = {
-            invite.code: invite
-            for invite in self.app_service.list_invites(active_only=True)
-        }
-        invite = invites.get(code.strip())
-        if invite is None:
-            return BotReply(self._t(language, "unknown_invite_code"))
-        if invite.role == "admin" and not self._is_owner(actor_chat_id):
-            return BotReply(self._t(language, "revoke_admin_invite_owner_only"))
-        if invite.role == "viewer" and not self._is_admin(actor_chat_id):
-            return BotReply(self._t(language, "revoke_viewer_invite_admin_only"))
         try:
             revoked = self.app_service.revoke_invite(code, actor_chat_id=actor_chat_id)
+        except AuthOperationError as exc:
+            return BotReply(self._t(language, exc.code))
         except ValueError as exc:
             return BotReply(str(exc))
         return BotReply(

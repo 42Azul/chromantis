@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -120,6 +120,15 @@ class Repository:
             yield connection
             connection.commit()
 
+    def _existing_or_session(self, connection: sqlite3.Connection | None):
+        return nullcontext(connection) if connection is not None else self.session()
+
+    @contextmanager
+    def auth_write(self):
+        with self.session() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            yield connection
+
     def begin_scan(self) -> str:
         return datetime.now(timezone.utc).isoformat()
 
@@ -224,8 +233,13 @@ class Repository:
             ).fetchone()
         return row is not None
 
-    def get_authorized_chat(self, chat_id: int) -> AuthorizedChat | None:
-        with self.connect() as connection:
+    def get_authorized_chat(
+        self,
+        chat_id: int,
+        *,
+        connection: sqlite3.Connection | None = None,
+    ) -> AuthorizedChat | None:
+        with self._existing_or_session(connection) as connection:
             row = connection.execute(
                 """
                 SELECT chat_id, username, first_name, role, authorized_at
@@ -349,10 +363,17 @@ class Repository:
             )
             connection.commit()
 
-    def set_chat_role(self, chat_id: int, role: str, actor_chat_id: int | None = None) -> AuthorizedChat:
+    def set_chat_role(
+        self,
+        chat_id: int,
+        role: str,
+        actor_chat_id: int | None = None,
+        *,
+        connection: sqlite3.Connection | None = None,
+    ) -> AuthorizedChat:
         if role not in {"viewer", "admin", "owner"}:
             raise ValueError("Chat role must be viewer, admin, or owner.")
-        with self.connect() as connection:
+        with self._existing_or_session(connection) as connection:
             row = connection.execute(
                 """
                 SELECT chat_id, username, first_name, authorized_at
@@ -379,7 +400,6 @@ class Repository:
                 actor_chat_id=actor_chat_id,
                 details={"role": role},
             )
-            connection.commit()
         return AuthorizedChat(
             chat_id=row["chat_id"],
             username=row["username"],
@@ -393,8 +413,10 @@ class Repository:
         chat_id: int,
         actor_chat_id: int | None = None,
         reason: str = "admin_revoke",
+        *,
+        connection: sqlite3.Connection | None = None,
     ) -> None:
-        with self.connect() as connection:
+        with self._existing_or_session(connection) as connection:
             row = connection.execute(
                 """
                 SELECT 1
@@ -417,7 +439,6 @@ class Repository:
                 actor_chat_id=actor_chat_id,
                 details={"reason": reason},
             )
-            connection.commit()
 
     def revoke_chat(self, chat_id: int) -> None:
         self.revoke_chat_access(
@@ -452,6 +473,8 @@ class Repository:
         created_by_chat_id: int | None,
         ttl_days: int = 7,
         max_uses: int = 1,
+        *,
+        connection: sqlite3.Connection | None = None,
     ) -> InviteCode:
         if role not in {"viewer", "admin"}:
             raise ValueError("Invite role must be viewer or admin.")
@@ -461,42 +484,29 @@ class Repository:
             raise ValueError("Invite max_uses must be at least 1.")
         created_at = datetime.now(timezone.utc)
         expires_at = (created_at + timedelta(days=ttl_days)).isoformat()
-        code = f"{secrets.randbelow(1_000_000):06d}"
-        invite = InviteCode(
-            code=code,
-            role=role,
-            created_by_chat_id=created_by_chat_id,
-            max_uses=max_uses,
-            used_count=0,
-            expires_at=expires_at,
-            revoked_at=None,
-            created_at=created_at.isoformat(),
-        )
-        with self.connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO invite_codes (
-                    code, role, created_by_chat_id, max_uses, used_count,
-                    expires_at, revoked_at, created_at
+        with self._existing_or_session(connection) as connection:
+            for _ in range(20):
+                code = f"{secrets.randbelow(1_000_000):06d}"
+                result = connection.execute(
+                    """
+                    INSERT INTO invite_codes (
+                        code, role, created_by_chat_id, max_uses, used_count,
+                        expires_at, revoked_at, created_at
+                    )
+                    VALUES (?, ?, ?, ?, 0, ?, NULL, ?)
+                    ON CONFLICT(code) DO NOTHING
+                    """,
+                    (code, role, created_by_chat_id, max_uses, expires_at, created_at.isoformat()),
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    invite.code,
-                    invite.role,
-                    invite.created_by_chat_id,
-                    invite.max_uses,
-                    invite.used_count,
-                    invite.expires_at,
-                    invite.revoked_at,
-                    invite.created_at,
-                ),
-            )
+                if result.rowcount:
+                    break
+            else:
+                raise ValueError("Could not allocate an invite code. Try again.")
             self._record_audit(
                 connection,
                 action="create_invite",
                 target_type="invite",
-                target_id=invite.code,
+                target_id=code,
                 actor_chat_id=created_by_chat_id,
                 details={
                     "role": role,
@@ -504,8 +514,9 @@ class Repository:
                     "max_uses": max_uses,
                 },
             )
-            connection.commit()
-        return invite
+        return InviteCode(
+            code, role, created_by_chat_id, max_uses, 0, expires_at, None, created_at.isoformat()
+        )
 
     def redeem_invite(
         self,
@@ -515,7 +526,7 @@ class Repository:
         first_name: str | None = None,
     ) -> AuthorizedChat:
         now = datetime.now(timezone.utc)
-        with self.connect() as connection:
+        with self.auth_write() as connection:
             row = connection.execute(
                 """
                 SELECT code, role, created_by_chat_id, max_uses, used_count, expires_at, revoked_at, created_at
@@ -561,7 +572,6 @@ class Repository:
                 actor_chat_id=chat_id,
                 details={"role": row["role"], "username": username, "first_name": first_name},
             )
-            connection.commit()
         return AuthorizedChat(
             chat_id=chat_id,
             username=username,
@@ -570,7 +580,12 @@ class Repository:
             authorized_at=authorized_at,
         )
 
-    def list_invites(self, active_only: bool = True) -> list[InviteCode]:
+    def list_invites(
+        self,
+        active_only: bool = True,
+        *,
+        connection: sqlite3.Connection | None = None,
+    ) -> list[InviteCode]:
         filters = []
         params: list[object] = []
         now = datetime.now(timezone.utc).isoformat()
@@ -582,7 +597,7 @@ class Repository:
         where = ""
         if filters:
             where = "WHERE " + " AND ".join(filters)
-        with self.connect() as connection:
+        with self._existing_or_session(connection) as connection:
             rows = connection.execute(
                 f"""
                 SELECT code, role, created_by_chat_id, max_uses, used_count, expires_at, revoked_at, created_at
@@ -594,10 +609,16 @@ class Repository:
             ).fetchall()
         return [self._row_to_invite(row) for row in rows]
 
-    def revoke_invite(self, code: str, actor_chat_id: int | None = None) -> InviteCode:
+    def revoke_invite(
+        self,
+        code: str,
+        actor_chat_id: int | None = None,
+        *,
+        connection: sqlite3.Connection | None = None,
+    ) -> InviteCode:
         stripped = code.strip()
         revoked_at = datetime.now(timezone.utc).isoformat()
-        with self.connect() as connection:
+        with self._existing_or_session(connection) as connection:
             row = connection.execute(
                 """
                 SELECT code, role, created_by_chat_id, max_uses, used_count, expires_at, revoked_at, created_at
@@ -626,7 +647,6 @@ class Repository:
                 actor_chat_id=actor_chat_id,
                 details={},
             )
-            connection.commit()
         return InviteCode(
             code=row["code"],
             role=row["role"],
