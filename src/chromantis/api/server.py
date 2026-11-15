@@ -99,6 +99,10 @@ def _dispatch(
                 return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
             if path == "/api/v1/thumbnail":
                 return _read_thumbnail(params.get("path", [""])[0], app_service, thumbnails)
+            if path == "/api/v1/image-dates":
+                image_path = _text({"path": params.get("path", [""])[0]}, "path")
+                dates = app_service.repository.image_dates(image_path)
+                return (200, {"item": dates}) if dates is not None else (404, {"error": "Image not found"})
             if path == "/api/v1/archive-status":
                 status = app_service.repository.archive_index_status()
                 return 200, {"item": {**status, "thumbnails": thumbnails is not None}}

@@ -30,6 +30,7 @@ Chromantis currently provides:
 - local browser-only family sign-in with one-time codes and revocable SQLite sessions
 - album aliases, notes, and title and date corrections shared by the browser and Telegram
 - optional local thumbnails with a disk budget and an index freshness indicator
+- opt-in JPEG capture dates with separate camera, album and file-time provenance
 
 Not implemented yet:
 
@@ -377,17 +378,26 @@ Current architecture map:
 
 **Acceptance:** A gallery page loads small previews. Changing a source image invalidates its thumbnail. The original remains downloadable to authorized users.
 
+### MVP 13A — Capture Dates and Provenance
+
+**Status:** `Done`
+
+- Extract JPEG `DateTimeOriginal` on demand in small, resumable batches, without pixel decoding.
+- Show camera-reported dates, indexed or corrected album dates, and file modification times separately in the browser and local API.
+- Keep GPS outside the capture-date extractor.
+
+**Acceptance:** A photo with an inconsistent folder date and EXIF date exposes both values with sources. An unchanged JPEG does not need to be read again.
+
 ## Ready Next
 
-### MVP 13 — Dates, Places, and Provenance
+### MVP 13B — Album Places and Timeline
 
 **Status:** `Ready Next`
 
-- Read EXIF capture dates with confidence and retain the existing distinction between event and source timestamps.
 - Support manually curated locations and make embedded GPS indexing opt-in.
 - Build a timeline and expose date- and place-based queries through the API and Telegram.
 
-**Acceptance:** A photo with an inconsistent folder date and EXIF date exposes both values with sources. Private GPS metadata is excluded by default.
+**Acceptance:** Find a curated album by place and year, see the source of its date, and verify that private GPS metadata stays outside the default index.
 
 ## Planned Later
 

@@ -52,6 +52,16 @@ CREATE TABLE IF NOT EXISTS image_enrichment (
     PRIMARY KEY (image_id, model, version)
 );
 
+CREATE TABLE IF NOT EXISTS image_capture_dates (
+    image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE,
+    source_root TEXT NOT NULL,
+    source_modified_at TEXT,
+    source_size INTEGER,
+    capture_date TEXT,
+    attempted_at TEXT NOT NULL,
+    retry INTEGER NOT NULL CHECK (retry IN (0, 1))
+);
+
 CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY,
     tag TEXT NOT NULL UNIQUE,

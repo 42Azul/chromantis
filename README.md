@@ -395,6 +395,18 @@ La galería solicita miniaturas JPEG de hasta 480 píxeles al entrar cada foto e
 
 La carpeta `<nombre-de-la-base-de-datos>.thumbnails` queda junto al índice, fuera del archivo de fotos. La caché guarda hasta el presupuesto indicado de datos JPEG y un máximo de 2.048 archivos. Elimina primero los más antiguos. Cuando el siguiente reindexado detecta un cambio de tamaño o fecha de modificación, se genera otra miniatura al volver a verla. Las miniaturas guardadas pueden abrirse desde el navegador mientras la fuente esté desconectada. La web muestra la fecha del último índice correcto y avisa si la fuente falla al pedir una foto. El ajuste `0` deja disponibles las vistas originales y desactiva la generación de miniaturas.
 
+#### Fechas de captura EXIF
+
+Con Pillow instalado mediante el mismo extra de las miniaturas, puedes leer la fecha declarada por la cámara en los JPEG ya indexados. Ejecuta el comando manualmente y, si quieres probar con una sola carpeta, indica su ruta relativa exacta:
+
+```bash
+.venv/bin/python scripts/index_capture_dates.py --limit 25 --album "2024/2024-08-04_playa"
+```
+
+Omite `--album` para tomar el siguiente lote del índice. Se leen hasta 512 KiB de cada JPEG, sin decodificar píxeles. Se guarda el día de `DateTimeOriginal` cuando es válido. Las pasadas posteriores saltan los archivos ya procesados mientras su tamaño y fecha de modificación sigan siendo los mismos. Los errores de lectura quedan pendientes de reintento.
+
+El visor y `GET /api/v1/image-dates?path=<ruta>` muestran por separado la fecha de captura, la del álbum y la de modificación del archivo. La fecha EXIF refleja el reloj declarado por la cámara. El proceso guarda solo el día y nunca lee el directorio GPS de EXIF. La fecha del álbum sigue guiando la navegación por año.
+
 ### Scheduled indexing and status
 
 After the initial index, use incremental mode for routine updates.

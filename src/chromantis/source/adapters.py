@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from ftplib import FTP, all_errors, error_perm
@@ -16,6 +17,10 @@ YEAR_DIR_RE = re.compile(r"^\d{4}(?:\(\d+\))?$")
 
 class ArchiveReadLimit(ValueError):
     """The source exceeded the caller's read budget."""
+
+
+class _PrefixComplete(Exception):
+    pass
 
 
 @dataclass(frozen=True)
@@ -33,6 +38,9 @@ class ArchiveSource(Protocol):
         ...
 
     def read_bytes(self, relative_path: str, *, max_bytes: int | None = None) -> bytes:
+        ...
+
+    def read_prefix(self, relative_path: str, size: int) -> bytes:
         ...
 
     def read_many_bytes(self, relative_paths: tuple[str, ...]) -> tuple[bytes, ...]:
@@ -68,15 +76,34 @@ class FtpArchiveSource:
                 raise ArchiveReadLimit("Archive file exceeds the read limit.")
             chunks.append(chunk)
 
+        self._download(relative_path, collect)
+        return b"".join(chunks)
+
+    def read_prefix(self, relative_path: str, size: int) -> bytes:
+        if size <= 0:
+            raise ValueError("Prefix size must be positive.")
+        prefix = bytearray()
+
+        def collect(chunk: bytes) -> None:
+            prefix.extend(chunk[:size - len(prefix)])
+            if len(prefix) == size:
+                raise _PrefixComplete
+
+        try:
+            self._download(relative_path, collect)
+        except _PrefixComplete:
+            pass
+        return bytes(prefix)
+
+    def _download(self, relative_path: str, collect: Callable[[bytes], None]) -> None:
         absolute_path = self._absolute_path(relative_path)
         with self._connect() as ftp:
             logger.debug("Downloading FTP file %s", absolute_path)
             try:
                 ftp.retrbinary(f"RETR {absolute_path}", collect)
-            except ArchiveReadLimit:
+            except (ArchiveReadLimit, _PrefixComplete):
                 ftp.close()
                 raise
-        return b"".join(chunks)
 
     def read_many_bytes(self, relative_paths: tuple[str, ...]) -> tuple[bytes, ...]:
         if not relative_paths:
@@ -305,6 +332,12 @@ class LocalArchiveSource:
         if len(content) > max_bytes:
             raise ArchiveReadLimit("Archive file exceeds the read limit.")
         return content
+
+    def read_prefix(self, relative_path: str, size: int) -> bytes:
+        if size <= 0:
+            raise ValueError("Prefix size must be positive.")
+        with self._absolute_path(relative_path).open("rb") as source:
+            return source.read(size)
 
     def read_many_bytes(self, relative_paths: tuple[str, ...]) -> tuple[bytes, ...]:
         return tuple(self.read_bytes(relative_path) for relative_path in relative_paths)

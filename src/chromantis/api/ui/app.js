@@ -298,7 +298,9 @@ async function openPhoto(item, filename, previewURL, isThumbnail, spanish) {
   message("close-photo", spanish ? "Cerrar" : "Close");
   message("download-original", spanish ? "Descargar original" : "Download original");
   message("original-status", isThumbnail ? (spanish ? "Cargando original…" : "Loading original…") : "");
+  $("photo-dates").replaceChildren();
   box.showModal();
+  loadPhotoDates(item.path, request, spanish);
   try {
     if (isThumbnail) {
       const blob = await api("/image" + queryParams({ path: item.path }), { raw: true, signal: request.signal });
@@ -319,6 +321,35 @@ async function openPhoto(item, filename, previewURL, isThumbnail, spanish) {
   }
 }
 
+async function loadPhotoDates(path, request, spanish) {
+  try {
+    const { item } = await api("/image-dates" + queryParams({ path }), { signal: request.signal });
+    if (request.signal.aborted || originalRequest !== request || !$("lightbox").open) return;
+    const dates = {};
+    if (item.capture_date) {
+      dates[spanish ? "Captura (EXIF)" : "Capture (EXIF)"] = item.capture_date;
+    }
+    if (item.event_date) {
+      const corrected = item.event_date_source === "album_correction";
+      const label = corrected ? (spanish ? "Fecha corregida del álbum" : "Corrected album date")
+        : (spanish ? "Fecha del álbum (carpeta)" : "Album date (folder name)");
+      dates[label] = item.event_date;
+      if (corrected && item.indexed_event_date) {
+        dates[spanish ? "Fecha de la carpeta" : "Folder date"] = item.indexed_event_date;
+      }
+    }
+    if (item.source_modified_at) {
+      dates[spanish ? "Archivo modificado" : "File modified"] =
+        new Date(item.source_modified_at).toLocaleString(spanish ? "es" : undefined);
+    }
+    if (Object.keys(dates).length) $("photo-dates").append(definitionList(dates));
+  } catch (error) {
+    if (!request.signal.aborted && originalRequest === request) {
+      $("photo-dates").replaceChildren();
+    }
+  }
+}
+
 $("lightbox").addEventListener("close", () => {
   originalRequest?.abort();
   originalRequest = undefined;
@@ -326,6 +357,7 @@ $("lightbox").addEventListener("close", () => {
   originalURL = undefined;
   $("download-original").removeAttribute("href");
   $("lightbox").querySelector("img").removeAttribute("src");
+  $("photo-dates").replaceChildren();
 });
 
 function photoCard(item, signal, urls = photoURLs, spanish = false) {

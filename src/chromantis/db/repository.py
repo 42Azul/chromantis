@@ -870,6 +870,80 @@ class Repository:
             ).fetchall()
         return [EnrichmentCandidate(*row) for row in rows]
 
+    def capture_date_candidates(
+        self, source_root: str, limit: int, album: str | None = None,
+    ) -> list[EnrichmentCandidate]:
+        scope = "AND f.folder_path = ?" if album is not None else ""
+        params = (source_root, album, limit) if album is not None else (source_root, limit)
+        with self.session() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT i.id, i.file_path, f.ftp_root_path, i.ftp_modified_at, i.file_size
+                FROM images i JOIN folders f ON f.id = i.folder_id
+                LEFT JOIN image_capture_dates d ON d.image_id = i.id
+                 AND d.source_root = f.ftp_root_path
+                 AND d.source_modified_at IS i.ftp_modified_at AND d.source_size IS i.file_size
+                WHERE f.ftp_root_path = ? AND i.extension IN ('.jpg', '.jpeg')
+                 AND (d.image_id IS NULL OR d.retry = 1) {scope}
+                ORDER BY d.attempted_at, i.id LIMIT ?
+                """,
+                params,
+            ).fetchall()
+        return [EnrichmentCandidate(*row) for row in rows]
+
+    def save_capture_date(
+        self, candidate: EnrichmentCandidate, date: str | None, *, retry: bool = False,
+    ) -> bool:
+        with self.session() as connection:
+            result = connection.execute(
+                """
+                INSERT INTO image_capture_dates (
+                    image_id, source_root, source_modified_at, source_size, capture_date, attempted_at, retry
+                )
+                SELECT i.id, f.ftp_root_path, i.ftp_modified_at, i.file_size, ?, ?, ?
+                FROM images i JOIN folders f ON f.id = i.folder_id
+                WHERE i.id = ? AND i.file_path = ? AND f.ftp_root_path = ?
+                 AND i.ftp_modified_at IS ? AND i.file_size IS ?
+                ON CONFLICT(image_id) DO UPDATE SET
+                    source_root = excluded.source_root, source_modified_at = excluded.source_modified_at,
+                    source_size = excluded.source_size, capture_date = excluded.capture_date,
+                    attempted_at = excluded.attempted_at, retry = excluded.retry
+                WHERE image_capture_dates.retry = 1 OR excluded.retry = 0
+                   OR image_capture_dates.source_root != excluded.source_root
+                   OR image_capture_dates.source_modified_at IS NOT excluded.source_modified_at
+                   OR image_capture_dates.source_size IS NOT excluded.source_size
+                """,
+                (date, datetime.now(timezone.utc).isoformat(), retry, candidate.image_id, candidate.path,
+                 candidate.source_root, candidate.modified_at, candidate.size),
+            )
+        return bool(result.rowcount)
+
+    def image_dates(self, path: str) -> dict[str, object] | None:
+        with self.session() as connection:
+            row = connection.execute(
+                """
+                SELECT f.event_date, f.indexed_date, f.date_override, i.ftp_modified_at, d.capture_date
+                FROM images i JOIN album_metadata f ON f.id = i.folder_id
+                LEFT JOIN image_capture_dates d ON d.image_id = i.id AND d.retry = 0
+                 AND d.source_root = f.ftp_root_path
+                 AND d.source_modified_at IS i.ftp_modified_at AND d.source_size IS i.file_size
+                WHERE i.file_path = ?
+                """,
+                (path,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "event_date": row["event_date"],
+            "event_date_source": ("album_correction" if row["date_override"] else "folder_name")
+            if row["event_date"] else None,
+            "indexed_event_date": row["indexed_date"],
+            "capture_date": row["capture_date"],
+            "capture_date_source": "exif_datetime_original" if row["capture_date"] else None,
+            "capture_date_confidence": "camera_reported" if row["capture_date"] else None,
+            "source_modified_at": row["ftp_modified_at"],
+        }
+
     def save_image_enrichment(
         self,
         candidate: EnrichmentCandidate,
