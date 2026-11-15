@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const views = ["archive", "people", "searches", "admin"];
+const views = ["archive", "people", "album-review", "searches", "admin"];
 const photoURLs = new Set();
 let token = "";
 let principal;
@@ -7,6 +7,10 @@ let pinnedOnly = false;
 let requestNumber = 0;
 let connectionNumber = 0;
 let photoRequests;
+let canCurateAlbums = false;
+let albumRequest = 0;
+let albumPhotoRequests;
+const albumPhotoURLs = new Set();
 
 function element(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -60,10 +64,12 @@ function resetPhotos() {
 function signOut() {
   token = "";
   principal = undefined;
+  canCurateAlbums = false;
   requestNumber++;
   connectionNumber++;
   sessionStorage.removeItem("chromantis.chatToken");
   resetPhotos();
+  closeAlbumReview();
   for (const view of views) $(view).hidden = true;
   for (const id of ["results", "browsing", "statistics", "people-list", "add-person", "saved-list", "admin-content"]) {
     $(id).replaceChildren();
@@ -87,18 +93,21 @@ async function signIn(value) {
   const initialRequest = requestNumber;
   message("login-error");
   try {
-    const { item } = await api("/auth/me");
+    const { item, can_curate_albums } = await api("/auth/me");
     if (connection !== connectionNumber) return;
     principal = item;
+    canCurateAlbums = can_curate_albums;
     sessionStorage.setItem("chromantis.chatToken", token);
     $("token").value = "";
     $("sign-in").hidden = true;
     $("navigation").hidden = false;
     $("connection").hidden = false;
     $("admin-nav").hidden = !isAdmin();
+    $("album-review-nav").hidden = !canCurateAlbums;
     $("account").textContent = principal.first_name || principal.username || `Chat ${principal.chat_id}`;
     $("account-role").textContent = principal.role;
-    await showView("archive");
+    const initialView = canCurateAlbums && principal.role === "viewer" ? "album-review" : "archive";
+    await showView(initialView);
     Promise.all([api("/stats"), api("/years")]).then(([{ item }, { items }]) => {
       if (connection !== connectionNumber) return;
       $("statistics").replaceChildren(...Object.entries({
@@ -109,10 +118,12 @@ async function signIn(value) {
         ...items.map(({ year }) => element("option", { value: year }, String(year))));
     }).catch(error => message("archive-status", error.message));
 
-    if (token === value) {
+    if (token === value && initialView === "archive" && !$("archive").hidden) {
       try {
         const batch = await api("/browse");
-        if (requestNumber === initialRequest && connection === connectionNumber) renderBatch(batch);
+        if (requestNumber === initialRequest && connection === connectionNumber && !$("archive").hidden) {
+          renderBatch(batch);
+        }
       } catch (error) {
         if (requestNumber !== initialRequest || connection !== connectionNumber) return;
         if (error.status !== 404) message("archive-status", error.message);
@@ -126,8 +137,9 @@ async function signIn(value) {
   }
 }
 
-async function showView(view) {
-  if (!principal || (view === "admin" && !isAdmin())) return;
+async function showView(view, albumOptions) {
+  if (!principal || (view === "admin" && !isAdmin()) || (view === "album-review" && !canCurateAlbums)) return;
+  if (view !== "album-review" && !$("album-review").hidden) closeAlbumReview();
   for (const name of views) $(name).hidden = name !== view;
   for (const nav of document.querySelectorAll("[data-view]")) {
     if (nav.dataset.view === view) nav.setAttribute("aria-current", "page");
@@ -135,6 +147,7 @@ async function showView(view) {
   }
   try {
     if (view === "people") await loadPeople();
+    if (view === "album-review") await loadAlbumReview(albumOptions);
     if (view === "searches") await loadSearches();
     if (view === "admin") await loadAdmin();
   } catch (error) {
@@ -188,6 +201,8 @@ function renderBatch(batch) {
     actions.push(button("More photos", () => archiveRequest("more")));
     if (batch.folders.length === 1) {
       actions.push(button("Same folder", () => archiveRequest("same_folder")));
+      if (canCurateAlbums) actions.push(button("Etiquetar este álbum",
+        () => showView("album-review", { path: batch.folders[0] })));
     } else if (batch.folders.length > 1) {
       const pick = element("select", { "aria-label": "Browse a folder in this batch" },
         element("option", { value: "" }, "Jump to folder"), ...batch.folders.map(path =>
@@ -204,10 +219,11 @@ function renderBatch(batch) {
   $("browsing").replaceChildren(...actions);
 }
 
-function photoCard(item, signal) {
+function photoCard(item, signal, urls = photoURLs, spanish = false) {
   const filename = item.path.split("/").at(-1);
   let sourceURL;
-  const frame = button("Loading photo…", () => {
+  const unavailable = spanish ? "Foto no disponible" : "Preview unavailable";
+  const frame = button(spanish ? "Cargando foto…" : "Loading photo…", () => {
     if (!sourceURL) return;
     const box = $("lightbox");
     box.querySelector("img").src = sourceURL;
@@ -215,30 +231,218 @@ function photoCard(item, signal) {
     box.querySelector("p").textContent = item.path;
     box.showModal();
   }, "frame");
-  frame.setAttribute("aria-label", `Open ${filename}`);
+  frame.setAttribute("aria-label", `${spanish ? "Abrir" : "Open"} ${filename}`);
   frame.disabled = true;
   const image = element("img", { alt: filename, decoding: "async" });
   image.addEventListener("load", () => {
     frame.replaceChildren(image);
     frame.disabled = false;
   });
-  image.addEventListener("error", () => { frame.textContent = "Preview unavailable"; });
+  image.addEventListener("error", () => { frame.textContent = unavailable; });
   const observer = new IntersectionObserver(entries => {
     if (!entries.some(entry => entry.isIntersecting)) return;
     observer.disconnect();
     api("/image" + queryParams({ path: item.path }), { raw: true, signal }).then(blob => {
       if (signal.aborted) return;
       sourceURL = URL.createObjectURL(blob);
-      photoURLs.add(sourceURL);
+      urls.add(sourceURL);
       image.src = sourceURL;
-    }).catch(() => { frame.textContent = "Preview unavailable"; });
+    }).catch(() => { frame.textContent = unavailable; });
   }, { rootMargin: "120px" });
   signal.addEventListener("abort", () => observer.disconnect(), { once: true });
   observer.observe(frame);
   return element("article", { class: "photo-card" }, frame,
     element("div", { class: "card-caption" }, element("h3", {}, filename),
-      element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)));
+      ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])));
 }
+
+function closeAlbumReview() {
+  albumRequest++;
+  albumPhotoRequests?.abort();
+  for (const url of albumPhotoURLs) URL.revokeObjectURL(url);
+  albumPhotoURLs.clear();
+  if ($("lightbox").open) $("lightbox").close();
+  $("album-review-content").replaceChildren();
+}
+
+async function loadAlbumReview({ after = 0, reviewed = false, directory, saved = false, path } = {}) {
+  closeAlbumReview();
+  const request = albumRequest;
+  $("pending-albums").setAttribute("aria-pressed", String(!reviewed));
+  $("reviewed-albums").setAttribute("aria-pressed", String(reviewed));
+  message("album-review-status", "Cargando álbum…");
+  try {
+    const [{ item }, { items: people }] = await Promise.all([
+      api("/album-review" + queryParams(path ? { path } : { after, reviewed })),
+      directory ? { items: directory } : api("/album-review/people"),
+    ]);
+    if (request !== albumRequest) return;
+    message("album-review-status", saved ? "Álbum guardado." : "");
+    if (item) renderAlbumReview(item, people, reviewed);
+    else $("album-review-content").append(element("p", {},
+      reviewed ? "No hay más álbumes revisados." : "No hay más álbumes pendientes en esta vuelta."
+    ));
+  } catch (error) {
+    if (request === albumRequest) message("album-review-status", error.message);
+  }
+}
+
+function reviewPersonPicker(people, selected) {
+  const filter = element("input", { type: "search", autocomplete: "off", placeholder: "Escribe un nombre o alias" });
+  const matches = element("div", { class: "review-people" });
+  const chosen = element("div", { class: "actions", "aria-label": "Personas seleccionadas" });
+  const fold = text => text.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[_-]+/g, " ");
+  function draw() {
+    const query = fold(filter.value.trim());
+    const results = query ? people.filter(person => !selected.has(person.id) &&
+      [person.display_name, ...person.aliases].some(name => fold(name).includes(query))).slice(0, 8) : [];
+    matches.replaceChildren(...results.map(person => button(
+      [person.display_name, ...person.aliases].join(" · "), () => {
+        selected.add(person.id);
+        filter.value = "";
+        draw();
+        filter.focus();
+      }
+    )));
+    if (query && !results.length) matches.append(element("p", {}, "No hay coincidencias."));
+    chosen.replaceChildren(...people.filter(person => selected.has(person.id)).map(person => {
+      const remove = button(`${person.display_name} ×`, () => {
+        selected.delete(person.id);
+        draw();
+        filter.focus();
+      });
+      remove.setAttribute("aria-label", `Quitar a ${person.display_name} del álbum`);
+      return remove;
+    }));
+  }
+  filter.addEventListener("input", draw);
+  filter.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (matches.querySelectorAll("button").length === 1) matches.querySelector("button").click();
+    }
+  });
+  draw();
+  return element("div", { class: "stack" }, chosen, element("label", {}, "Buscar personas", filter), matches);
+}
+
+function renderAlbumReview(album, directory, reviewed) {
+  const request = albumRequest;
+  const initial = new Set(album.person_ids);
+  const selected = new Set(initial);
+  const newPerson = element("input", { type: "text", maxlength: 100, autocomplete: "off" });
+  const people = element("div", { class: "stack" },
+    element("h3", {}, "¿Quién aparece en el álbum?"),
+    reviewPersonPicker(directory, selected),
+    element("details", {}, element("summary", {}, "Añadir una persona"), element("label", {}, "Nombre", newPerson))
+  );
+  const photoGrid = element("div", { class: "photo-grid", hidden: "" });
+  const photos = button("Ver hasta 3 fotos", async () => {
+    if (!photoGrid.hidden) {
+      albumPhotoRequests.abort();
+      for (const url of albumPhotoURLs) URL.revokeObjectURL(url);
+      albumPhotoURLs.clear();
+      photoGrid.replaceChildren();
+      photoGrid.hidden = true;
+      photos.textContent = "Ver hasta 3 fotos";
+      return;
+    }
+    photos.disabled = true;
+    albumPhotoRequests = new AbortController();
+    const { signal } = albumPhotoRequests;
+    try {
+      const { items } = await api("/album-review/photos" + queryParams({ path: album.path }), { signal });
+      if (signal.aborted) return;
+      photoGrid.hidden = false;
+      photoGrid.replaceChildren(...items.map(item => photoCard(item, signal, albumPhotoURLs, true)));
+      if (!items.length) photoGrid.append(element("p", {}, "No hay fotos disponibles."));
+      photos.textContent = "Ocultar fotos";
+    } catch (error) {
+      if (!signal.aborted) message("album-review-status", error.message);
+    } finally {
+      photos.disabled = false;
+    }
+  });
+
+  const tags = element("div", { class: "stack" }, element("h3", {}, "Etiquetas"));
+  const choices = Object.entries(album.suggestions).map(([key, suggestion]) => {
+    const select = element("select", { "aria-label": `Decisión para ${suggestion.label}` },
+      ...[["pending", "Pendiente"], ["accepted", "Aceptar"], ["corrected", "Corregir"], ["rejected", "Rechazar"]]
+        .filter(([state]) => state !== "pending" || suggestion.state === "pending")
+        .map(([value, label]) => element("option", { value }, label)));
+    const correction = element("input", {
+      type: "text", maxlength: 40, "aria-label": `Etiqueta para ${suggestion.label}`, placeholder: "Nueva etiqueta",
+    });
+    select.value = suggestion.state;
+    if (suggestion.state === "corrected") correction.value = suggestion.tag;
+    const update = () => {
+      correction.hidden = select.value !== "corrected";
+      correction.required = !correction.hidden;
+    };
+    select.addEventListener("change", update);
+    update();
+    tags.append(element("div", { class: "review-suggestion" },
+      element("span", {}, `${suggestion.label} · del nombre «${suggestion.evidence}»`), select, correction));
+    return { key, select, correction };
+  });
+  if (!choices.length) tags.append(element("p", {}, "El nombre de la carpeta no da pistas claras."));
+  if (choices.filter(choice => choice.select.value === "pending").length > 1) {
+    const apply = state => {
+      for (const { select } of choices) {
+        if (select.value === "pending") select.value = state;
+      }
+    };
+    tags.append(element("div", { class: "actions" },
+      button("Aceptar las pendientes", () => apply("accepted")),
+      button("Rechazar las pendientes", () => apply("rejected"))));
+  }
+  const manual = element("input", { type: "text", maxlength: 240, placeholder: "romería, familia" });
+  const removeTags = album.manual_tags.map(tag => {
+    const checkbox = element("input", { type: "checkbox", value: tag });
+    tags.append(element("label", { class: "review-checkbox" }, checkbox, `Quitar «${tag}»`));
+    return checkbox;
+  });
+  tags.append(element("details", {}, element("summary", {}, "Añadir etiquetas"),
+    element("label", {}, "Una palabra por etiqueta, separadas por comas", manual)));
+
+  const form = element("form", { class: "panel review-form" }, people, tags);
+  const next = saved => loadAlbumReview({
+    after: album.id, reviewed, directory: saved && newPerson.value.trim() ? undefined : directory, saved,
+  });
+  const save = element("button", { class: "primary", type: "submit" }, "Guardar y siguiente");
+  const skip = button("Saltar", () => next(false));
+  form.append(element("div", { class: "actions" }, save, skip));
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    save.disabled = skip.disabled = true;
+    const { id, path, revision } = album;
+    const decisions = Object.fromEntries(choices.filter(({ select }) => select.value !== "pending")
+      .map(({ key, select, correction }) => [key,
+        select.value === "accepted" ? key : select.value === "rejected" ? null : correction.value]));
+    try {
+      await api("/album-review", { method: "POST", data: {
+        id, path, revision, decisions, new_person: newPerson.value.trim() || null,
+        add_people: [...selected].filter(id => !initial.has(id)),
+        remove_people: [...initial].filter(id => !selected.has(id)),
+        manual_add: manual.value.split(",").map(tag => tag.trim()).filter(Boolean),
+        manual_remove: removeTags.filter(input => input.checked).map(input => input.value),
+      } });
+      if (request === albumRequest) await next(true);
+    } catch (error) {
+      if (request === albumRequest) message("album-review-status", error.message);
+    } finally {
+      save.disabled = skip.disabled = false;
+    }
+  });
+  $("album-review-content").append(
+    element("div", { class: "panel album-heading" }, element("h2", {}, album.title),
+      element("p", {}, album.event_date || String(album.year)), photos, photoGrid),
+    form
+  );
+}
+
+$("pending-albums").addEventListener("click", () => loadAlbumReview());
+$("reviewed-albums").addEventListener("click", () => loadAlbumReview({ reviewed: true }));
 
 function inlineForm(label, input, buttonText, submit, statusID) {
   const form = element("form", { class: "inline-form" },

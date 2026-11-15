@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from sqlite3 import Connection
 
+from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
 from chromantis.db.repository import (
     AuthorizedChat,
@@ -43,6 +44,7 @@ class ApplicationService:
         static_owner_chat_ids: tuple[int, ...] = (),
         interpreter: QueryInterpreter | None = None,
         include_enrichment: bool = False,
+        curator_chat_ids: tuple[int, ...] = (),
     ):
         self.repository = repository
         self.search = SearchService(repository, include_enrichment=include_enrichment)
@@ -50,6 +52,7 @@ class ApplicationService:
         self.access_code = access_code
         self.static_viewer_chat_ids = frozenset(static_viewer_chat_ids)
         self.static_owner_chat_ids = frozenset(static_owner_chat_ids)
+        self.curator_chat_ids = frozenset(curator_chat_ids)
 
     def list_years(self, year_from: int | None = None, year_to: int | None = None) -> list[YearSummary]:
         return self.search.list_year_summaries(year_from=year_from, year_to=year_to)
@@ -122,6 +125,87 @@ class ApplicationService:
 
     def list_people(self) -> list[PersonSummary]:
         return self.search.list_people()
+
+    def can_curate_albums(self, principal: AuthorizedPrincipal) -> bool:
+        return principal.role in {"owner", "admin"} or (
+            principal.role == "viewer" and principal.chat_id in self.curator_chat_ids
+        )
+
+    def require_album_curator(self, chat_id: int, connection: Connection | None = None) -> None:
+        if not self.can_curate_albums(self.resolve_principal(chat_id, connection=connection)):
+            raise AuthOperationError("album_curation_required", "No tienes permiso para etiquetar álbumes.")
+
+    def get_album_review(
+        self, chat_id: int, *, after: int = 0, reviewed: bool = False, path: str | None = None
+    ) -> dict | None:
+        with self.repository.session() as connection:
+            connection.execute("BEGIN")
+            self.require_album_curator(chat_id, connection)
+            folder = review_folder(connection, after=after, reviewed=reviewed, path=path)
+            return review_item(connection, folder) if folder is not None else None
+
+    def album_people_directory(self, chat_id: int) -> list[dict]:
+        self.require_album_curator(chat_id)
+        people = {}
+        with self.repository.session() as connection:
+            for row in connection.execute(
+                """SELECT p.id, p.display_name, a.alias FROM people p
+                   LEFT JOIN person_aliases a ON p.id = a.person_id
+                   ORDER BY p.display_name, p.id, a.alias_normalized"""
+            ):
+                person = people.setdefault(
+                    row["id"], {"id": row["id"], "display_name": row["display_name"], "aliases": []}
+                )
+                if row["alias"] is not None:
+                    person["aliases"].append(row["alias"])
+        return list(people.values())
+
+    def save_album_review(
+        self, chat_id: int, path: str, folder_id: int, revision: int, *,
+        add_people: set[int], remove_people: set[int], new_person: str | None,
+        decisions: dict[str, str | None], manual_add: set[str], manual_remove: set[str],
+    ) -> None:
+        with self.repository.write_transaction() as connection:
+            self.require_album_curator(chat_id, connection)
+            folder = review_folder(connection, path=path)
+            if folder is None or (folder["id"], folder["revision"]) != (folder_id, revision):
+                raise AuthOperationError(
+                    "album_review_changed", "El álbum ha cambiado. Vuelve a abrirlo antes de guardar.", 409
+                )
+            item = review_item(connection, folder)
+            reviewed = apply_tag_decisions(
+                connection, folder_id, item, decisions, manual_add, manual_remove
+            )
+            for person_id in add_people:
+                if connection.execute("SELECT 1 FROM people WHERE id = ?", (person_id,)).fetchone() is None:
+                    raise ValueError("Alguna de las personas seleccionadas ya no está disponible.")
+            if new_person:
+                person = self.repository.create_person(new_person, connection=connection)
+                add_people = add_people | {person.id}
+                self.repository.record_audit_event(
+                    "create_person", "person", str(person.id), {"display_name": person.display_name},
+                    chat_id, connection=connection,
+                )
+            connection.executemany(
+                "DELETE FROM folder_people WHERE folder_id = ? AND person_id = ?",
+                ((folder_id, person_id) for person_id in remove_people),
+            )
+            connection.executemany(
+                "INSERT OR IGNORE INTO folder_people (folder_id, person_id) VALUES (?, ?)",
+                ((folder_id, person_id) for person_id in add_people),
+            )
+            connection.execute(
+                """INSERT INTO album_reviews (folder_id, reviewed_name, revision) VALUES (?, ?, ?)
+                   ON CONFLICT (folder_id) DO UPDATE SET reviewed_name = excluded.reviewed_name,
+                                                        revision = excluded.revision""",
+                (folder_id, folder["folder_name_raw"] if reviewed else None, revision + 1),
+            )
+            self.repository.record_audit_event(
+                "save_album_review", "folder", path,
+                {"add_people": sorted(add_people), "remove_people": sorted(remove_people),
+                 "decisions": decisions, "manual_add": sorted(manual_add), "manual_remove": sorted(manual_remove)},
+                chat_id, connection=connection,
+            )
 
     def get_person_detail(self, identifier: str | int) -> PersonDetail | None:
         return self.search.get_person_detail(identifier)

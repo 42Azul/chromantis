@@ -26,6 +26,7 @@ Chromantis currently provides:
 - optional image enrichment with model provenance and opt-in search over captions, OCR, and object tags
 - incremental indexing with stored sync summaries, a cron recipe, and bounded enrichment retries
 - a browser interface for visual search, browsing, people, saved searches, and role-based administration
+- browser-based album review with name-only tag suggestions, manual tags, curated people and limited viewer permissions
 
 Not implemented yet:
 
@@ -324,15 +325,38 @@ Current architecture map:
 - Enroll the owner through a one-time Telegram challenge and generate a separate browser token.
 - Start the API and bot together and document token rotation and the repeat-start command.
 
+### MVP 11A — Family Album Tagging
+
+**Status:** `Done`
+
+- Review albums in the Spanish browser interface, choose people by name or alias, and add or remove album-level links.
+- Accept or reject suggestions in a batch, correct individual suggestions, and add manual tags. The rules use only the indexed folder name and expose the evidence.
+- Persist decisions in SQLite across rescans of the same path. Leave unsaved albums and unresolved suggestions pending.
+- View up to three originals on demand. The remaining review flow works fully from the index, including with the archive offline.
+- Give authorized viewers optional browser curation permission without granting administration.
+
+**Acceptance:** Select Ana (or her alias), save and find the album by searching Ana. Reindex and verify that tags, decisions and the person link survive. Cover migration and restricted permissions with synthetic fixtures.
+
 ## Ready Next
 
-### MVP 11 — Album Context and Corrections
+### MVP 11B — Local Family Web Sign-in
+
+**Status:** `Ready Next`
+
+**Goal:** Let a family member curate from a mobile browser on the home network without registering through Telegram.
+
+- Reuse the album review permission. Prototype a local, revocable web session with the existing SQLite and HTTP stack before adding dependencies.
+- Keep the current browser token and Telegram paths available and keep the archive on the trusted network.
+
+**Acceptance:** A family member opens the browser, signs in once and can resume album review after a reload. The owner can revoke the session and the curator cannot access administration.
+
+### MVP 11C — Album Context and Corrections
 
 **Status:** `Ready Next`
 
 **Goal:** Find the same memory even when family members remember it by different names.
 
-- Add album aliases, short notes, manual tags, and overrides for event title and date in SQLite.
+- Add album aliases, short notes, and overrides for event title and date in SQLite.
 - Track the original metadata and show which correction or alias matched.
 - Provide equivalent web and Telegram workflows using the existing application service.
 

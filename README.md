@@ -71,6 +71,7 @@ Copy `.env.example` to `.env` and set:
 - `API_PORT` optionally, defaults to `8787`
 - `API_TOKEN` optionally, a shared read-only API token
 - `API_CHAT_TOKENS` optionally, a JSON object mapping Telegram chat IDs to individual API tokens
+- `API_CURATOR_CHAT_IDS` optionally, comma-separated authorized viewer chat IDs allowed to review albums in the browser
 - `QUERY_INTERPRETER_COMMAND` optionally, a local executable and arguments for query interpretation
 - `QUERY_INTERPRETER_TIMEOUT` optionally, adapter timeout in seconds, default `10`
 - `ENRICHMENT_SEARCH` optionally, set to `true` to match optional image captions, OCR, and object tags
@@ -348,6 +349,16 @@ ssh -N -L 8787:127.0.0.1:8787 user@nas
 ```
 
 Open `http://127.0.0.1:8787/` on your computer while the tunnel is running. The browser app uses the same API for image previews, browsing, people, and saved searches. Admins can curate people, manage invites and authorized chats according to role, inspect deployment configuration and sync history, and change their Telegram language preference. Server-wide configuration is set in `.env`.
+
+#### Etiquetar álbumes
+
+Abre **Etiquetar álbumes**, busca a las personas por nombre o alias y pulsa **Guardar y siguiente**. Puedes quitar una persona de la selección, añadir otra, o saltar el álbum y volver a él desde **Pendientes**. Un vínculo indica que la persona aparece en alguna foto del álbum. Para corregirlo, abre **Ya revisados** o pulsa **Etiquetar este álbum** desde su galería.
+
+El nombre de la carpeta genera sugerencias con un vocabulario corto de términos en español e inglés. Cada sugerencia muestra el término que coincidió. Puedes aceptar o rechazar las pendientes de una vez, corregir etiquetas por separado y añadir etiquetas manuales de una palabra. Si dejas alguna sugerencia sin decidir, el álbum vuelve a aparecer en la siguiente vuelta. La revisión se guarda en SQLite y se conserva al reindexar mientras se mantenga la ruta. Si se renombra o se mueve la carpeta, el índice la trata como un álbum nuevo. Los términos del nombre original siguen sirviendo para buscar aunque se rechace una sugerencia.
+
+El flujo de etiquetado funciona con el archivo desconectado. **Ver hasta 3 fotos** solicita los originales de forma puntual. El catálogo y la búsqueda siguen disponibles sin modelos ni dependencias nuevas.
+
+Para dar acceso de curación a un familiar, conserva su rol de lector y añade su ID autorizado a `API_CURATOR_CHAT_IDS` y un token propio en `API_CHAT_TOKENS`. Su navegador abrirá directamente **Etiquetar álbumes** al iniciar sesión. Reinicia la API después de editar `.env`. En una red doméstica de confianza puedes configurar `API_BIND_HOST` con la IP privada del NAS y abrir esa dirección y puerto desde el navegador. El valor por defecto es la interfaz local y el ejemplo anterior muestra el acceso por túnel SSH.
 
 ### Scheduled indexing and status
 

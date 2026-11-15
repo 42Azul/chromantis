@@ -83,6 +83,7 @@ class AppConfig:
     api_token: str | None
     log_level: str
     api_chat_tokens: tuple[tuple[int, str], ...] = ()
+    api_curator_chat_ids: tuple[int, ...] = ()
     query_interpreter_command: tuple[str, ...] = ()
     query_interpreter_timeout: float = 10.0
     enrichment_search: bool = False
@@ -142,6 +143,7 @@ class AppConfig:
             api_port=int(os.getenv("API_PORT", "8787")),
             api_token=api_token,
             api_chat_tokens=api_chat_tokens,
+            api_curator_chat_ids=_parse_chat_allowlist(os.getenv("API_CURATOR_CHAT_IDS")),
             query_interpreter_command=query_interpreter_command,
             query_interpreter_timeout=query_interpreter_timeout,
             enrichment_search=os.getenv("ENRICHMENT_SEARCH", "false").strip().lower() == "true",

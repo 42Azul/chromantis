@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from chromantis.app import ApplicationService, AuthOperationError
+from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
 
 UI_ROOT = Path(__file__).with_name("ui")
@@ -82,6 +83,10 @@ def _dispatch(
             return _auth_route(
                 method, path, app_service, chat_id, body or {}, params, deployment_info or {}
             )
+        if path == "/api/v1/album-review" or path.startswith("/api/v1/album-review/"):
+            if chat_id is None:
+                return 401, {"error": "A chat token is required"}
+            return _album_review_route(method, path, app_service, chat_id, body or {}, params)
         if path == "/api/v1/browse" and method in {"GET", "POST"}:
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
@@ -140,7 +145,8 @@ def _auth_route(
     deployment_info: dict[str, object],
 ) -> tuple[int, dict[str, object]]:
     if method == "GET" and path == "/api/v1/auth/me":
-        return 200, {"item": asdict(app_service.resolve_principal(chat_id))}
+        principal = app_service.resolve_principal(chat_id)
+        return 200, {"item": asdict(principal), "can_curate_albums": app_service.can_curate_albums(principal)}
     if path == "/api/v1/auth/preferences":
         if method == "GET":
             return 200, {"item": {"language": app_service.get_chat_language(chat_id)}}
@@ -179,6 +185,68 @@ def _auth_route(
     if path.startswith("/api/v1/admin/people"):
         return _people_admin_route(method, path, app_service, chat_id, body, params)
     return 404, {"error": "Not found"}
+
+
+def _album_review_route(
+    method: str,
+    path: str,
+    app: ApplicationService,
+    chat_id: int,
+    body: dict[str, object],
+    params: dict[str, list[str]],
+) -> tuple[int, dict[str, object]]:
+    base = "/api/v1/album-review"
+    app.require_album_curator(chat_id)
+    album_path = params.get("path", [None])[0]
+    if method == "GET" and path == base:
+        after = _optional_int(params.get("after", [None])[0]) or 0
+        if not 0 <= after < 2**63:
+            raise ValueError("Álbum anterior no válido.")
+        item = app.get_album_review(
+            chat_id, after=after, reviewed=params.get("reviewed") == ["true"], path=album_path
+        )
+        if album_path is not None and item is None:
+            return 404, {"error": "No se encuentra el álbum."}
+        return 200, {"item": item}
+    if method == "GET" and path == f"{base}/people":
+        return 200, {"items": app.album_people_directory(chat_id)}
+    if method == "GET" and path == f"{base}/photos" and album_path is not None:
+        return 200, {"items": [asdict(item) for item in app.images_in_folder(album_path, limit=3)]}
+    if method == "POST" and path == base:
+        folder_id, revision = body.get("id"), body.get("revision")
+        if (type(folder_id) is not int or not 1 <= folder_id < 2**63
+                or type(revision) is not int or not 0 <= revision < 2**63):
+            raise ValueError("Álbum o revisión no válidos.")
+        decisions = body.get("decisions", {})
+        if not isinstance(decisions, dict) or len(decisions) > 20:
+            raise ValueError("Las decisiones de etiquetado no son válidas.")
+        new_person = body.get("new_person")
+        if new_person is not None and (not isinstance(new_person, str) or not 1 <= len(new_person.strip()) <= 100):
+            raise ValueError("Escribe un nombre de hasta 100 caracteres.")
+        app.save_album_review(
+            chat_id, _text(body, "path"), folder_id, revision,
+            add_people=_review_people(body, "add_people"), remove_people=_review_people(body, "remove_people"),
+            new_person=new_person,
+            decisions={key: parse_tag(value) if value is not None else None for key, value in decisions.items()},
+            manual_add={parse_tag(value) for value in _review_values(body, "manual_add", limit=20)},
+            manual_remove={parse_tag(value) for value in _review_values(body, "manual_remove", limit=20)},
+        )
+        return 200, {"saved": True}
+    return 404, {"error": "Not found"}
+
+
+def _review_values(body: dict[str, object], key: str, limit: int) -> list:
+    values = body.get(key, [])
+    if not isinstance(values, list) or len(values) > limit:
+        raise ValueError("La selección es demasiado larga o no es válida.")
+    return values
+
+
+def _review_people(body: dict[str, object], key: str) -> set[int]:
+    values = _review_values(body, key, limit=100)
+    if any(type(value) is not int or not 1 <= value < 2**63 for value in values):
+        raise ValueError("La selección de personas no es válida.")
+    return set(values)
 
 
 def _people_admin_route(

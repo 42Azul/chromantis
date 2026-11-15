@@ -14,6 +14,7 @@
       <nav id="navigation" aria-label="Main navigation" hidden>
         <button data-view="archive" aria-current="page">Archive</button>
         <button data-view="people">People</button>
+        <button data-view="album-review" id="album-review-nav" lang="es" hidden>Etiquetar álbumes</button>
         <button data-view="searches">Saved searches</button>
         <button data-view="admin" id="admin-nav" hidden>Administration</button>
       </nav>
@@ -65,6 +66,16 @@
           <div class="panel"><h2>Directory</h2><div id="people-list" class="stack"></div><div id="add-person"></div></div>
           <div id="person-details" class="panel"><h2>Person details</h2><p>Select a person to see their folders.</p></div>
         </div>
+      </section>
+
+      <section id="album-review" lang="es" hidden>
+        <header class="page-header"><div><h1>Etiquetar álbumes</h1></div></header>
+        <div class="actions">
+          <button id="pending-albums" type="button" aria-pressed="true">Pendientes</button>
+          <button id="reviewed-albums" type="button" aria-pressed="false">Ya revisados</button>
+        </div>
+        <p id="album-review-status" class="message" aria-live="polite"></p>
+        <div id="album-review-content"></div>
       </section>
 
       <section id="searches" hidden>

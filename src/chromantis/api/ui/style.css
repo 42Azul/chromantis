@@ -130,3 +130,14 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
   .photo-grid { gap: 8px; }
   .list-row { flex-wrap: wrap; }
 }
+
+.album-heading { margin: 12px 0; overflow-wrap: anywhere; }
+.review-form { display: grid; gap: 18px; }
+.review-form > div + div { margin-top: 0; }
+.review-form label { display: grid; gap: 5px; }
+.review-form input:not([type="checkbox"]) { width: 100%; }
+.review-form details label { margin-top: 8px; }
+.review-people, .review-suggestion { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.review-suggestion span { flex: 1 1 14rem; }
+.review-suggestion input:not([hidden]) { flex: 1 1 10rem; }
+.review-form .review-checkbox { display: flex; align-items: center; }

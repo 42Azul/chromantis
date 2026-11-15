@@ -30,6 +30,7 @@ def main() -> None:
         static_owner_chat_ids=config.telegram_admin_chat_allowlist,
         interpreter=interpreter,
         include_enrichment=config.enrichment_search,
+        curator_chat_ids=config.api_curator_chat_ids,
     )
     handler = make_api_handler(
         app_service, api_token=config.api_token, api_chat_tokens=config.api_chat_tokens,

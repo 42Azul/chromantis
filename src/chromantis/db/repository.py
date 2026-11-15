@@ -736,8 +736,10 @@ class Repository:
         target_id: str,
         details: dict[str, object],
         actor_chat_id: int | None = None,
+        *,
+        connection: sqlite3.Connection | None = None,
     ) -> None:
-        with self.connect() as connection:
+        with self._existing_or_session(connection) as connection:
             self._record_audit(
                 connection,
                 action=action,
@@ -746,7 +748,6 @@ class Repository:
                 details=details,
                 actor_chat_id=actor_chat_id,
             )
-            connection.commit()
 
     def record_search(
         self, connection: sqlite3.Connection, chat_id: int, kind: str, query: str, count: int
@@ -955,9 +956,11 @@ class Repository:
             for row in rows
         ]
 
-    def create_person(self, display_name: str) -> PersonDetail:
+    def create_person(
+        self, display_name: str, *, connection: sqlite3.Connection | None = None
+    ) -> PersonDetail:
         normalized_name = self._normalize_person_value(display_name)
-        with self.connect() as connection:
+        with self._existing_or_session(connection) as connection:
             self._assert_person_name_available(connection, normalized_name)
             cursor = connection.execute(
                 """
@@ -966,7 +969,6 @@ class Repository:
                 """,
                 (display_name.strip(), normalized_name),
             )
-            connection.commit()
             return self._person_detail_by_id(connection, int(cursor.lastrowid))
 
     def rename_person(self, identifier: str | int, new_display_name: str) -> PersonDetail:

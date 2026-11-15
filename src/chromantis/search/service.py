@@ -10,6 +10,14 @@ from chromantis.search.query_parser import ParsedQuery, parse_query
 
 logger = logging.getLogger(__name__)
 
+_FOLDER_TAGS_SQL = """(
+    SELECT GROUP_CONCAT(tag) FROM (
+        SELECT t.tag FROM folder_tags ft JOIN tags t ON t.id = ft.tag_id WHERE ft.folder_id = f.id
+        UNION
+        SELECT d.tag FROM album_tag_decisions d WHERE d.folder_id = f.id AND d.tag IS NOT NULL
+    )
+)"""
+
 
 @dataclass(frozen=True)
 class SearchResult:
@@ -94,14 +102,12 @@ class SearchService:
         logger.debug("Searching folders raw_query=%r parsed_query=%s limit=%d", raw_query, query, limit)
         with self.repository.connect() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT f.folder_path, f.title, f.year, f.event_date,
-                       GROUP_CONCAT(DISTINCT t.tag) AS tags,
+                       {_FOLDER_TAGS_SQL} AS tags,
                        GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                        GROUP_CONCAT(DISTINCT p.display_name) AS people_names
                 FROM folders f
-                LEFT JOIN folder_tags ft ON ft.folder_id = f.id
-                LEFT JOIN tags t ON t.id = ft.tag_id
                 LEFT JOIN folder_people fp ON fp.folder_id = f.id
                 LEFT JOIN people p ON p.id = fp.person_id
                 GROUP BY f.id
@@ -179,12 +185,14 @@ class SearchService:
         excluded = set(exclude_paths)
         with self.repository.connect() as connection:
             rows = connection.execute(
-                f"""
-                {self._image_search_sql()}
-                HAVING f.folder_path = ?
+                """
+                SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date
+                FROM folders f JOIN images i ON i.folder_id = f.id
+                WHERE f.folder_path = ?
                 ORDER BY i.file_path ASC
+                LIMIT ?
                 """,
-                (folder_path,),
+                (folder_path, limit + len(excluded) if limit >= 0 else -1),
             ).fetchall()
         results = [
             self._row_to_image_result(row, "same-folder")
@@ -235,19 +243,11 @@ class SearchService:
     ) -> list[SearchResult]:
         excluded = set(exclude_paths)
         with self.repository.connect() as connection:
-            source_tags = {
-                row["tag"]
-                for row in connection.execute(
-                    """
-                    SELECT t.tag
-                    FROM folders f
-                    JOIN folder_tags ft ON ft.folder_id = f.id
-                    JOIN tags t ON t.id = ft.tag_id
-                    WHERE f.folder_path = ?
-                    """,
-                    (folder_path,),
-                ).fetchall()
-            }
+            source = connection.execute(
+                f"SELECT {_FOLDER_TAGS_SQL} AS tags FROM folders f WHERE f.folder_path = ?",
+                (folder_path,),
+            ).fetchone()
+            source_tags = set(source["tags"].split(",")) if source and source["tags"] else set()
             rows = connection.execute(
                 f"""
                 {self._image_search_sql()}
@@ -339,14 +339,12 @@ class SearchService:
         """ if include_enrichment else ""
         return f"""
             SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date,
-                   GROUP_CONCAT(DISTINCT t.tag) AS folder_tags,
+                   {_FOLDER_TAGS_SQL} AS folder_tags,
                    GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                    GROUP_CONCAT(DISTINCT p.display_name) AS people_names
                    {enriched_column}
             FROM images i
             JOIN folders f ON f.id = i.folder_id
-            LEFT JOIN folder_tags ft ON ft.folder_id = f.id
-            LEFT JOIN tags t ON t.id = ft.tag_id
             LEFT JOIN folder_people fp ON fp.folder_id = f.id
             LEFT JOIN people p ON p.id = fp.person_id
             GROUP BY i.id

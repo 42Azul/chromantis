@@ -64,6 +64,21 @@ CREATE TABLE IF NOT EXISTS folder_tags (
     UNIQUE (folder_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS album_reviews (
+    folder_id INTEGER PRIMARY KEY REFERENCES folders(id) ON DELETE CASCADE,
+    reviewed_name TEXT,
+    revision INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS album_tag_decisions (
+    folder_id INTEGER NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+    origin TEXT NOT NULL CHECK (origin IN ('name', 'manual')),
+    label TEXT NOT NULL,
+    tag TEXT,
+    evidence TEXT,
+    PRIMARY KEY (folder_id, origin, label)
+);
+
 CREATE TABLE IF NOT EXISTS image_tags (
     image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
