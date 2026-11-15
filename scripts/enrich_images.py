@@ -21,6 +21,7 @@ def main() -> int:
     parser.add_argument("--model", required=True, help="Model or pipeline name to record.")
     parser.add_argument("--version", required=True, help="Model or pipeline version to record.")
     parser.add_argument("--limit", type=int, default=25, help="Maximum photos to process in this run.")
+    parser.add_argument("--album", help="Process only this exact indexed album path, relative to the archive.")
     parser.add_argument("--timeout", type=float, default=60, help="Timeout in seconds per photo.")
     args = parser.parse_args()
     command = tuple(shlex.split(args.command))
@@ -28,12 +29,14 @@ def main() -> int:
         parser.error("command, model and version are required")
     if args.limit < 1 or not 0 < args.timeout <= 3600:
         parser.error("limit must be positive and timeout must be in (0, 3600] seconds")
+    if args.album is not None and not args.album.strip():
+        parser.error("--album must be an indexed relative path")
     config = AppConfig.from_env()
     configure_logging(config.log_level)
     repository = Repository(config.sqlite_path)
     repository.init_schema()
     provider = CommandImageEnricher(args.model.strip(), args.version.strip(), command, args.timeout)
-    summary = enrich_images(build_archive_source(config), repository, provider, args.limit)
+    summary = enrich_images(build_archive_source(config), repository, provider, args.limit, album=args.album)
     print(f"Enriched: {summary.enriched} | Failed: {summary.failed} | Changed while processing: {summary.changed}")
     return int(summary.failed > 0)
 

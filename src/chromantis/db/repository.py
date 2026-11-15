@@ -852,11 +852,13 @@ class Repository:
         )
 
     def list_enrichment_candidates(
-        self, source_root: str, model: str, version: str, limit: int
+        self, source_root: str, model: str, version: str, limit: int, *, album: str | None = None,
     ) -> list[EnrichmentCandidate]:
+        scope = "AND f.folder_path = ?" if album is not None else ""
+        params = (model, version, source_root, album, limit) if album is not None else (model, version, source_root, limit)
         with self.connect() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT i.id, i.file_path, f.ftp_root_path, i.ftp_modified_at, i.file_size
                 FROM images i
                 JOIN folders f ON f.id = i.folder_id
@@ -864,10 +866,10 @@ class Repository:
                     ON e.image_id = i.id AND e.model = ? AND e.version = ?
                    AND e.source_root = f.ftp_root_path
                    AND e.source_modified_at IS i.ftp_modified_at AND e.source_size IS i.file_size
-                WHERE f.ftp_root_path = ? AND (e.image_id IS NULL OR e.error IS NOT NULL)
+                WHERE f.ftp_root_path = ? AND (e.image_id IS NULL OR e.error IS NOT NULL) {scope}
                 ORDER BY e.attempted_at, i.id LIMIT ?
                 """,
-                (model, version, source_root, limit),
+                params,
             ).fetchall()
         return [EnrichmentCandidate(*row) for row in rows]
 

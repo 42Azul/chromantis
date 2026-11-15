@@ -399,16 +399,23 @@ Current architecture map:
 
 **Acceptance:** Find a curated album by place and year, see the source of its date, and verify that private GPS metadata stays outside the default index.
 
+### MVP 14A — Search Baseline and Bounded OCR
+
+**Status:** `Done`
+
+- Benchmark four metadata, four written-text, four visual and one negative query on nine synthetic images. Report exact matches, recall and latency.
+- Compare deterministic search and the existing local OCR adapter. OCR recovers all four written-text cases, including year and linked-person restrictions. The visual cases still have no matches.
+- Allow manual enrichment runs restricted to one album with the existing resumable index.
+
 ## Ready Next
 
-### MVP 14 — Local Semantic Search
+### MVP 14B — Local Visual Search Trial
 
 **Status:** `Ready Next`
 
-- Measure lexical search on a small synthetic evaluation set before adding any model or dependency.
-- Add optional local image and text embeddings with model/version provenance and a bounded background queue.
-- Combine lexical and semantic candidates while keeping year and person filters enforced across both.
-- Build a synthetic evaluation set with realistic queries, and compare recall and latency against lexical search on the NAS.
+- Compare a small local caption/tag model through the existing enrichment adapter against an embedding approach on the visual cases from MVP 14A.
+- Use an explicitly launched batch with model/version provenance and measure indexing time, query latency and extra storage before selecting an approach for the NAS.
+- Keep year and person restrictions in effect for visual matches, and run the same metadata and negative queries to detect regressions.
 
 **Acceptance:** A visual query such as “red bicycle by the sea” can retrieve an unlabeled fixture. Results identify why they matched, and the baseline search works with the model disabled.
 

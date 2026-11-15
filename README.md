@@ -330,6 +330,8 @@ python scripts/enrich_images.py \
   --model tesseract-eng --version "$(tesseract --version | head -n 1)" --limit 25
 ```
 
+Add `--album "2024/2024-08-04_playa"` to restrict the batch to one exact indexed album path. Running the same command later resumes pending photos for that album and model version.
+
 For captions or object tags, configure an image-model adapter with `--command`. Each invocation receives one original image on stdin as bytes and writes one UTF-8 JSON object to stdout. Return empty strings or an empty list for fields your model does not provide.
 
 ```json
@@ -337,6 +339,25 @@ For captions or object tags, configure an image-model adapter with `--command`. 
 ```
 
 Set `ENRICHMENT_SEARCH=true` and restart the API and bot to include these fields in image and random-image searches. Matches explain which terms used enrichment, and year and curated-person filters still apply. The default deployment continues to search indexed metadata without running a model.
+
+#### Evaluate search with synthetic photos
+
+With the optional Pillow extra installed, the following command builds a temporary archive and SQLite database, runs 13 labelled queries on nine synthetic images, and reports exact matches and recall in the top five, per-query misses, and median/p95 search latency. Add `--ocr` for a side-by-side comparison with the installed Tesseract and its English data. The command uses the generated archive and temporary database regardless of the local configuration.
+
+```bash
+python scripts/evaluate_search.py --ocr
+```
+
+In the initial comparison with Tesseract 5.5.0, the OCR build took about 1.8 seconds for nine images on the test machine. Exact results at five were:
+
+| Query type | Indexed metadata | Metadata and OCR |
+| --- | ---: | ---: |
+| Album, person, place or date | 4/4 | 4/4 |
+| Written text | 0/4 | 4/4 |
+| Objects or scenes | 0/4 | 0/4 |
+| Absent object | 1/1 | 1/1 |
+
+The text cases include repeated signs in different albums and years. The timed search queries use the fields already indexed in SQLite. The build time measures running OCR, and the fixtures are small synthetic illustrations.
 
 ### Browser interface
 

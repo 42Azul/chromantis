@@ -63,10 +63,12 @@ class EnrichmentSummary:
 
 
 def enrich_images(
-    source: ArchiveSource, repository: Repository, provider: ImageEnricher, limit: int
+    source: ArchiveSource, repository: Repository, provider: ImageEnricher, limit: int, *, album: str | None = None,
 ) -> EnrichmentSummary:
     enriched = failed = changed = 0
-    candidates = repository.list_enrichment_candidates(source.source_root, provider.model, provider.version, limit)
+    candidates = repository.list_enrichment_candidates(
+        source.source_root, provider.model, provider.version, limit, album=album,
+    )
     for candidate in candidates:
         try:
             result = provider.enrich(source.read_bytes(candidate.path))

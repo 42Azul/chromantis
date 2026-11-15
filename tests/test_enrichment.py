@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from chromantis.app.enrichment import CommandImageEnricher, enrich_images
 from chromantis.db.repository import Repository
@@ -69,3 +70,19 @@ json.dump({"caption": "A kite in town", "ocr_text": "PAPER LANTERNS", "object_ta
         self.assertEqual(summary.failed, 1)
         valid = self.provider("""print('{"caption":"kite","ocr_text":"","object_tags":[]}')""")
         self.assertEqual(enrich_images(self.source, self.repository, valid, 1).enriched, 1)
+
+    def test_enrichment_can_be_resumed_within_one_album(self) -> None:
+        second = Path(self.source.source_root) / "2021/city/second.jpg"
+        second.write_bytes(b"selected album")
+        other = Path(self.source.source_root) / "2021/city_other/untouched.jpg"
+        other.parent.mkdir()
+        other.write_bytes(b"other album")
+        ArchiveScanner(self.source, self.repository, PathParser()).scan()
+        provider = self.provider("""print('{"caption":"","ocr_text":"kite","object_tags":[]}')""")
+        with patch.object(self.source, "read_bytes", wraps=self.source.read_bytes) as read:
+            self.assertEqual(enrich_images(self.source, self.repository, provider, 1, album="2021/city").enriched, 1)
+            self.assertEqual(enrich_images(self.source, self.repository, provider, 1, album="2021/city").enriched, 1)
+            self.assertEqual(enrich_images(self.source, self.repository, provider, 1, album="2021/city").enriched, 0)
+            self.assertEqual({args[0] for args, _ in read.call_args_list}, {self.path, "2021/city/second.jpg"})
+        pending = self.repository.list_enrichment_candidates(self.source.source_root, provider.model, provider.version, 1)
+        self.assertEqual([candidate.path for candidate in pending], ["2021/city_other/untouched.jpg"])
