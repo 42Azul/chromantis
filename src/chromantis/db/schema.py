@@ -124,6 +124,15 @@ CREATE TABLE IF NOT EXISTS family_access (
     expires_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS album_shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_chat_id INTEGER NOT NULL,
+    folder_id INTEGER NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+    secret_hash TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS image_tags (
     image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
@@ -226,6 +235,8 @@ CREATE INDEX IF NOT EXISTS idx_invite_codes_role ON invite_codes(role);
 CREATE INDEX IF NOT EXISTS idx_invite_codes_expires_at ON invite_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action);
 CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_album_shares_owner ON album_shares(owner_chat_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_album_shares_expiry ON album_shares(expires_at);
 """
 
 ALBUM_METADATA_VIEW_SQL = """

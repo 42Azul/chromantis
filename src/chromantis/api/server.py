@@ -21,6 +21,8 @@ from chromantis.db.family_access import FamilySession, SESSION_SECONDS
 FAMILY_COOKIE = "chromantis_family"
 FAMILY_SESSION_PATH = "/api/v1/family/session"
 ALBUM_REVIEW_PATH = "/api/v1/album-review"
+ALBUM_SHARES_PATH = "/api/v1/album-shares"
+SHARED_ALBUM_PATH = "/api/v1/shared"
 
 UI_ROOT = Path(__file__).with_name("ui")
 UI_FILES = {
@@ -69,6 +71,12 @@ def _dispatch(
     path = parsed.path
     if method == "GET" and path == "/api/v1/health":
         return 200, {"status": "ok"}
+    if method == "GET" and path.startswith(SHARED_ALBUM_PATH + "/"):
+        try:
+            return _shared_album_route(path, params=parse_qs(parsed.query), app=app_service,
+                                       image_fetcher=image_fetcher, thumbnails=thumbnails)
+        except ValueError as error:
+            return 400, {"error": str(error)}
     scheme, _, credential = (auth_header or "").partition(" ")
     supplied = credential if scheme.lower() == "bearer" else None
 
@@ -140,6 +148,10 @@ def _dispatch(
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
             return _collection_route(method, path, app_service, chat_id, body or {})
+        if path == ALBUM_SHARES_PATH or path.startswith(ALBUM_SHARES_PATH + "/"):
+            if chat_id is None:
+                return 401, {"error": "A chat token is required"}
+            return _album_share_route(method, path, app_service, chat_id, body or {}, params)
         if path == "/api/v1/browse" and method in {"GET", "POST"}:
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
@@ -278,6 +290,60 @@ def _collection_entry(entry: object) -> tuple[str, str]:
     if not isinstance(path, str) or not path.strip() or len(path) > 4096:
         raise ValueError("Choose a photo or album from the index.")
     return _text(entry, "kind"), path
+
+
+def _album_share_route(
+    method: str, path: str, app: ApplicationService, chat_id: int,
+    body: dict[str, object], params: dict[str, list[str]],
+) -> tuple[int, dict[str, object]]:
+    suffix = path.removeprefix(ALBUM_SHARES_PATH)
+    try:
+        with app.owner_album_shares(chat_id, write=method in {"POST", "DELETE"}) as shares:
+            if not suffix and method == "GET":
+                album_path = params.get("path", [None])[0]
+                return 200, {"items": shares.list(album_path)}
+            if not suffix and method == "POST":
+                item, secret = shares.create(_text(body, "path"), body.get("ttl_days", 7))
+                return 201, {"item": {**item, "url": f"/share/{secret}"}}
+            share_id = _positive_id(suffix.removeprefix("/"))
+            if method == "DELETE":
+                shares.revoke(share_id)
+                return 200, {"deleted": True}
+    except LookupError as error:
+        return 404, {"error": str(error)}
+    return 404, {"error": "Not found"}
+
+
+def _shared_album_route(
+    path: str, params: dict[str, list[str]], app: ApplicationService,
+    image_fetcher: Callable[[str], bytes] | None, thumbnails: ThumbnailCache | None,
+) -> tuple[int, dict[str, object] | PhotoPayload]:
+    parts = path.removeprefix(SHARED_ALBUM_PATH + "/").split("/")
+    secret = parts[0]
+    with app.album_share(secret) as (shares, share):
+        if share is None:
+            return 404, {"error": "This album link is invalid, expired, or revoked."}
+        if len(parts) == 1:
+            limit = _bounded_limit(params.get("limit", ["30"])[0], default=30)
+            offset = _optional_int(params.get("offset", ["0"])[0]) or 0
+            if not 0 <= offset < 2**63:
+                raise ValueError("Invalid offset.")
+            items = shares.images(share, limit, offset)
+            return 200, {
+                "item": {key: share[key] for key in ("title", "event_date", "year", "expires_at")},
+                "items": items,
+                "offset": offset,
+                "has_more": len(items) == limit,
+                "thumbnails": thumbnails is not None,
+            }
+        image_path = params.get("path", [""])[0]
+        if not shares.contains_image(share, image_path):
+            return 404, {"error": "Image not found in this shared album."}
+        if parts[1:] == ["image"]:
+            return _read_image(image_path, app, image_fetcher)
+        if parts[1:] == ["thumbnail"]:
+            return _read_thumbnail(image_path, app, thumbnails)
+    return 404, {"error": "Not found"}
 
 
 def _album_review_route(
@@ -522,7 +588,10 @@ def make_api_handler(
         server_version = "ChromantisAPI/0.1"
 
         def do_GET(self) -> None:  # noqa: N802
-            asset = UI_FILES.get(self.path.partition("?")[0])
+            request_path = self.path.partition("?")[0]
+            asset = UI_FILES.get(request_path)
+            if asset is None and request_path.startswith("/share/"):
+                asset = UI_FILES["/"]
             if asset:
                 filename, media_type = asset
                 self._write(200, (UI_ROOT / filename).read_bytes(), media_type)

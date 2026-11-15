@@ -33,6 +33,7 @@ Chromantis currently provides:
 - optional local thumbnails with a disk budget and an index freshness indicator
 - opt-in JPEG capture dates with separate camera, album and file-time provenance
 - manually curated album places and a dated timeline shared by the browser, API and Telegram
+- revocable, expiring browser links that grant read-only access to one album
 
 Not implemented yet:
 
@@ -439,16 +440,24 @@ Current architecture map:
 
 **Acceptance:** Name a collection, reopen it later, remove one entry and verify that the originals are still in the same place.
 
-## Ready Next
-
 ### MVP 16A — Private Album Invitations
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 - Add revocable, expiring links that grant read-only access to one album from the browser.
 - Verify the grant on each album, photo and thumbnail request and test that guests cannot use broader search, collections or curation routes.
 
 **Acceptance:** A guest can open one shared album and its images. Revoking the grant removes access on the next request.
+
+## Ready Next
+
+### MVP 16B — Backup and Recovery
+
+**Status:** `Ready Next`
+
+- Add backup and restore for the database and user curation, plus a documented recovery drill.
+
+**Acceptance:** A restore onto a fresh instance preserves collections and corrections.
 
 ## Planned Later
 
@@ -462,14 +471,6 @@ Current architecture map:
 - Revisit only if manual places leave a specific retrieval gap, such as finding unlabelled photos from a known trip.
 - Reuse the bounded local JPEG header reader in a separate opt-in workflow. Define how the owner controls visibility and clears retained coordinates before storing any.
 - Validate activation and deletion on synthetic coordinates. Default extraction, browsing and search must continue to leave GPS out.
-
-### MVP 16B — Backup and Recovery
-
-**Status:** `Planned Later`
-
-- Add backup and restore for the database and user curation, plus a documented recovery drill.
-
-**Acceptance:** A restore onto a fresh instance preserves collections and corrections.
 
 ## Open Risks
 

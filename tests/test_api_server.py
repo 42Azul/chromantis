@@ -66,7 +66,7 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(years, [2019, 2021])
 
 
-    def start_api(self) -> None:
+    def start_api(self, thumbnails=None) -> None:
         self.repository.authorize_chat(102, role="admin")
         self.repository.authorize_chat(103, role="viewer")
         self.repository.authorize_chat(104, role="viewer")
@@ -75,6 +75,7 @@ class ApiServerTests(unittest.TestCase):
             api_chat_tokens=((101, "owner-token"), (102, "admin-token"), (103, "viewer-token")),
             image_fetcher=LocalArchiveSource(str(PHOTOS_ROOT)).read_bytes,
             deployment_info={"source_type": "local", "enrichment_search": False, "query_interpreter": "rules"},
+            thumbnails=thumbnails,
         ))
         thread = Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         thread.start()
@@ -230,6 +231,94 @@ class ApiServerTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_private_album_link_is_scoped_expiring_and_revocable(self) -> None:
+        class Thumbnails:
+            def get(self, path, fingerprint):
+                return ("preview:" + path).encode()
+
+        self.start_api(thumbnails=Thumbnails())
+        album = "2021/2021-08-15_city_trip"
+        photo = album + "/IMG_001.jpg"
+        other = "2019/2019-07-10_beach_day/IMG_0001.jpg"
+        self.assertEqual(self.request("POST", "/album-shares", "viewer-token",
+                                      {"path": album})[0], 403)
+        status, created = self.request(
+            "POST", "/album-shares", "owner-token", {"path": album, "ttl_days": 2}
+        )
+        self.assertEqual(status, 201)
+        share = created["item"]
+        secret = share["url"].removeprefix("/share/")
+        self.assertEqual(len(secret), 43)
+        with self.repository.session() as connection:
+            row = connection.execute(
+                "SELECT secret_hash FROM album_shares WHERE id = ?", (share["id"],)
+            ).fetchone()
+            self.assertNotEqual(row["secret_hash"], secret)
+
+        status, album_payload = self.request("GET", f"/shared/{secret}")
+        self.assertEqual((status, album_payload["item"]["title"]), (200, "2021 08 15 city trip"))
+        self.assertTrue(album_payload["items"])
+        self.assertNotIn("path", album_payload["item"])
+        self.assertEqual(self.request("GET", "/folders?q=city")[0], 401)
+        self.assertEqual(self.request(
+            "GET", f"/shared/{secret}/image?" + urlencode({"path": other})
+        )[0], 404)
+        self.assertEqual(self.request(
+            "GET", f"/shared/{secret}/thumbnail?" + urlencode({"path": other})
+        )[0], 404)
+        self.assertEqual(self.request("GET", "/collections")[0], 401)
+        self.assertEqual(self.request("GET", "/album-review")[0], 401)
+
+        connection = HTTPConnection(*self.server.server_address, timeout=2)
+        try:
+            connection.request(
+                "GET", f"/api/v1/shared/{secret}/image?" + urlencode({"path": photo})
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.read(), (PHOTOS_ROOT / photo).read_bytes())
+        finally:
+            connection.close()
+        connection = HTTPConnection(*self.server.server_address, timeout=2)
+        try:
+            connection.request(
+                "GET", f"/api/v1/shared/{secret}/thumbnail?" + urlencode({"path": photo})
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.read(), ("preview:" + photo).encode())
+        finally:
+            connection.close()
+
+        listed = self.request("GET", "/album-shares", "owner-token")[1]["items"]
+        self.assertEqual([item["id"] for item in listed], [share["id"]])
+        self.assertNotIn(secret, json.dumps(listed))
+        self.assertEqual(self.request(
+            "DELETE", f"/album-shares/{share['id']}", "owner-token"
+        )[0], 200)
+        self.assertEqual(self.request("GET", f"/shared/{secret}")[0], 404)
+        self.assertEqual(self.request(
+            "GET", f"/shared/{secret}/image?" + urlencode({"path": photo})
+        )[0], 404)
+
+    def test_album_share_expiry_is_checked_on_every_request(self) -> None:
+        self.start_api()
+        album = "2021/2021-08-15_city_trip"
+        _, created = self.request(
+            "POST", "/album-shares", "owner-token", {"path": album}
+        )
+        secret = created["item"]["url"].removeprefix("/share/")
+        self.assertEqual(self.request("GET", f"/shared/{secret}")[0], 200)
+        self.assertEqual(self.request("GET", f"/shared/{secret}?offset=invalid")[0], 400)
+        with self.repository.session() as connection:
+            connection.execute(
+                "UPDATE album_shares SET expires_at = '2000-01-01T00:00:00+00:00'"
+            )
+        self.assertEqual(self.request("GET", f"/shared/{secret}")[0], 404)
+        self.assertEqual(self.request(
+            "GET", "/album-shares", "owner-token"
+        )[1]["items"], [])
+
 
     def test_searches_are_private_to_the_chat_and_can_be_pinned(self) -> None:
         self.start_api()
@@ -273,6 +362,14 @@ class ApiServerTests(unittest.TestCase):
                 self.assertNotIn(b"owner-token", asset)
             finally:
                 connection.close()
+        connection = HTTPConnection(*self.server.server_address, timeout=2)
+        try:
+            connection.request("GET", "/share/" + "a" * 43)
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertIn(b'id="shared-album"', response.read())
+        finally:
+            connection.close()
         self.assertEqual(self.request("GET", "/admin/config", "viewer-token")[0], 403)
         status, result = self.request("GET", "/admin/config", "owner-token")
         self.assertEqual(status, 200)

@@ -12,6 +12,29 @@ from chromantis.db.repository import Repository
 
 
 class RepositoryMigrationTests(unittest.TestCase):
+    def test_init_schema_adds_album_shares_to_an_existing_index(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository = Repository(str(Path(temp_dir) / "chromantis.db"))
+            repository.init_schema()
+            with repository.session() as connection:
+                connection.execute("DROP TABLE album_shares")
+
+            repository.init_schema()
+            repository.init_schema()
+
+            with repository.session() as connection:
+                table = connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'album_shares'"
+                ).fetchone()
+                indexes = {
+                    row["name"] for row in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'album_shares'"
+                    )
+                }
+            self.assertEqual(table["name"], "album_shares")
+            self.assertIn("idx_album_shares_owner", indexes)
+            self.assertIn("idx_album_shares_expiry", indexes)
+
     def test_init_schema_migrates_legacy_authorized_chats_table(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = Path(temp_dir) / "chromantis.db"

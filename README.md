@@ -430,6 +430,14 @@ SQLite guarda la ruta y la raíz indexada como referencia. Una entrada conserva 
 
 La API local admite `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collections/<id>`, `POST /api/v1/collections/<id>/entries` y `DELETE /api/v1/collections/<id>/entries/<entry-id>`. Al crear, envía `{"name":"Verano"}` y opcionalmente `entry`. Una entrada contiene `kind` (`folder` o `image`) y la `path` exacta del índice.
 
+#### Compartir un álbum en privado
+
+Con una sesión de propietario, busca un álbum en **Archivo** y pulsa **Compartir álbum**. La web muestra los enlaces activos de ese álbum y permite crear otro válido durante siete días. El enlace completo se enseña una sola vez: cópialo y envíalo en privado. Cualquier persona que lo tenga podrá ver ese álbum hasta que caduque o lo revoques.
+
+El invitado abre una galería en español sin iniciar sesión. Puede ver únicamente el título, la fecha y las fotos indexadas del álbum concedido; no obtiene búsquedas, colecciones ni funciones de curación. Chromantis comprueba la concesión de nuevo al cargar el álbum, cada original y cada miniatura, por lo que **Revocar** corta la siguiente petición. Si las miniaturas locales están activadas se usan bajo demanda; en caso contrario la galería sigue funcionando con los originales.
+
+SQLite guarda el hash del secreto, no el enlace reutilizable. La API ofrece `GET/POST /api/v1/album-shares` y `DELETE /api/v1/album-shares/<id>` solo a propietarios. La galería usa `GET /api/v1/shared/<secret>` y sus rutas `/image` y `/thumbnail`; esas tres rutas están limitadas por la misma concesión de álbum. Esta función no publica el NAS ni configura acceso externo: el enlace solo es alcanzable desde la red o túnel donde ya esté disponible Chromantis.
+
 #### Acceso familiar sin Telegram
 
 Con la API protegida por `API_CHAT_TOKENS` o `API_TOKEN`, el propietario puede crear un código para cada navegador desde la terminal del NAS:

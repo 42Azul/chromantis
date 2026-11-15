@@ -7,6 +7,7 @@ from sqlite3 import Connection
 from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item, save_context
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
 from chromantis.app.recall import Refinement, refine
+from chromantis.db.album_shares import AlbumShareStore
 from chromantis.db.collections import CollectionStore
 from chromantis.db.family_access import FamilyAccess, FamilySession
 from chromantis.db.repository import (
@@ -342,6 +343,24 @@ class ApplicationService:
             if self.resolve_principal(chat_id, connection=connection).role != "owner":
                 raise AuthOperationError("collections_owner", "Owner privileges are required for collections.")
             yield CollectionStore(connection, chat_id)
+
+    @contextmanager
+    def owner_album_shares(self, chat_id: int, *, write: bool = False):
+        transaction = self.repository.write_transaction() if write else self.repository.session()
+        with transaction as connection:
+            if not write:
+                connection.execute("BEGIN")
+            if self.resolve_principal(chat_id, connection=connection).role != "owner":
+                raise AuthOperationError("album_shares_owner", "Owner privileges are required for album shares.")
+            yield AlbumShareStore(connection, chat_id)
+
+    @contextmanager
+    def album_share(self, secret: object):
+        with self.repository.session() as connection:
+            connection.execute("BEGIN")
+            store = AlbumShareStore(connection)
+            share = store.resolve(secret)
+            yield store, share
 
     def get_index_stats(self) -> IndexStats:
         return self.repository.get_index_stats()

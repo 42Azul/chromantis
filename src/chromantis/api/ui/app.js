@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 const views = ["archive", "people", "album-review", "searches", "collections", "admin"];
+const sharedSecret = decodeURIComponent(location.pathname.match(/^\/share\/([A-Za-z0-9_-]{43})$/)?.[1] || "");
 const photoURLs = new Set();
 let token = "";
 let principal;
@@ -76,6 +77,83 @@ function resetPhotos() {
   for (const url of photoURLs) URL.revokeObjectURL(url);
   photoURLs.clear();
   if ($("lightbox").open) $("lightbox").close();
+}
+
+async function createAlbumShare(path) {
+  const { item } = await api("/album-shares", { method: "POST", data: { path, ttl_days: 7 } });
+  const url = new URL(item.url, location.href).href;
+  const output = $("share-output");
+  const link = element("a", { href: url }, url);
+  const copy = button("Copy link", async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      copy.textContent = "Copied";
+    } catch {
+      link.focus();
+    }
+  });
+  const revoke = button("Revoke", async () => {
+    await api(`/album-shares/${item.id}`, { method: "DELETE" });
+    output.hidden = true;
+    output.replaceChildren();
+  }, "danger");
+  output.hidden = false;
+  output.replaceChildren(element("strong", {}, "Private album link"), link,
+    element("p", {}, `Expires ${new Date(item.expires_at).toLocaleString()}`),
+    element("div", { class: "actions" }, copy, revoke));
+  output.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function showAlbumShares(path, title) {
+  const { items } = await api("/album-shares" + queryParams({ path }));
+  const output = $("share-output");
+  const active = element("div", { class: "stack" }, ...items.map(item =>
+    element("div", { class: "list-row" },
+      element("div", {}, element("strong", {}, "Active private link"),
+        element("p", {}, `Expires ${new Date(item.expires_at).toLocaleString()}`)),
+      button("Revoke", async () => {
+        await api(`/album-shares/${item.id}`, { method: "DELETE" });
+        await showAlbumShares(path, title);
+      }, "danger"))));
+  if (!items.length) active.append(element("p", {}, "No active links for this album."));
+  output.hidden = false;
+  output.replaceChildren(element("h3", {}, `Share ${title}`), active,
+    button("Create 7-day link", () => createAlbumShare(path).catch(error =>
+      message("archive-status", error.message)), "primary"));
+  output.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function loadSharedAlbum(offset = 0) {
+  $("sign-in").hidden = true;
+  $("shared-album").hidden = false;
+  message("shared-status", "Cargando álbum…");
+  try {
+    const response = await fetch(`/api/v1/shared/${sharedSecret}?limit=30&offset=${offset}`,
+      { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "No se pudo abrir el álbum.");
+    message("shared-title", payload.item.title);
+    message("shared-date", payload.item.event_date || String(payload.item.year));
+    message("shared-status", payload.items.length ? "" : "Este álbum no contiene fotos indexadas.");
+    $("shared-photos").replaceChildren(...payload.items.map(item => {
+      const filename = item.filename;
+      const base = `/api/v1/shared/${sharedSecret}`;
+      const original = base + "/image" + queryParams({ path: item.path });
+      const preview = base + (payload.thumbnails ? "/thumbnail" : "/image") + queryParams({ path: item.path });
+      return element("article", { class: "photo-card" },
+        element("a", { href: original, target: "_blank", rel: "noreferrer" },
+          element("img", { src: preview, alt: filename, loading: "lazy", decoding: "async" })),
+        element("div", { class: "card-caption" }, element("h3", {}, filename)));
+    }));
+    const actions = [];
+    if (offset) actions.push(button("Página anterior", () => loadSharedAlbum(Math.max(0, offset - 30))));
+    if (payload.has_more) actions.push(button("Página siguiente", () => loadSharedAlbum(offset + 30)));
+    $("shared-actions").replaceChildren(...actions);
+  } catch (error) {
+    message("shared-status", error.message);
+    $("shared-photos").replaceChildren();
+    $("shared-actions").replaceChildren();
+  }
 }
 
 function signOut() {
@@ -340,7 +418,10 @@ function renderFolders(items, timeline = false) {
     }
     if (!isOwner()) return card;
     return element("article", { class: "collection-card" }, card,
-      collectionButton("folder", item.path, item.title, "archive-status"));
+      element("div", { class: "actions" },
+        collectionButton("folder", item.path, item.title, "archive-status"),
+        button("Share album", () => showAlbumShares(item.path, item.title).catch(error =>
+          message("archive-status", error.message)))));
   }));
 }
 
@@ -1145,5 +1226,9 @@ for (const tab of document.querySelectorAll("[data-view]")) {
   tab.addEventListener("click", () => showView(tab.dataset.view));
 }
 
-const rememberedToken = sessionStorage.getItem("chromantis.chatToken");
-signIn(rememberedToken || "", { quiet: !rememberedToken });
+if (sharedSecret) {
+  loadSharedAlbum();
+} else {
+  const rememberedToken = sessionStorage.getItem("chromantis.chatToken");
+  signIn(rememberedToken || "", { quiet: !rememberedToken });
+}
