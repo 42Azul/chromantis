@@ -23,8 +23,9 @@ class SearchResult:
 
 
 class SearchService:
-    def __init__(self, repository: Repository):
+    def __init__(self, repository: Repository, include_enrichment: bool = False):
         self.repository = repository
+        self.include_enrichment = include_enrichment
 
     def list_years(self) -> list[int]:
         years = self.repository.list_years()
@@ -130,7 +131,7 @@ class SearchService:
         with self.repository.connect() as connection:
             rows = connection.execute(
                 f"""
-                {self._image_search_sql()}
+                {self._image_search_sql(self.include_enrichment)}
                 ORDER BY f.year DESC, i.file_path ASC
                 """
             ).fetchall()
@@ -306,7 +307,10 @@ class SearchService:
         tokens = set((row["folder_tags"] or "").split(",")) if row["folder_tags"] else set()
         people_ids = _person_ids_from_row(row["person_ids"])
         title_text = f'{row["title"]} / {row["filename"]}'
-        reasons = self._match_reasons(query, row["year"], title_text, tokens, people_ids)
+        reasons = self._match_reasons(
+            query, row["year"], title_text, tokens, people_ids,
+            enrichment_text=row["enrichment_text"] if self.include_enrichment else "",
+        )
         if not reasons:
             return None
         return self._row_to_image_result(row, ", ".join(reasons))
@@ -324,12 +328,21 @@ class SearchService:
         )
 
     @staticmethod
-    def _image_search_sql() -> str:
-        return """
+    def _image_search_sql(include_enrichment: bool = False) -> str:
+        enriched_column = """
+            , COALESCE((
+                SELECT GROUP_CONCAT(e.searchable_text, ' ')
+                FROM image_enrichment e WHERE e.image_id = i.id AND e.source_root = f.ftp_root_path
+                  AND e.error IS NULL
+                  AND e.source_modified_at IS i.ftp_modified_at AND e.source_size IS i.file_size
+            ), '') AS enrichment_text
+        """ if include_enrichment else ""
+        return f"""
             SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date,
                    GROUP_CONCAT(DISTINCT t.tag) AS folder_tags,
                    GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                    GROUP_CONCAT(DISTINCT p.display_name) AS people_names
+                   {enriched_column}
             FROM images i
             JOIN folders f ON f.id = i.folder_id
             LEFT JOIN folder_tags ft ON ft.folder_id = f.id
@@ -349,6 +362,7 @@ class SearchService:
         searchable_text: str,
         tags: set[str],
         available_person_ids: set[int],
+        enrichment_text: str = "",
     ) -> list[str]:
         normalized_text = searchable_text.lower()
         reasons: list[str] = []
@@ -373,6 +387,8 @@ class SearchService:
                 reasons.append(f'title~"{keyword}"')
             elif keyword in tags:
                 reasons.append(f'tag="{keyword}"')
+            elif keyword in enrichment_text:
+                reasons.append(f'enrichment~"{keyword}"')
             else:
                 return []
         if not query.keywords and query.year_from is None and not query.people:

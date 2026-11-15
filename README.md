@@ -73,6 +73,7 @@ Copy `.env.example` to `.env` and set:
 - `API_CHAT_TOKENS` optionally, a JSON object mapping Telegram chat IDs to individual API tokens
 - `QUERY_INTERPRETER_COMMAND` optionally, a local executable and arguments for query interpretation
 - `QUERY_INTERPRETER_TIMEOUT` optionally, adapter timeout in seconds, default `10`
+- `ENRICHMENT_SEARCH` optionally, set to `true` to match optional image captions, OCR, and object tags
 - `LOG_LEVEL` optionally, for example `DEBUG` or `INFO`
 
 Use `SOURCE_TYPE=ftp` with an absolute FTP `SOURCE_ROOT` such as `/photos/archive`.
@@ -298,10 +299,30 @@ Actions are `images`, `folders`, `random`, and `years`. Counts are 1–10 and co
 
 An in-process adapter can implement `QueryInterpreter.interpret(text)` and be passed into `ApplicationService`. This is the extension point for future providers.
 
+### Optional image enrichment
+
+Run enrichment after indexing. The CLI reads only indexed photos from the configured archive and writes model output to a separate SQLite table with model, version, source metadata, and processing time. It skips photos already processed for that version, retries unsuccessful attempts after unprocessed photos, and ignores stale results when the indexed source metadata changes.
+
+The included OCR adapter requires Tesseract and the selected language data on the machine. Start with a small batch.
+
+```bash
+python scripts/enrich_images.py \
+  --command "python scripts/tesseract_enricher.py --language eng" \
+  --model tesseract-eng --version "$(tesseract --version | head -n 1)" --limit 25
+```
+
+For captions or object tags, configure an image-model adapter with `--command`. Each invocation receives one original image on stdin as bytes and writes one UTF-8 JSON object to stdout. Return empty strings or an empty list for fields your model does not provide.
+
+```json
+{"caption":"A bicycle beside a blue wall","ocr_text":"BIKE SHOP","object_tags":["bicycle","wall"]}
+```
+
+Set `ENRICHMENT_SEARCH=true` and restart the API and bot to include these fields in image and random-image searches. Matches explain which terms used enrichment, and year and curated-person filters still apply. The default deployment continues to search indexed metadata without running a model.
+
 ## Current v1 limits
 
 - Full subtree scan only; no scheduler yet
-- No embeddings, captions, EXIF, or OCR
+- Optional image enrichment covers captions, OCR, and object tags. Embeddings and EXIF are outside this pipeline.
 - Optional model interpretation requires a configured adapter
 - Search behavior is simple, explainable, and deterministic
 

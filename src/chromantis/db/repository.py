@@ -107,6 +107,15 @@ class ResolvedPerson:
     search_terms: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class EnrichmentCandidate:
+    image_id: int
+    path: str
+    source_root: str
+    modified_at: str | None
+    size: int | None
+
+
 class Repository:
     def __init__(self, sqlite_path: str):
         self.sqlite_path = sqlite_path
@@ -796,6 +805,67 @@ class Repository:
             """,
             (chat_id, session_json),
         )
+
+    def list_enrichment_candidates(
+        self, source_root: str, model: str, version: str, limit: int
+    ) -> list[EnrichmentCandidate]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT i.id, i.file_path, f.ftp_root_path, i.ftp_modified_at, i.file_size
+                FROM images i
+                JOIN folders f ON f.id = i.folder_id
+                LEFT JOIN image_enrichment e
+                    ON e.image_id = i.id AND e.model = ? AND e.version = ?
+                   AND e.source_root = f.ftp_root_path
+                   AND e.source_modified_at IS i.ftp_modified_at AND e.source_size IS i.file_size
+                WHERE f.ftp_root_path = ? AND (e.image_id IS NULL OR e.error IS NOT NULL)
+                ORDER BY e.attempted_at, i.id LIMIT ?
+                """,
+                (model, version, source_root, limit),
+            ).fetchall()
+        return [EnrichmentCandidate(*row) for row in rows]
+
+    def save_image_enrichment(
+        self,
+        candidate: EnrichmentCandidate,
+        model: str,
+        version: str,
+        caption: str,
+        ocr_text: str,
+        object_tags: tuple[str, ...],
+        error: str | None = None,
+    ) -> bool:
+        searchable_text = normalize_text(" ".join((caption, ocr_text, *object_tags)))
+        with self.session() as connection:
+            result = connection.execute(
+                """
+                INSERT INTO image_enrichment (
+                    image_id, model, version, source_root, source_modified_at, source_size,
+                    caption, ocr_text, object_tags_json, searchable_text, attempted_at, error
+                )
+                SELECT i.id, ?, ?, f.ftp_root_path, i.ftp_modified_at, i.file_size, ?, ?, ?, ?, ?, ?
+                FROM images i JOIN folders f ON f.id = i.folder_id
+                WHERE i.id = ? AND i.file_path = ? AND f.ftp_root_path = ?
+                  AND i.ftp_modified_at IS ? AND i.file_size IS ?
+                ON CONFLICT(image_id, model, version) DO UPDATE SET
+                    source_root = excluded.source_root, source_modified_at = excluded.source_modified_at,
+                    source_size = excluded.source_size, caption = excluded.caption,
+                    ocr_text = excluded.ocr_text, object_tags_json = excluded.object_tags_json,
+                    searchable_text = excluded.searchable_text, attempted_at = excluded.attempted_at,
+                    error = excluded.error
+                    WHERE image_enrichment.error IS NOT NULL OR excluded.error IS NULL
+                       OR image_enrichment.source_root != excluded.source_root
+                       OR image_enrichment.source_modified_at IS NOT excluded.source_modified_at
+                       OR image_enrichment.source_size IS NOT excluded.source_size
+                """,
+                (
+                    model, version, caption, ocr_text, json.dumps(object_tags), searchable_text,
+                    datetime.now(timezone.utc).isoformat(), error, candidate.image_id, candidate.path,
+                    candidate.source_root, candidate.modified_at, candidate.size,
+                ),
+            )
+        return bool(result.rowcount)
 
     def is_indexed_image(self, path: str) -> bool:
         with self.connect() as connection:

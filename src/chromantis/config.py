@@ -85,6 +85,7 @@ class AppConfig:
     api_chat_tokens: tuple[tuple[int, str], ...] = ()
     query_interpreter_command: tuple[str, ...] = ()
     query_interpreter_timeout: float = 10.0
+    enrichment_search: bool = False
 
     @classmethod
     def from_env(cls, dotenv_path: str | None = None) -> "AppConfig":
@@ -143,6 +144,7 @@ class AppConfig:
             api_chat_tokens=api_chat_tokens,
             query_interpreter_command=query_interpreter_command,
             query_interpreter_timeout=query_interpreter_timeout,
+            enrichment_search=os.getenv("ENRICHMENT_SEARCH", "false").strip().lower() == "true",
             log_level=log_level,
         )
 

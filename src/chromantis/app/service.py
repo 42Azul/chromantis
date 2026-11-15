@@ -42,9 +42,10 @@ class ApplicationService:
         static_viewer_chat_ids: tuple[int, ...] = (),
         static_owner_chat_ids: tuple[int, ...] = (),
         interpreter: QueryInterpreter | None = None,
+        include_enrichment: bool = False,
     ):
         self.repository = repository
-        self.search = SearchService(repository)
+        self.search = SearchService(repository, include_enrichment=include_enrichment)
         self.interpreter = interpreter if interpreter is not None else RuleQueryInterpreter()
         self.access_code = access_code
         self.static_viewer_chat_ids = frozenset(static_viewer_chat_ids)

@@ -40,6 +40,7 @@ def main() -> None:
         static_viewer_chat_ids=config.telegram_chat_allowlist,
         static_owner_chat_ids=config.telegram_admin_chat_allowlist,
         interpreter=interpreter,
+        include_enrichment=config.enrichment_search,
     )
 
     service = TelegramBotService(

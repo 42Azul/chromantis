@@ -26,6 +26,22 @@ CREATE TABLE IF NOT EXISTS images (
     scan_seen_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS image_enrichment (
+    image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+    model TEXT NOT NULL,
+    version TEXT NOT NULL,
+    source_root TEXT NOT NULL,
+    source_modified_at TEXT,
+    source_size INTEGER,
+    caption TEXT NOT NULL,
+    ocr_text TEXT NOT NULL,
+    object_tags_json TEXT NOT NULL,
+    searchable_text TEXT NOT NULL,
+    attempted_at TEXT NOT NULL,
+    error TEXT,
+    PRIMARY KEY (image_id, model, version)
+);
+
 CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY,
     tag TEXT NOT NULL UNIQUE,
