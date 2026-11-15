@@ -74,6 +74,7 @@ class ApiServerTests(unittest.TestCase):
             self.app_service, api_token="read-token",
             api_chat_tokens=((101, "owner-token"), (102, "admin-token"), (103, "viewer-token")),
             image_fetcher=LocalArchiveSource(str(PHOTOS_ROOT)).read_bytes,
+            deployment_info={"source_type": "local", "enrichment_search": False, "query_interpreter": "rules"},
         ))
         thread = Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         thread.start()
@@ -251,3 +252,33 @@ class ApiServerTests(unittest.TestCase):
         run, = data["items"]
         self.assertEqual((run["mode"], run["status"]), ("full", "succeeded"))
         self.assertEqual(run["summary"]["images_indexed"], 5)
+
+
+    def test_browser_assets_are_public_and_configuration_requires_admin(self) -> None:
+        self.start_api()
+        for path, media_type, marker in (
+            ("/", "text/html", b'id="login-form"'),
+            ("/ui/app.js", "text/javascript", b'function signIn'),
+            ("/ui/style.css", "text/css", b'.photo-grid'),
+        ):
+            connection = HTTPConnection(*self.server.server_address, timeout=2)
+            try:
+                connection.request("GET", path)
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertTrue(response.getheader("Content-Type").startswith(media_type))
+                self.assertIn("connect-src 'self'", response.getheader("Content-Security-Policy"))
+                asset = response.read()
+                self.assertIn(marker, asset)
+                self.assertNotIn(b"owner-token", asset)
+            finally:
+                connection.close()
+        self.assertEqual(self.request("GET", "/admin/config", "viewer-token")[0], 403)
+        status, result = self.request("GET", "/admin/config", "owner-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(result["item"]["source_type"], "local")
+        self.assertEqual(
+            self.request("PATCH", "/auth/preferences", "viewer-token", {"language": "es"}),
+            (200, {"item": {"language": "es"}}),
+        )
+        self.assertEqual(self.repository.get_chat_language(103), "es")

@@ -106,16 +106,11 @@ Useful flags:
 - `--progress-every N`: prints progress every `N` processed FTP entries
 - `--show-skipped`: prints invalid or skipped image paths at the end
 
-Run tests:
+Install the Telegram adapter and run the test suite:
 
 ```bash
+python -m pip install ".[telegram]"
 python -m unittest discover -s tests -v
-```
-
-Install the optional Telegram adapter dependency:
-
-```bash
-pip install ".[telegram]"
 ```
 
 Start the Telegram bot:
@@ -274,7 +269,7 @@ A principal contains `chat_id`, `role`, `username`, `first_name`, and `auth_mode
 
 A person detail has `id`, `display_name`, `aliases`, and `folder_paths`. Browse batches have `items`, `scope`, `q`, `count`, `folders`, `years`, and `can_go_back`. Each image result includes its indexed path, title, year, folder, and match reason. Stats also expose a single-object `item` envelope alongside their original top-level fields. List endpoints return an `items` array.
 
-Browse actions are `search`, `random`, `more`, `same_folder`, `same_year`, `related`, and `back`. `q` is optional for `search` and `random`. An optional `count` accepts 1–50. When a batch spans several folders or years, supply `folder` and/or `year` to select the context for `same_folder`, `same_year`, or `related`. A missing context returns 409. To browse a specific folder or year, pass that context with the corresponding action. Exhausted continuations return an empty `items` array and keep the last available batch. Sessions persist in SQLite per chat and are independent of Telegram browse history. Recent and pinned searches are shared across API and Telegram for the same chat. A search entry contains `id`, `kind`, `query`, `count`, `searched_at`, and `pinned`.
+Browse actions are `search`, `random`, `more`, `open_folder`, `open_year`, `same_folder`, `same_year`, `related`, and `back`. `q` is optional for `search` and `random`. An optional `count` accepts 1–50. When a batch spans several folders or years, supply `folder` and/or `year` to select the context for `same_folder`, `same_year`, or `related`. A missing context returns 409. Use `open_folder` with `folder` or `open_year` with `year` to start a fresh batch in that context. Exhausted continuations return an empty `items` array and keep the last available batch. Sessions persist in SQLite per chat and are independent of Telegram browse history. Recent and pinned searches are shared across API and Telegram for the same chat. A search entry contains `id`, `kind`, `query`, `count`, `searched_at`, and `pinned`.
 
 Admins and owners can curate people with these routes. Each successful write returns the updated person as `{"item": person}`.
 
@@ -319,6 +314,18 @@ For captions or object tags, configure an image-model adapter with `--command`. 
 
 Set `ENRICHMENT_SEARCH=true` and restart the API and bot to include these fields in image and random-image searches. Matches explain which terms used enrichment, and year and curated-person filters still apply. The default deployment continues to search indexed metadata without running a model.
 
+### Browser interface
+
+Run `python scripts/run_api.py` and open `http://127.0.0.1:8787/`. The browser asks for the chat token configured in `API_CHAT_TOKENS` for an authorized Telegram chat.
+
+When the process runs on a NAS and you are browsing from another computer, keep the API on its default loopback address and forward the port through SSH. Use the NAS's SSH port if it differs from the default.
+
+```bash
+ssh -N -L 8787:127.0.0.1:8787 user@nas
+```
+
+Open `http://127.0.0.1:8787/` on your computer while the tunnel is running. The browser app uses the same API for image previews, browsing, people, and saved searches. Admins can curate people, manage invites and authorized chats according to role, inspect deployment configuration and sync history, and change their Telegram language preference. Server-wide configuration is set in `.env`.
+
 ### Scheduled indexing and status
 
 After the initial index, use incremental mode for routine updates.
@@ -332,7 +339,7 @@ Incremental mode lists archive metadata and updates only changed or new records.
 To schedule an incremental scan on a NAS with cron, add an entry with paths adjusted to the checkout. The example runs daily at 03:20 in the NAS's timezone.
 
 ```cron
-20 3 * * * cd /path/to/chromantis && .venv/bin/python scripts/reindex_source.py --incremental >> data/sync.log 2>&1
+20 3 * * * cd /path/to/chromantis && .venv/bin/python scripts/reindex_source.py --incremental >> /path/to/chromantis-sync.log 2>&1
 ```
 
 Use `GET /api/v1/sync/runs?limit=10` to see start and finish times, run status, and counts of indexed, unchanged, skipped, and deleted items. It uses the same authentication as archive search. To process new or failed enrichment jobs, run or schedule `scripts/enrich_images.py` as a separate bounded batch.

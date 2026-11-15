@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chromantis</title>
+  <link rel="stylesheet" href="/ui/style.css">
+  <script type="module" src="/ui/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>Chromantis</a>
+      <nav id="navigation" aria-label="Main navigation" hidden>
+        <button data-view="archive" aria-current="page">Archive</button>
+        <button data-view="people">People</button>
+        <button data-view="searches">Saved searches</button>
+        <button data-view="admin" id="admin-nav" hidden>Administration</button>
+      </nav>
+      <div class="sidebar-bottom" id="connection" hidden>
+        <div><strong id="account"></strong><span id="account-role"></span></div>
+        <button id="disconnect" class="quiet" type="button">Sign out</button>
+      </div>
+    </aside>
+
+    <main>
+      <section id="sign-in" class="sign-in">
+        <h1>Your photo archive</h1>
+        <p>Sign in with the API token assigned to your Telegram chat.</p>
+        <form id="login-form">
+          <label for="token">Chat token</label>
+          <input id="token" type="password" autocomplete="off" required>
+          <button class="primary" type="submit">Connect</button>
+          <p id="login-error" class="message" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="archive" hidden>
+        <header class="page-header">
+          <div><h1>Photo archive</h1><p>Search by folder name, person, or year.</p></div>
+          <div id="statistics" class="statistics"></div>
+        </header>
+
+        <form id="search-form" class="search-bar">
+          <label class="sr-only" for="query">Search the archive</label>
+          <input id="query" type="search" placeholder="Try beach 2021" autocomplete="off">
+          <label class="sr-only" for="year">Year</label>
+          <select id="year" aria-label="Year"><option value="">All years</option></select>
+          <label class="sr-only" for="scope">Result type</label>
+          <select id="scope" aria-label="Result type"><option value="images">Photos</option><option value="folders">Folders</option></select>
+          <button class="primary" type="submit">Search</button>
+          <button type="button" id="random">Surprise me</button>
+        </form>
+
+        <div class="results-header"><h2 id="results-title">Results</h2><span id="result-count"></span></div>
+        <p id="archive-status" class="message" aria-live="polite"></p>
+        <div id="results" class="photo-grid"></div>
+        <div id="browsing" class="actions"></div>
+      </section>
+
+      <section id="people" hidden>
+        <header class="page-header"><div><h1>People</h1><p>Browse names and folders linked to your photos.</p></div></header>
+        <p id="people-status" class="message" aria-live="polite"></p>
+        <div class="split">
+          <div class="panel"><h2>Directory</h2><div id="people-list" class="stack"></div><div id="add-person"></div></div>
+          <div id="person-details" class="panel"><h2>Person details</h2><p>Select a person to see their folders.</p></div>
+        </div>
+      </section>
+
+      <section id="searches" hidden>
+        <header class="page-header"><div><h1>Saved searches</h1><p>Rerun and pin searches from this chat.</p></div></header>
+        <div class="actions">
+          <button id="recent" type="button" aria-pressed="true">Recent</button>
+          <button id="pinned" type="button" aria-pressed="false">Pinned</button>
+        </div>
+        <p id="searches-status" class="message" aria-live="polite"></p>
+        <div id="saved-list" class="stack"></div>
+      </section>
+
+      <section id="admin" hidden>
+        <header class="page-header"><div><h1>Administration</h1><p>Manage access and see how the archive is configured.</p></div></header>
+        <p id="admin-status" class="message" aria-live="polite"></p>
+        <div id="admin-content" class="admin-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="lightbox">
+    <form method="dialog"><button type="submit" autofocus>Close</button></form>
+    <img alt="">
+    <p></p>
+  </dialog>
+</body>
+</html>

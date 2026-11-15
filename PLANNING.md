@@ -25,11 +25,11 @@ Chromantis currently provides:
 - guided people curation in Telegram and per-chat recent and pinned searches shared by Telegram and the API
 - optional image enrichment with model provenance and opt-in search over captions, OCR, and object tags
 - incremental indexing with stored sync summaries, a cron recipe, and bounded enrichment retries
+- a browser interface for visual search, browsing, people, saved searches, and role-based administration
 
 Not implemented yet:
 
 - embeddings, EXIF extraction, or model-based reranking
-- a browser/admin UI
 
 Current architecture map:
 
@@ -298,11 +298,9 @@ Current architecture map:
 - large archives no longer require only full rescans for routine updates
 - operational state is visible without reading raw logs
 
-## Ready Next
+### MVP 10 — Browser UI
 
-### MVP 10 — Future UI
-
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Add a browser/admin interface on top of the same product layer.
 
@@ -317,6 +315,8 @@ Current architecture map:
 
 - the UI reuses the existing API rather than reimplementing product logic
 - Telegram remains a supported client, not a separate code path
+
+All defined MVPs above are implemented. The README describes setup and use.
 
 ## Open Risks
 

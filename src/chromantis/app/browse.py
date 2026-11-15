@@ -69,7 +69,7 @@ def browse(
             items = app.images_for_scope(
                 batch.scope, batch.query, batch.count, batch.folder_path, batch.year, batch.seen
             )
-            if not items and current is not None and action not in {"search", "random"}:
+            if not items and current is not None and action not in {"search", "random", "open_folder", "open_year"}:
                 return replace(current, items=()).response(len(history) > 1)
             if action in {"search", "random"} and batch.query.strip():
                 kind = "images" if action == "search" else "random"
@@ -94,8 +94,12 @@ def _next_scope(
         scope = "search_images" if action == "search" else "random_images"
         default_count = 10 if action == "search" else 1
         return BrowseBatch(scope, q, count or default_count)
+    if action == "open_folder" and folder_path:
+        return BrowseBatch("same_folder", "", count or 10, folder_path)
+    if action == "open_year" and year is not None:
+        return BrowseBatch("same_year", "", count or 10, year=year)
     if action not in {"more", "same_folder", "same_year", "related"}:
-        raise ValueError("Unknown browse action.")
+        raise ValueError("Unknown browse action or missing folder/year.")
     if action == "same_folder" and folder_path and current is None:
         return BrowseBatch("same_folder", "", count or 10, folder_path)
     if action == "same_year" and year is not None and current is None:

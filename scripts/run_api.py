@@ -34,6 +34,11 @@ def main() -> None:
     handler = make_api_handler(
         app_service, api_token=config.api_token, api_chat_tokens=config.api_chat_tokens,
         image_fetcher=build_archive_source(config).read_bytes,
+        deployment_info={
+            "source_type": config.source_type,
+            "enrichment_search": config.enrichment_search,
+            "query_interpreter": "local command" if interpreter else "rules",
+        },
     )
     server = ApiServer((config.api_bind_host, config.api_port), handler)
     print(f"Starting Chromantis API on http://{config.api_bind_host}:{config.api_port}")

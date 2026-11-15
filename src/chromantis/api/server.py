@@ -7,10 +7,18 @@ from ftplib import Error as FtpError
 from hmac import compare_digest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from mimetypes import guess_type
+from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from chromantis.app import ApplicationService, AuthOperationError
 from chromantis.app.browse import browse
+
+UI_ROOT = Path(__file__).with_name("ui")
+UI_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/ui/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/ui/style.css": ("style.css", "text/css; charset=utf-8"),
+}
 
 
 @dataclass(frozen=True)
@@ -41,6 +49,7 @@ def _dispatch(
     x_api_token: str | None,
     body: dict[str, object] | None = None,
     image_fetcher: Callable[[str], bytes] | None = None,
+    deployment_info: dict[str, object] | None = None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
     try:
         parsed = urlparse(url)
@@ -67,10 +76,12 @@ def _dispatch(
 
     try:
         params = parse_qs(parsed.query)
-        if path == "/api/v1/auth/me" or path.startswith("/api/v1/admin/"):
+        if path.startswith(("/api/v1/auth/", "/api/v1/admin/")):
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
-            return _auth_route(method, path, app_service, chat_id, body or {}, params)
+            return _auth_route(
+                method, path, app_service, chat_id, body or {}, params, deployment_info or {}
+            )
         if path == "/api/v1/browse" and method in {"GET", "POST"}:
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
@@ -106,7 +117,12 @@ def _dispatch(
         if path == "/api/v1/image" and method == "GET":
             return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
         if method == "GET":
-            return _query_route(path, params, app_service)
+            result = _query_route(path, params, app_service)
+            if path == "/api/v1/folders" and chat_id is not None:
+                q = params.get("q", [""])[0]
+                limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
+                app_service.remember_search(chat_id, "folders", q, limit)
+            return result
         return 404, {"error": "Not found"}
     except AuthOperationError as exc:
         return exc.status, {"error": str(exc), "code": exc.code}
@@ -121,9 +137,20 @@ def _auth_route(
     chat_id: int,
     body: dict[str, object],
     params: dict[str, list[str]],
+    deployment_info: dict[str, object],
 ) -> tuple[int, dict[str, object]]:
     if method == "GET" and path == "/api/v1/auth/me":
         return 200, {"item": asdict(app_service.resolve_principal(chat_id))}
+    if path == "/api/v1/auth/preferences":
+        if method == "GET":
+            return 200, {"item": {"language": app_service.get_chat_language(chat_id)}}
+        if method == "PATCH":
+            language = _text(body, "language")
+            preference = app_service.set_chat_language(chat_id, language, actor_chat_id=chat_id)
+            return 200, {"item": {"language": preference.language}}
+    if method == "GET" and path == "/api/v1/admin/config":
+        app_service.require_admin(chat_id, "configuration_requires_admin")
+        return 200, {"item": deployment_info}
     if method == "GET" and path == "/api/v1/admin/chats":
         app_service.require_admin(chat_id, "authorized_requires_admin")
         return 200, {"items": [asdict(item) for item in app_service.list_effective_authorized_chats()]}
@@ -284,11 +311,17 @@ def make_api_handler(
     api_token: str | None = None,
     api_chat_tokens: tuple[tuple[int, str], ...] = (),
     image_fetcher: Callable[[str], bytes] | None = None,
+    deployment_info: dict[str, object] | None = None,
 ):
     class ChromantisApiHandler(BaseHTTPRequestHandler):
         server_version = "ChromantisAPI/0.1"
 
         def do_GET(self) -> None:  # noqa: N802
+            asset = UI_FILES.get(self.path.partition("?")[0])
+            if asset:
+                filename, media_type = asset
+                self._write(200, (UI_ROOT / filename).read_bytes(), media_type)
+                return
             self._handle()
 
         def do_POST(self) -> None:  # noqa: N802
@@ -325,6 +358,7 @@ def make_api_handler(
                 self.headers.get("X-API-Token"),
                 body,
                 image_fetcher,
+                deployment_info,
             )
             if isinstance(payload, PhotoPayload):
                 self._write(status, payload.content, payload.content_type)
@@ -342,6 +376,12 @@ def make_api_handler(
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
             self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; "
+                "connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+            )
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
