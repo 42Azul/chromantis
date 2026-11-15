@@ -382,6 +382,8 @@ class TelegramBotService:
             return self._handle_authorized_args(args, chat_id=chat_id, language=language)
         if command == "/people":
             return self._handle_people(command_text=command_text, chat_id=chat_id, language=language)
+        if command == "/album":
+            return self._handle_album(args, chat_id, language)
         if command == "/folders":
             try:
                 results = self.app_service.search_folders(args)
@@ -786,6 +788,34 @@ class TelegramBotService:
         ))
         text = self._t(language, f"saved_{kind}_title" if searches else f"saved_{kind}_empty")
         return BotReply(text, buttons=tuple(rows))
+
+    def _handle_album(self, args: str, chat_id: int | None, language: str) -> BotReply:
+        if chat_id is None or not self._is_admin(chat_id):
+            return BotReply(self._t(language, "album_requires_admin"))
+        parts = [part.strip() for part in args.split("|", 2)]
+        if not parts[0] or len(parts) not in {1, 3}:
+            return BotReply(self._t(language, "album_usage"))
+        path = parts[0]
+        try:
+            item = self.app_service.get_album_review(chat_id, path=path)
+            if item is None:
+                return BotReply(self._t(language, "album_not_found"))
+            if len(parts) == 3:
+                _, key, value = parts
+                fields = {"title": "title", "date": "event_date", "note": "note", "aliases": "aliases"}
+                if key not in fields:
+                    return BotReply(self._t(language, "album_usage"))
+                change = [alias.strip() for alias in value.splitlines() if alias.strip()] if key == "aliases" else value
+                item = self.app_service.edit_album_context(
+                    chat_id, path, item["id"], item["context_revision"], {fields[key]: change}
+                )
+        except ValueError as exc:
+            return BotReply(str(exc))
+        return BotReply(self._t(
+            language, "album_context_text", title=item["title"], path=path, date=item["event_date"] or item["year"],
+            indexed_title=item["indexed_title"], indexed_date=item["indexed_date"] or item["indexed_year"],
+            aliases=" / ".join(item["aliases"]) or "—", note=item["note"] or "—",
+        ))
 
     def _handle_people(self, command_text: str, chat_id: int | None, language: str) -> BotReply:
         _, _, raw_args = command_text.partition(" ")
@@ -1565,6 +1595,7 @@ class TelegramBotApp:
             "random",
             "more",
             "people",
+            "album",
             "invite",
             "authorized",
             "whoami",

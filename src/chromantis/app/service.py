@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from sqlite3 import Connection
 
-from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item
+from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item, save_context
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
 from chromantis.db.family_access import FamilyAccess, FamilySession
 from chromantis.db.repository import (
@@ -169,6 +169,28 @@ class ApplicationService:
                 if row["alias"] is not None:
                     person["aliases"].append(row["alias"])
         return list(people.values())
+
+    def edit_album_context(
+        self, actor: int | FamilySession, path: str, folder_id: int, revision: int, changes: dict[str, object],
+    ) -> dict:
+        with self.repository.write_transaction() as connection:
+            self.require_album_curator(actor, connection)
+            folder = review_folder(connection, path=path)
+            if folder is None or (folder["id"], folder["context_revision"]) != (folder_id, revision):
+                raise AuthOperationError(
+                    "album_context_changed", "Los detalles del álbum han cambiado. Vuelve a abrirlo.", 409
+                )
+            if save_context(connection, folder, changes):
+                audit: dict[str, object] = {"fields": sorted(changes)}
+                if isinstance(actor, FamilySession):
+                    audit["family_access_id"] = actor.id
+                self.repository.record_audit_event(
+                    "edit_album_context", "folder", path, audit,
+                    actor if isinstance(actor, int) else None, connection=connection,
+                )
+                folder = review_folder(connection, path=path)
+                assert folder is not None
+            return review_item(connection, folder)
 
     def save_album_review(
         self, actor: int | FamilySession, path: str, folder_id: int, revision: int, *,

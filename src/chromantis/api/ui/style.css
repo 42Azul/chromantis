@@ -136,6 +136,11 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 }
 
 .album-heading { margin: 12px 0; overflow-wrap: anywhere; }
+.album-context { margin-top: 12px; max-width: 36rem; }
+.album-context label { display: grid; gap: 4px; }
+.album-context textarea { font: inherit; color: inherit; background: #21201d; border: 1px solid var(--line); border-radius: 6px; padding: .65rem .8rem; resize: vertical; }
+.album-context button { justify-self: start; }
+.folder-card small { color: var(--accent); }
 .review-form { display: grid; gap: 18px; }
 .review-form > div + div { margin-top: 0; }
 .review-form label { display: grid; gap: 5px; }

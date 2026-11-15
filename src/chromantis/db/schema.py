@@ -70,6 +70,25 @@ CREATE TABLE IF NOT EXISTS album_reviews (
     revision INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS album_context (
+    folder_id INTEGER PRIMARY KEY REFERENCES folders(id) ON DELETE CASCADE,
+    title TEXT,
+    event_date TEXT,
+    note TEXT,
+    aliases_json TEXT NOT NULL,
+    revision INTEGER NOT NULL
+);
+
+CREATE VIEW IF NOT EXISTS album_metadata AS
+SELECT f.id, f.folder_path, f.ftp_root_path, f.folder_name_raw,
+       f.title AS indexed_title, f.event_date AS indexed_date, f.year AS indexed_year,
+       COALESCE(c.title, f.title) AS title,
+       COALESCE(c.event_date, f.event_date) AS event_date,
+       COALESCE(CAST(substr(c.event_date, 1, 4) AS INTEGER), f.year) AS year,
+       c.title AS title_override, c.event_date AS date_override, c.note,
+       c.aliases_json, COALESCE(c.revision, 0) AS context_revision
+FROM folders f LEFT JOIN album_context c ON c.folder_id = f.id;
+
 CREATE TABLE IF NOT EXISTS album_tag_decisions (
     folder_id INTEGER NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
     origin TEXT NOT NULL CHECK (origin IN ('name', 'manual')),

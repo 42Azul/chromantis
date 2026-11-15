@@ -28,6 +28,7 @@ Chromantis currently provides:
 - a browser interface for visual search, browsing, people, saved searches, and role-based administration
 - browser-based album review with name-only tag suggestions, manual tags, curated people and limited viewer permissions
 - local browser-only family sign-in with one-time codes and revocable SQLite sessions
+- album aliases, notes, and title and date corrections shared by the browser and Telegram
 
 Not implemented yet:
 
@@ -350,19 +351,19 @@ Current architecture map:
 
 **Acceptance:** A family member opens the browser, signs in once and can resume album review after a reload. The owner can revoke the session and the curator cannot access administration.
 
-## Ready Next
-
 ### MVP 11C — Album Context and Corrections
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Find the same memory even when family members remember it by different names.
 
-- Add album aliases, short notes, and overrides for event title and date in SQLite.
-- Track the original metadata and show which correction or alias matched.
-- Provide equivalent web and Telegram workflows using the existing application service.
+- Store aliases, short notes and optional title and date corrections separately from the index.
+- Search by the original name, an alias or the corrected title. Search results explain alias and correction matches, and year navigation uses the corrected date.
+- Edit and clear details in the existing browser review screen or through Telegram's `/album` command.
 
 **Acceptance:** “Abuela's birthday” finds the same album as its original folder name. A full reindex preserves corrections and the source files stay unchanged.
+
+## Ready Next
 
 ### MVP 12 — Fast Browsing on the NAS
 

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import logging
 import random
 import sqlite3
 from dataclasses import dataclass
+from functools import lru_cache
 
 from chromantis.db.repository import PersonDetail, PersonSummary, Repository, YearSummary
+from chromantis.parsing.path_parser import normalize_text
 from chromantis.search.query_parser import ParsedQuery, parse_query
 
 logger = logging.getLogger(__name__)
@@ -103,11 +106,11 @@ class SearchService:
         with self.repository.connect() as connection:
             rows = connection.execute(
                 f"""
-                SELECT f.folder_path, f.title, f.year, f.event_date,
+                SELECT f.folder_path, f.title, f.year, f.event_date, f.indexed_title, f.indexed_year, f.aliases_json,
                        {_FOLDER_TAGS_SQL} AS tags,
                        GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                        GROUP_CONCAT(DISTINCT p.display_name) AS people_names
-                FROM folders f
+                FROM album_metadata f
                 LEFT JOIN folder_people fp ON fp.folder_id = f.id
                 LEFT JOIN people p ON p.id = fp.person_id
                 GROUP BY f.id
@@ -187,7 +190,7 @@ class SearchService:
             rows = connection.execute(
                 """
                 SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date
-                FROM folders f JOIN images i ON i.folder_id = f.id
+                FROM album_metadata f JOIN images i ON i.folder_id = f.id
                 WHERE f.folder_path = ?
                 ORDER BY i.file_path ASC
                 LIMIT ?
@@ -288,15 +291,13 @@ class SearchService:
 
     def _folder_result(self, row: sqlite3.Row, query: ParsedQuery) -> SearchResult | None:
         tokens = set((row["tags"] or "").split(",")) if row["tags"] else set()
-        people_ids = _person_ids_from_row(row["person_ids"])
-        title_text = row["title"]
-        reasons = self._match_reasons(query, row["year"], title_text, tokens, people_ids)
+        reasons = self._match_reasons(query, row, tokens)
         if not reasons:
             return None
         return SearchResult(
             kind="folder",
             path=row["folder_path"],
-            title=title_text,
+            title=row["title"],
             reason=", ".join(reasons),
             year=row["year"],
             folder_path=row["folder_path"],
@@ -305,10 +306,8 @@ class SearchService:
 
     def _image_result(self, row: sqlite3.Row, query: ParsedQuery) -> SearchResult | None:
         tokens = set((row["folder_tags"] or "").split(",")) if row["folder_tags"] else set()
-        people_ids = _person_ids_from_row(row["person_ids"])
-        title_text = f'{row["title"]} / {row["filename"]}'
         reasons = self._match_reasons(
-            query, row["year"], title_text, tokens, people_ids,
+            query, row, tokens, filename=row["filename"],
             enrichment_text=row["enrichment_text"] if self.include_enrichment else "",
         )
         if not reasons:
@@ -339,12 +338,13 @@ class SearchService:
         """ if include_enrichment else ""
         return f"""
             SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date,
+                   f.indexed_title, f.indexed_year, f.aliases_json,
                    {_FOLDER_TAGS_SQL} AS folder_tags,
                    GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                    GROUP_CONCAT(DISTINCT p.display_name) AS people_names
                    {enriched_column}
             FROM images i
-            JOIN folders f ON f.id = i.folder_id
+            JOIN album_metadata f ON f.id = i.folder_id
             LEFT JOIN folder_people fp ON fp.folder_id = f.id
             LEFT JOIN people p ON p.id = fp.person_id
             GROUP BY i.id
@@ -356,13 +356,24 @@ class SearchService:
     def _match_reasons(
         self,
         query: ParsedQuery,
-        year: int,
-        searchable_text: str,
+        row: sqlite3.Row,
         tags: set[str],
-        available_person_ids: set[int],
+        filename: str = "",
         enrichment_text: str = "",
     ) -> list[str]:
-        normalized_text = searchable_text.lower()
+        year = row["year"]
+        aliases = _normalized_aliases(row["aliases_json"]) if row["aliases_json"] else ()
+        original_title = row["indexed_title"]
+        corrected_title = normalize_text(row["title"]) if row["title"] != original_title else ""
+        phrase = query.phrase.replace("’", "'")
+        literal = query.literal_phrase.replace("’", "'")
+        # When the entire input names an album, a year inside that name is literal.
+        if phrase and literal != phrase:
+            exact_reason = _album_name_reason(literal, aliases, corrected_title, row["title"])
+            if exact_reason:
+                return [exact_reason]
+            if literal == original_title.replace("’", "'"):
+                return [f'title~"{original_title}"']
         reasons: list[str] = []
         if query.year_from is not None and year < query.year_from:
             return []
@@ -372,6 +383,14 @@ class SearchService:
             reasons.append(f"year={year}")
         elif query.year_from is not None and query.year_to is not None:
             reasons.append(f"year_range={query.year_from}-{query.year_to}")
+        if reasons and year != row["indexed_year"]:
+            reasons.append(f"year_corrected={year}")
+        exact_reason = _album_name_reason(phrase, aliases, corrected_title, row["title"])
+        if exact_reason:
+            return [*reasons, exact_reason]
+
+        normalized_text = f"{original_title} / {filename.lower()}" if filename else original_title
+        available_person_ids = _person_ids_from_row(row["person_ids"])
         for person in query.people:
             if person.id in available_person_ids:
                 reasons.append(f'person="{person.display_name}"')
@@ -381,8 +400,13 @@ class SearchService:
                 continue
             return []
         for keyword in query.keywords:
+            alias = next((alias for alias, name in aliases if keyword.replace("’", "'") in name.split()), None)
             if keyword in normalized_text:
                 reasons.append(f'title~"{keyword}"')
+            elif keyword in corrected_title:
+                reasons.append(f'album_title~"{keyword}"')
+            elif alias:
+                reasons.append(f'album_alias="{alias}"')
             elif keyword in tags:
                 reasons.append(f'tag="{keyword}"')
             elif keyword in enrichment_text:
@@ -391,7 +415,23 @@ class SearchService:
                 return []
         if not query.keywords and query.year_from is None and not query.people:
             reasons.append("all")
-        return reasons
+        return list(dict.fromkeys(reasons))
+
+
+@lru_cache(maxsize=128)
+def _normalized_aliases(aliases_json: str) -> tuple[tuple[str, str], ...]:
+    return tuple((alias, normalize_text(alias).replace("’", "'")) for alias in json.loads(aliases_json))
+
+
+def _album_name_reason(
+    phrase: str, aliases: tuple[tuple[str, str], ...], corrected_title: str, title: str,
+) -> str | None:
+    alias = next((alias for alias, name in aliases if name == phrase), None)
+    if alias is not None:
+        return f'album_alias="{alias}"'
+    if corrected_title and phrase == corrected_title.replace("’", "'"):
+        return f'album_title="{title}"'
+    return None
 
 
 def _person_ids_from_row(value: str | None) -> set[int]:

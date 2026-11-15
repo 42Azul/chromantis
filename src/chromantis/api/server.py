@@ -236,11 +236,15 @@ def _album_review_route(
         return 200, {"items": app.album_people_directory(actor)}
     if method == "GET" and path == f"{base}/photos" and album_path is not None:
         return 200, {"items": [asdict(item) for item in app.images_in_folder(album_path, limit=3)]}
+    if method == "PATCH" and path == f"{base}/context":
+        folder_id, revision = _album_revision(body)
+        changes = body.get("changes")
+        if not isinstance(changes, dict):
+            raise ValueError("Los detalles del álbum no son válidos.")
+        item = app.edit_album_context(actor, _text(body, "path"), folder_id, revision, changes)
+        return 200, {"item": item}
     if method == "POST" and path == base:
-        folder_id, revision = body.get("id"), body.get("revision")
-        if (type(folder_id) is not int or not 1 <= folder_id < 2**63
-                or type(revision) is not int or not 0 <= revision < 2**63):
-            raise ValueError("Álbum o revisión no válidos.")
+        folder_id, revision = _album_revision(body)
         decisions = body.get("decisions", {})
         if not isinstance(decisions, dict) or len(decisions) > 20:
             raise ValueError("Las decisiones de etiquetado no son válidas.")
@@ -257,6 +261,14 @@ def _album_review_route(
         )
         return 200, {"saved": True}
     return 404, {"error": "Not found"}
+
+
+def _album_revision(body: dict[str, object]) -> tuple[int, int]:
+    folder_id, revision = body.get("id"), body.get("revision")
+    if (type(folder_id) is not int or not 1 <= folder_id < 2**63
+            or type(revision) is not int or not 0 <= revision < 2**63):
+        raise ValueError("Álbum o revisión no válidos.")
+    return folder_id, revision
 
 
 def _review_values(body: dict[str, object], key: str, limit: int) -> list:

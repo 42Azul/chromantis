@@ -246,7 +246,7 @@ class Repository:
                 SELECT f.year,
                        COUNT(DISTINCT f.id) AS folders,
                        COUNT(DISTINCT i.id) AS images
-                FROM folders f
+                FROM album_metadata f
                 LEFT JOIN images i ON i.folder_id = f.id
                 {where_clause}
                 GROUP BY f.year

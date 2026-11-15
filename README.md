@@ -358,7 +358,11 @@ El nombre de la carpeta genera sugerencias con un vocabulario corto de términos
 
 El flujo de etiquetado funciona con el archivo desconectado. **Ver hasta 3 fotos** solicita los originales de forma puntual. El catálogo y la búsqueda siguen disponibles sin modelos ni dependencias nuevas.
 
+Abre **Detalles del álbum** para añadir una nota y hasta ocho alias o corregir el título y la fecha. Los valores del índice aparecen encima del formulario. Borra el título o la fecha corregidos para volver a usar los originales. El año de la fecha corregida se usa en los filtros y la navegación por año. Al buscar por un alias o por el título corregido, el resultado indica qué coincidió. Puedes seguir buscando por el nombre original de la carpeta.
+
 Para dar acceso de curación a un familiar, conserva su rol de lector y añade su ID autorizado a `API_CURATOR_CHAT_IDS` y un token propio en `API_CHAT_TOKENS`. Su navegador abrirá directamente **Etiquetar álbumes** al iniciar sesión. Reinicia la API después de editar `.env`. En una red doméstica de confianza puedes configurar `API_BIND_HOST` con la IP privada del NAS y abrir esa dirección y puerto desde el navegador. El valor por defecto es la interfaz local y el ejemplo anterior muestra el acceso por túnel SSH.
+
+En Telegram, un administrador puede usar `/album <ruta>` para ver los detalles y `/album <ruta> | title | <título>` para editarlos. Usa `date` con el formato `AAAA-MM-DD`, `note` para la nota o `aliases` para sustituir la lista, con un alias por línea. Deja el valor vacío para borrarlo. La ruta es la que muestra `/folders`.
 
 #### Acceso familiar sin Telegram
 

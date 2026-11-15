@@ -216,6 +216,13 @@ function renderFolders(items) {
     const card = button("", () => family ? showView("album-review", { path: item.path }) :
       archiveRequest("open_folder", { folder: item.path }), "folder-card");
     card.append(element("strong", {}, item.title), element("span", {}, item.path));
+    if (/album_alias=|album_title[=~]|year_corrected=/.test(item.reason)) {
+      const reason = family ? item.reason
+        .replaceAll("album_alias=", "Alias ")
+        .replaceAll(/album_title[=~]/g, "Título corregido ")
+        .replaceAll("year_corrected=", "Año corregido ") : item.reason;
+      card.append(element("small", {}, reason));
+    }
     return card;
   }));
 }
@@ -466,11 +473,62 @@ function renderAlbumReview(album, directory, reviewed) {
       save.disabled = skip.disabled = false;
     }
   });
+  const heading = element("h2", {}, album.title);
+  const date = element("p", {}, album.event_date || String(album.year));
   $("album-review-content").append(
-    element("div", { class: "panel album-heading" }, element("h2", {}, album.title),
-      element("p", {}, album.event_date || String(album.year)), photos, photoGrid),
+    element("div", { class: "panel album-heading" }, heading, date, photos, photoGrid,
+      albumContextEditor(album, heading, date, request)),
     form
   );
+}
+
+function albumContextEditor(album, heading, date, request) {
+  const titleInput = element("input", { type: "text", maxlength: 160, placeholder: album.indexed_title });
+  const dateInput = element("input", { type: "date" });
+  const aliasInput = element("textarea", { rows: 3, maxlength: 647 });
+  const noteInput = element("textarea", { rows: 3, maxlength: 500 });
+  const submit = element("button", { type: "submit" }, "Guardar detalles");
+  const status = element("p", { class: "message", "aria-live": "polite" });
+  let revision = album.context_revision;
+  function populate(item) {
+    titleInput.value = item.title_override || "";
+    dateInput.value = item.date_override || "";
+    aliasInput.value = item.aliases.join("\n");
+    noteInput.value = item.note || "";
+  }
+  populate(album);
+  const form = element("form", { class: "stack album-context" },
+    element("p", {}, `Del índice: ${album.indexed_title} · ${album.indexed_date || album.indexed_year}`),
+    element("label", {}, "Título corregido", titleInput),
+    element("label", {}, "Fecha corregida", dateInput),
+    element("p", {}, "Deja vacío el título o la fecha para usar el valor del índice."),
+    element("label", {}, "Alias, uno por línea", aliasInput),
+    element("label", {}, "Nota del álbum", noteInput), submit, status);
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    submit.disabled = true;
+    status.textContent = "";
+    try {
+      const { item } = await api("/album-review/context", { method: "PATCH", data: {
+        id: album.id, path: album.path, revision,
+        changes: {
+          title: titleInput.value, event_date: dateInput.value, note: noteInput.value,
+          aliases: aliasInput.value.split("\n").map(alias => alias.trim()).filter(Boolean),
+        },
+      } });
+      if (request !== albumRequest) return;
+      revision = item.context_revision;
+      heading.textContent = item.title;
+      date.textContent = item.event_date || String(item.year);
+      populate(item);
+      status.textContent = "Detalles guardados.";
+    } catch (error) {
+      if (request === albumRequest) status.textContent = error.message;
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  return element("details", {}, element("summary", {}, "Detalles del álbum"), form);
 }
 
 $("pending-albums").addEventListener("click", () => loadAlbumReview());

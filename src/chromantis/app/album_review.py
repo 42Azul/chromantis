@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+from datetime import date
 from sqlite3 import Connection
 
 from chromantis.parsing.path_parser import normalize_text
@@ -38,8 +40,10 @@ def review_folder(
 ):
     sql = """
         SELECT f.id, f.folder_path AS path, f.title, f.event_date, f.year, f.folder_name_raw,
+               f.indexed_title, f.indexed_date, f.indexed_year,
+               f.title_override, f.date_override, f.note, f.aliases_json, f.context_revision,
                COALESCE(r.revision, 0) AS revision
-        FROM folders f LEFT JOIN album_reviews r ON r.folder_id = f.id
+        FROM album_metadata f LEFT JOIN album_reviews r ON r.folder_id = f.id
     """
     if path is not None:
         return connection.execute(sql + "WHERE f.folder_path = ?", (path,)).fetchone()
@@ -72,12 +76,60 @@ def review_item(connection: Connection, folder) -> dict:
             "label": suggestions.get(label, {}).get("label", label),
             "tag": tag, "evidence": decision["evidence"], "state": state,
         }
+    item = dict(folder)
+    item["aliases"] = json.loads(item.pop("aliases_json") or "[]")
     return {
-        **dict(folder),
+        **item,
         "person_ids": [row["person_id"] for row in people],
         "suggestions": suggestions,
         "manual_tags": [row["tag"] for row in decisions if row["origin"] == "manual"],
     }
+
+
+def save_context(connection: Connection, folder, changes: dict[str, object]) -> bool:
+    current = {
+        "title": folder["title_override"],
+        "event_date": folder["date_override"],
+        "note": folder["note"],
+        "aliases": json.loads(folder["aliases_json"] or "[]"),
+    }
+    if not changes or changes.keys() - current.keys():
+        raise ValueError("Indica qué detalles del álbum quieres cambiar.")
+    updated = {**current, **changes}
+    for key, limit in (("title", 160), ("note", 500), ("event_date", 10)):
+        value = updated[key]
+        if value is not None and (not isinstance(value, str) or len(value.strip()) > limit):
+            raise ValueError(f"El campo {key} admite hasta {limit} caracteres.")
+        updated[key] = (value.strip() or None) if value else None
+    event_date = updated["event_date"]
+    if event_date is not None:
+        try:
+            if date.fromisoformat(event_date).isoformat() != event_date:
+                raise ValueError
+        except ValueError:
+            raise ValueError("Indica una fecha válida con formato AAAA-MM-DD.") from None
+    aliases = updated["aliases"]
+    if (not isinstance(aliases, list) or len(aliases) > 8
+            or any(not isinstance(alias, str) or not 1 <= len(alias.strip()) <= 80 or not alias.isprintable()
+                   for alias in aliases)):
+        raise ValueError("Indica hasta 8 alias de entre 1 y 80 caracteres, uno por línea.")
+    by_name = {}
+    for alias in aliases:
+        by_name.setdefault(normalize_text(alias), alias.strip())
+    if "" in by_name:
+        raise ValueError("Los alias necesitan un nombre.")
+    updated["aliases"] = list(by_name.values())
+    if updated == current:
+        return False
+    connection.execute(
+        """INSERT INTO album_context (folder_id, title, event_date, note, aliases_json, revision)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT (folder_id) DO UPDATE SET title = excluded.title, event_date = excluded.event_date,
+               note = excluded.note, aliases_json = excluded.aliases_json, revision = excluded.revision""",
+        (folder["id"], updated["title"], updated["event_date"], updated["note"], json.dumps(updated["aliases"]),
+         folder["context_revision"] + 1),
+    )
+    return True
 
 
 def apply_tag_decisions(

@@ -21,6 +21,8 @@ class ParsedQuery:
     year_to: int | None
     people: tuple[ResolvedPerson, ...]
     keywords: tuple[str, ...]
+    phrase: str = ""
+    literal_phrase: str = ""
 
     @property
     def person_ids(self) -> tuple[int, ...]:
@@ -58,6 +60,8 @@ def parse_query(
         year_to=year_to,
         people=people,
         keywords=keywords,
+        phrase=" ".join(normalized_tokens),
+        literal_phrase=normalize_text(raw),
     )
 
 

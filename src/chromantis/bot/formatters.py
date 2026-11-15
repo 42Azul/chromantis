@@ -10,7 +10,8 @@ def format_search_results(kind: str, results: list[SearchResult], language: str 
         return t(language, "search_results_empty", kind=kind)
     lines = []
     for result in results:
-        lines.append(f"- {result.path} ({result.reason})")
+        title = f"{result.title} · " if result.kind == "folder" else ""
+        lines.append(f"- {title}{result.path} ({result.reason})")
     return "\n".join(lines)
 
 
