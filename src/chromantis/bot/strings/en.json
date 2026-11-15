@@ -147,7 +147,7 @@
   "unknown_person": "Unknown person: {identifier}",
   "whoami_template": "Chat ID: {chat_id}\nUsername: {username}\nFirst name: {first_name}\nAuth mode: {auth_mode}\nRole: {role}\nAdmin: {admin}",
   "year_summary_folder_label": "folder(s)",
-  "year_sumimage_label": "image(s)",
+  "year_summary_image_label": "image(s)",
   "years_empty": "No indexed years yet.",
   "years_header": "Indexed years:",
   "years_usage": "Usage: /years or /years 2018-2021"
