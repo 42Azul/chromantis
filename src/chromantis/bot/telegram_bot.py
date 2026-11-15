@@ -277,7 +277,11 @@ class TelegramBotService:
 
     def _clarification_reply(self, chat_id: int | None, clarification: str | None = None) -> BotReply:
         language = self._chat_language(chat_id)
-        keys = {"several_years": "clarify_several_years", "folders": "clarify_folders"}
+        keys = {
+            "several_years": "clarify_several_years",
+            "folders": "clarify_folders",
+            "model_uncertain": "clarify_model_uncertain",
+        }
         return BotReply(
             text=self._t(language, keys.get(clarification, "clarify_text")),
             buttons=self._suggestion_buttons(language, chat_id),

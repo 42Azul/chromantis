@@ -71,6 +71,8 @@ Copy `.env.example` to `.env` and set:
 - `API_PORT` optionally, defaults to `8787`
 - `API_TOKEN` optionally, a shared read-only API token
 - `API_CHAT_TOKENS` optionally, a JSON object mapping Telegram chat IDs to individual API tokens
+- `QUERY_INTERPRETER_COMMAND` optionally, a local executable and arguments for query interpretation
+- `QUERY_INTERPRETER_TIMEOUT` optionally, adapter timeout in seconds, default `10`
 - `LOG_LEVEL` optionally, for example `DEBUG` or `INFO`
 
 Use `SOURCE_TYPE=ftp` with an absolute FTP `SOURCE_ROOT` such as `/photos/archive`.
@@ -283,11 +285,24 @@ Admins and owners can curate people with these routes. Each successful write ret
 | `POST /api/v1/admin/people/{id}/folders` | `{"path":"2021/2021-08-15_city_trip"}` |
 | `DELETE /api/v1/admin/people/{id}/folders` | URL-encoded `?path=<folder-path>` |
 
+### Optional model interpreter
+
+The API and Telegram use the rule interpreter by default. To use a local model, configure an adapter command in `.env`, such as `QUERY_INTERPRETER_COMMAND=/opt/chromantis/bin/model-adapter`, and restart both clients. The executable receives one UTF-8 JSON object on stdin and must write one JSON object to stdout. Keep diagnostics on stderr.
+
+| Direction | Example |
+| --- | --- |
+| Stdin | `{"text":"Find a couple of city photos from 2021"}` |
+| Stdout | `{"action":"images","query":"city 2021","count":2,"confidence":0.9}` |
+
+Actions are `images`, `folders`, `random`, and `years`. Counts are 1–10 and confidence is 0–1. Confidence below 0.65 requests clarification. A timeout, an executable failure, or an invalid response falls back to the rules. The adapter receives the request text. The existing search engine applies the resulting query to the index.
+
+An in-process adapter can implement `QueryInterpreter.interpret(text)` and be passed into `ApplicationService`. This is the extension point for future providers.
+
 ## Current v1 limits
 
 - Full subtree scan only; no scheduler yet
 - No embeddings, captions, EXIF, or OCR
-- No model-based natural-language layer beyond the built-in rule interpreter
+- Optional model interpretation requires a configured adapter
 - Search behavior is simple, explainable, and deterministic
 
 Early strategies:

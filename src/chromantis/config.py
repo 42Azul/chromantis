@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import logging
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -82,6 +83,8 @@ class AppConfig:
     api_token: str | None
     log_level: str
     api_chat_tokens: tuple[tuple[int, str], ...] = ()
+    query_interpreter_command: tuple[str, ...] = ()
+    query_interpreter_timeout: float = 10.0
 
     @classmethod
     def from_env(cls, dotenv_path: str | None = None) -> "AppConfig":
@@ -113,6 +116,11 @@ class AppConfig:
         api_token = os.getenv("API_TOKEN") or None
         api_chat_tokens = _parse_api_chat_tokens(os.getenv("API_CHAT_TOKENS"), api_token)
 
+        query_interpreter_command = tuple(shlex.split(os.getenv("QUERY_INTERPRETER_COMMAND", "")))
+        query_interpreter_timeout = float(os.getenv("QUERY_INTERPRETER_TIMEOUT", "10"))
+        if not 0 < query_interpreter_timeout <= 300:
+            raise ValueError("QUERY_INTERPRETER_TIMEOUT must be in (0, 300] seconds.")
+
         return cls(
             source_type=source_type,
             source_root=source_root,
@@ -133,6 +141,8 @@ class AppConfig:
             api_port=int(os.getenv("API_PORT", "8787")),
             api_token=api_token,
             api_chat_tokens=api_chat_tokens,
+            query_interpreter_command=query_interpreter_command,
+            query_interpreter_timeout=query_interpreter_timeout,
             log_level=log_level,
         )
 

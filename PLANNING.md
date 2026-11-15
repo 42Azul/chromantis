@@ -20,7 +20,7 @@ Chromantis currently provides:
 - SQLite persistence with migration-aware startup
 - deterministic search over years, year ranges, titles, tags, and curated people aliases
 - a Telegram bot with multi-image replies, persistent browse sessions, mixed-folder disclosure, guided onboarding, per-chat English/Spanish language preferences, plain-text query handling, and explicit `owner`/`admin`/`viewer` auth management
-- a shared application/query service used by both Telegram and the local HTTP API
+- a shared application/query service used by both Telegram and the local HTTP API, with an optional local model interpreter and a rule-based default
 - a local HTTP API for search, indexed image delivery, persistent browsing, query interpretation, people curation, and role-based chat and invite administration
 - guided people curation in Telegram and per-chat recent and pinned searches shared by Telegram and the API
 
@@ -238,11 +238,9 @@ Current architecture map:
 - repeated retrieval flows can be resumed from recent or pinned searches
 - conversation-state behavior stays covered by tests
 
-## Ready Next
-
 ### MVP 7 — Query Interpreter Abstraction
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Prepare for richer natural-language handling without making paid APIs mandatory.
 
@@ -262,11 +260,11 @@ Current architecture map:
 - low-confidence requests ask for clarification instead of guessing
 - default deployment remains local and low-cost
 
-## Planned Later
+## Ready Next
 
 ### MVP 8 — Image Enrichment Pipeline
 
-**Status:** `Planned Later`
+**Status:** `Ready Next`
 
 **Goal:** Add optional image understanding on top of deterministic indexing.
 
@@ -282,6 +280,8 @@ Current architecture map:
 
 - enrichment is stored separately from source facts and deterministic fields
 - deterministic-only mode still works without enrichment
+
+## Planned Later
 
 ### MVP 9 — Sync and Operations
 

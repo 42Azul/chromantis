@@ -7,7 +7,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from chromantis.api import ApiServer, make_api_handler
-from chromantis.app import ApplicationService
+from chromantis.app import ApplicationService, CommandQueryInterpreter
 from chromantis.config import AppConfig
 from chromantis.db.repository import Repository
 from chromantis.logging_utils import configure_logging
@@ -19,10 +19,16 @@ def main() -> None:
     configure_logging(config.log_level)
     repository = Repository(config.sqlite_path)
     repository.init_schema()
+    interpreter = None
+    if config.query_interpreter_command:
+        interpreter = CommandQueryInterpreter(
+            config.query_interpreter_command, config.query_interpreter_timeout
+        )
     app_service = ApplicationService(
         repository,
         static_viewer_chat_ids=config.telegram_chat_allowlist,
         static_owner_chat_ids=config.telegram_admin_chat_allowlist,
+        interpreter=interpreter,
     )
     handler = make_api_handler(
         app_service, api_token=config.api_token, api_chat_tokens=config.api_chat_tokens,

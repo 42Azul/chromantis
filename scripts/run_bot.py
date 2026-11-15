@@ -8,7 +8,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from chromantis.bot.telegram_bot import TelegramBotApp, TelegramBotService
-from chromantis.app import ApplicationService
+from chromantis.app import ApplicationService, CommandQueryInterpreter
 from chromantis.config import AppConfig
 from chromantis.db.repository import Repository
 from chromantis.logging_utils import configure_logging
@@ -29,11 +29,17 @@ def main() -> None:
     access_code = config.telegram_access_code or f"{secrets.randbelow(1_000_000):06d}"
 
     source = build_archive_source(config)
+    interpreter = None
+    if config.query_interpreter_command:
+        interpreter = CommandQueryInterpreter(
+            config.query_interpreter_command, config.query_interpreter_timeout
+        )
     app_service = ApplicationService(
         repository,
         access_code=access_code,
         static_viewer_chat_ids=config.telegram_chat_allowlist,
         static_owner_chat_ids=config.telegram_admin_chat_allowlist,
+        interpreter=interpreter,
     )
 
     service = TelegramBotService(

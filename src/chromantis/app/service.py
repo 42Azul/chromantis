@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from sqlite3 import Connection
 
-from chromantis.app.interpreter import InterpretedRequest, RuleQueryInterpreter
+from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
 from chromantis.db.repository import (
     AuthorizedChat,
     ChatPreferences,
@@ -41,10 +41,11 @@ class ApplicationService:
         access_code: str | None = None,
         static_viewer_chat_ids: tuple[int, ...] = (),
         static_owner_chat_ids: tuple[int, ...] = (),
+        interpreter: QueryInterpreter | None = None,
     ):
         self.repository = repository
         self.search = SearchService(repository)
-        self.interpreter = RuleQueryInterpreter()
+        self.interpreter = interpreter if interpreter is not None else RuleQueryInterpreter()
         self.access_code = access_code
         self.static_viewer_chat_ids = frozenset(static_viewer_chat_ids)
         self.static_owner_chat_ids = frozenset(static_owner_chat_ids)
