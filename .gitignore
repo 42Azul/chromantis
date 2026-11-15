@@ -6,3 +6,4 @@ data/
 .codex/
 build/
 *.egg-info/
+.venv/

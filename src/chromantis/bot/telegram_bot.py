@@ -326,7 +326,7 @@ class TelegramBotService:
         command, _, raw_args = command_text.strip().partition(" ")
         args = raw_args.strip()
         language = self._chat_language(chat_id)
-        logger.info("Handling Telegram command=%s args=%r chat_id=%s", command, args, chat_id)
+        logger.info("Handling Telegram command=%s chat_id=%s", command, chat_id)
 
         if command == "/start":
             if not self._has_language_preference(chat_id):

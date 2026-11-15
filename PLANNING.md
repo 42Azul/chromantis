@@ -316,7 +316,81 @@ Current architecture map:
 - the UI reuses the existing API rather than reimplementing product logic
 - Telegram remains a supported client, not a separate code path
 
-All defined MVPs above are implemented. The README describes setup and use.
+### NAS Bootstrap
+
+**Status:** `Done`
+
+- Create or reuse a private `.env`, install compatible Python when needed, and index the archive from the NAS.
+- Enroll the owner through a one-time Telegram challenge and generate a separate browser token.
+- Start the API and bot together and document token rotation and the repeat-start command.
+
+## Ready Next
+
+### MVP 11 — Album Context and Corrections
+
+**Status:** `Ready Next`
+
+**Goal:** Find the same memory even when family members remember it by different names.
+
+- Add album aliases, short notes, manual tags, and overrides for event title and date in SQLite.
+- Track the original metadata and show which correction or alias matched.
+- Provide equivalent web and Telegram workflows using the existing application service.
+
+**Acceptance:** “Abuela's birthday” finds the same album as its original folder name. A full reindex preserves corrections and the source files stay unchanged.
+
+### MVP 12 — Fast Browsing on the NAS
+
+**Status:** `Ready Next`
+
+**Goal:** Make the archive usable from a phone without a burst of full-size downloads.
+
+- Generate a lazy thumbnail cache keyed by image path and source fingerprint, with a disk budget.
+- Use thumbnails for web grids and retain access to the original through the authorized download endpoint.
+- Reuse the existing sync status to show archive availability and the age of the index.
+
+**Acceptance:** A gallery page loads small previews. Changing a source image invalidates its thumbnail. The original remains downloadable to authorized users.
+
+## Planned Later
+
+### MVP 13 — Dates, Places, and Provenance
+
+**Status:** `Planned Later`
+
+- Read EXIF capture dates with confidence and retain the existing distinction between event and source timestamps.
+- Support manually curated locations and make embedded GPS indexing opt-in.
+- Build a timeline and expose date- and place-based queries through the API and Telegram.
+
+**Acceptance:** A photo with an inconsistent folder date and EXIF date exposes both values with sources. Private GPS metadata is excluded by default.
+
+### MVP 14 — Local Semantic Search
+
+**Status:** `Planned Later`
+
+- Add optional local image and text embeddings with model/version provenance and a bounded background queue.
+- Combine lexical and semantic candidates while keeping year and person filters enforced across both.
+- Build a synthetic evaluation set with realistic queries, and compare recall and latency against lexical search on the NAS.
+
+**Acceptance:** A visual query such as “red bicycle by the sea” can retrieve an unlabeled fixture. Results identify why they matched, and the baseline search works with the model disabled.
+
+### MVP 15 — Guided Recall
+
+**Status:** `Planned Later`
+
+- Let users refine by person, date, or album across turns on Telegram and the web.
+- Ask one specific question when competing albums fit the same description.
+- Let users build named memory collections from selected photos and albums.
+
+**Acceptance:** “The beach trip with Ana” can be narrowed with “before 2020”, and the user can pin the resulting collection without moving the originals.
+
+### MVP 16 — Private Family Sharing and Recovery
+
+**Status:** `Planned Later`
+
+- Add album-scoped, expiring grants independent of unrestricted archive access.
+- Add backup and restore for the database and user curation, plus a documented recovery drill.
+- Verify access checks for individual assets, previews, collections, and revoked grants.
+
+**Acceptance:** A guest can open one shared album and its images. Revoking the grant removes access on the next request. A restore onto a fresh instance preserves collections and corrections.
 
 ## Open Risks
 

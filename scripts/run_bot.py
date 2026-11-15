@@ -17,7 +17,7 @@ from chromantis.source import build_archive_source
 
 def main() -> None:
     config = AppConfig.from_env()
-    configure_logging(config.log_level)
+    configure_logging(config.log_level, secret=config.telegram_token)
 
     if not config.telegram_token:
         raise SystemExit("Missing TELEGRAM_TOKEN in .env")

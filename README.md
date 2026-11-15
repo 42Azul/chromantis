@@ -80,6 +80,29 @@ Use `SOURCE_TYPE=ftp` with an absolute FTP `SOURCE_ROOT` such as `/photos/archiv
 Use `SOURCE_TYPE=local` with either an absolute local path or a repo-relative path such as `tests/fixtures/ftp_tree/server_root/photos/archive`.
 Set `LOG_LEVEL=DEBUG` to see scan, search, and Telegram command logs during execution.
 
+## NAS setup
+
+From a checkout on the NAS, run:
+
+```bash
+bash scripts/setup_nas.sh
+```
+
+For a new deployment, the script asks for the local archive root when `CHROMANTIS_PHOTOS` is unset. The root is the directory that contains the per-year folders. It asks for the bot token with hidden input, verifies the bot, then prints a Telegram deep link to enroll your private chat. If you already know your chat ID, pass `CHROMANTIS_OWNER_CHAT_ID` to skip enrollment. It stores the bot token and a separate, generated browser token in `.env` with mode `0600`. The API binds to loopback by default.
+
+The script uses Python 3.10 or newer. On older NAS systems, it uses `uv` to install Python 3.12 for the current account. An existing compatible environment and configured archive are reused. Setup performs an incremental index and starts the API and bot together in the terminal.
+
+```bash
+# Use existing configuration and skip installation and indexing.
+bash scripts/setup_nas.sh --start-only
+
+# Set up and index without starting the services.
+bash scripts/setup_nas.sh --setup-only
+
+# Replace the Telegram token and restart from the same checkout.
+bash scripts/setup_nas.sh --rotate-token
+```
+
 ## Quick start
 
 Initialize the SQLite schema:
