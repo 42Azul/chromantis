@@ -90,6 +90,23 @@ CREATE TABLE IF NOT EXISTS album_context (
     place TEXT
 );
 
+CREATE TABLE IF NOT EXISTS memory_collections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_chat_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    name_key TEXT NOT NULL,
+    UNIQUE (owner_chat_id, name_key)
+);
+
+CREATE TABLE IF NOT EXISTS memory_collection_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id INTEGER NOT NULL REFERENCES memory_collections(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('folder', 'image')),
+    path TEXT NOT NULL,
+    source_root TEXT NOT NULL,
+    UNIQUE (collection_id, kind, path, source_root)
+);
+
 CREATE TABLE IF NOT EXISTS album_tag_decisions (
     folder_id INTEGER NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
     origin TEXT NOT NULL CHECK (origin IN ('name', 'manual')),

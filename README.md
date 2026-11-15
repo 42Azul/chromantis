@@ -420,6 +420,14 @@ En Telegram puedes enviar la aclaración como mensaje posterior o usar `/refine 
 
 La API local acepta `POST /api/v1/refine` con `{"q":"playa con Ana","text":"antes de 2020"}`. Usa el `q` devuelto en la búsqueda de fotos o álbumes. Si hay varias opciones, el servidor devuelve `choices` en lugar de una consulta.
 
+#### Colecciones privadas
+
+En la web con tu sesión de propietario, pulsa **Add photo to collection** o **Add album to collection** desde el archivo. Elige una colección o selecciona **New collection** y ponle nombre. Vuelve a **Collections** para abrir una entrada, quitarla o borrar la colección. Cada propietario tiene sus propias colecciones, con un límite de 100 colecciones y 250 entradas en cada una.
+
+SQLite guarda la ruta y la raíz indexada como referencia. Una entrada conserva su sitio en la colección si deja de estar en el índice y vuelve a estar disponible al indexar de nuevo la misma ruta y raíz. Quitar la entrada o borrar la colección solo cambia SQLite.
+
+La API local admite `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collections/<id>`, `POST /api/v1/collections/<id>/entries` y `DELETE /api/v1/collections/<id>/entries/<entry-id>`. Al crear, envía `{"name":"Verano"}` y opcionalmente `entry`. Una entrada contiene `kind` (`folder` o `image`) y la `path` exacta del índice.
+
 #### Acceso familiar sin Telegram
 
 Con la API protegida por `API_CHAT_TOKENS` o `API_TOKEN`, el propietario puede crear un código para cada navegador desde la terminal del NAS:

@@ -16,6 +16,7 @@
         <button data-view="people" id="people-nav">People</button>
         <button data-view="album-review" id="album-review-nav" lang="es" hidden>Etiquetar álbumes</button>
         <button data-view="searches" id="searches-nav">Saved searches</button>
+        <button data-view="collections" id="collections-nav" hidden>Collections</button>
         <button data-view="admin" id="admin-nav" hidden>Administration</button>
       </nav>
       <div class="sidebar-bottom" id="connection" hidden>
@@ -110,6 +111,18 @@
         <div id="saved-list" class="stack"></div>
       </section>
 
+      <section id="collections" hidden>
+        <header class="page-header">
+          <div><h1>Collections</h1></div>
+          <button id="new-collection" class="primary" type="button">New collection</button>
+        </header>
+        <p id="collections-status" class="message" aria-live="polite"></p>
+        <div class="split">
+          <div class="panel"><h2>My collections</h2><div id="collection-list" class="stack"></div></div>
+          <div id="collection-detail" class="panel"></div>
+        </div>
+      </section>
+
       <section id="admin" hidden>
         <header class="page-header"><div><h1>Administration</h1><p>Manage access and see how the archive is configured.</p></div></header>
         <p id="admin-status" class="message" aria-live="polite"></p>
@@ -117,6 +130,22 @@
       </section>
     </main>
   </div>
+
+  <dialog id="collection-picker" aria-labelledby="collection-picker-title">
+    <h2 id="collection-picker-title">Add to collection</h2>
+    <form id="collection-picker-form">
+      <label id="collection-selection-label">
+        <span id="collection-selection-text">Collection</span>
+        <select id="collection-selection" aria-labelledby="collection-selection-text"></select>
+      </label>
+      <label id="collection-name-label">Collection name<input id="collection-name" maxlength="80" autocomplete="off"></label>
+      <p id="collection-picker-status" class="message" role="status"></p>
+      <div class="actions">
+        <button id="cancel-collection-picker" type="button">Cancel</button>
+        <button type="submit" class="primary" id="save-collection">Save</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="lightbox">
     <form method="dialog">

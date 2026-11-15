@@ -136,6 +136,10 @@ def _dispatch(
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
             return _album_review_route(method, path, app_service, chat_id, body or {}, params)
+        if path == "/api/v1/collections" or path.startswith("/api/v1/collections/"):
+            if chat_id is None:
+                return 401, {"error": "A chat token is required"}
+            return _collection_route(method, path, app_service, chat_id, body or {})
         if path == "/api/v1/browse" and method in {"GET", "POST"}:
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
@@ -233,6 +237,47 @@ def _auth_route(
     if path.startswith("/api/v1/admin/people"):
         return _people_admin_route(method, path, app_service, chat_id, body, params)
     return 404, {"error": "Not found"}
+
+
+def _collection_route(
+    method: str, path: str, app: ApplicationService, chat_id: int, body: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    suffix = path.removeprefix("/api/v1/collections")
+    try:
+        with app.owner_collections(chat_id, write=method in {"POST", "DELETE"}) as collections:
+            if not suffix and method == "GET":
+                return 200, {"items": collections.list()}
+            if not suffix and method == "POST":
+                collection_id = collections.create(_text(body, "name"))
+                if "entry" in body:
+                    kind, entry_path = _collection_entry(body["entry"])
+                    return 201, {"item": collections.add(collection_id, kind, entry_path)}
+                return 201, {"item": collections.get(collection_id)}
+            parts = suffix.removeprefix("/").split("/")
+            collection_id = _positive_id(parts[0])
+            if len(parts) == 1 and method == "GET":
+                return 200, {"item": collections.get(collection_id)}
+            if len(parts) == 1 and method == "DELETE":
+                collections.delete(collection_id)
+                return 200, {"deleted": True}
+            if parts[1:] == ["entries"] and method == "POST":
+                kind, entry_path = _collection_entry(body)
+                return 200, {"item": collections.add(collection_id, kind, entry_path)}
+            if len(parts) == 3 and parts[1] == "entries" and method == "DELETE":
+                collections.remove(collection_id, _positive_id(parts[2]))
+                return 200, {"deleted": True}
+    except LookupError as error:
+        return 404, {"error": str(error)}
+    return 404, {"error": "Not found"}
+
+
+def _collection_entry(entry: object) -> tuple[str, str]:
+    if not isinstance(entry, dict):
+        raise ValueError("entry must describe an indexed photo or album.")
+    path = entry.get("path")
+    if not isinstance(path, str) or not path.strip() or len(path) > 4096:
+        raise ValueError("Choose a photo or album from the index.")
+    return _text(entry, "kind"), path
 
 
 def _album_review_route(

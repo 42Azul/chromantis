@@ -427,16 +427,26 @@ Current architecture map:
 
 **Acceptance:** “Playa con Ana” can be narrowed with “antes de 2020”. The refined search can be pinned through the existing history.
 
+### MVP 15B — Named Memory Collections
+
+**Status:** `Done`
+
+- Save selected photos and albums from the browser in private, owner-specific collections.
+- Keep only references to indexed paths and their source roots. Retain missing entries across reindexing so the owner can inspect or remove them.
+- Keep creation, display, entry removal and deletion behind the existing owner permissions.
+
+**Acceptance:** Name a collection, reopen it later, remove one entry and verify that the originals are still in the same place.
+
 ## Ready Next
 
-### MVP 15B — Named Memory Collections
+### MVP 16A — Private Album Invitations
 
 **Status:** `Ready Next`
 
-- Save selected photos and albums in a named collection, using references to the existing index.
-- Reuse private web permissions and keep collections under the owner's control.
+- Add revocable, expiring links that grant read-only access to one album from the browser.
+- Verify the grant on each album, photo and thumbnail request and test that guests cannot use broader search, collections or curation routes.
 
-**Acceptance:** Name a collection, reopen it later, remove one entry and verify that the originals are still in the same place.
+**Acceptance:** A guest can open one shared album and its images. Revoking the grant removes access on the next request.
 
 ## Planned Later
 
@@ -451,15 +461,13 @@ Current architecture map:
 - Reuse the bounded local JPEG header reader in a separate opt-in workflow. Define how the owner controls visibility and clears retained coordinates before storing any.
 - Validate activation and deletion on synthetic coordinates. Default extraction, browsing and search must continue to leave GPS out.
 
-### MVP 16 — Private Family Sharing and Recovery
+### MVP 16B — Backup and Recovery
 
 **Status:** `Planned Later`
 
-- Add album-scoped, expiring grants independent of unrestricted archive access.
 - Add backup and restore for the database and user curation, plus a documented recovery drill.
-- Verify access checks for individual assets, previews, collections, and revoked grants.
 
-**Acceptance:** A guest can open one shared album and its images. Revoking the grant removes access on the next request. A restore onto a fresh instance preserves collections and corrections.
+**Acceptance:** A restore onto a fresh instance preserves collections and corrections.
 
 ## Open Risks
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from sqlite3 import Connection
 
 from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item, save_context
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
 from chromantis.app.recall import Refinement, refine
+from chromantis.db.collections import CollectionStore
 from chromantis.db.family_access import FamilyAccess, FamilySession
 from chromantis.db.repository import (
     AuthorizedChat,
@@ -330,6 +332,16 @@ class ApplicationService:
             if self.resolve_principal(chat_id, connection=connection).role == "none":
                 raise AuthOperationError("unauthorized", "Chat is not authorized.", 401)
             return self.repository.set_search_pinned(connection, chat_id, search_id, pinned)
+
+    @contextmanager
+    def owner_collections(self, chat_id: int, *, write: bool = False):
+        transaction = self.repository.write_transaction() if write else self.repository.session()
+        with transaction as connection:
+            if not write:
+                connection.execute("BEGIN")
+            if self.resolve_principal(chat_id, connection=connection).role != "owner":
+                raise AuthOperationError("collections_owner", "Owner privileges are required for collections.")
+            yield CollectionStore(connection, chat_id)
 
     def get_index_stats(self) -> IndexStats:
         return self.repository.get_index_stats()

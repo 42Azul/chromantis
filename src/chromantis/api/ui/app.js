@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const views = ["archive", "people", "album-review", "searches", "admin"];
+const views = ["archive", "people", "album-review", "searches", "collections", "admin"];
 const photoURLs = new Set();
 let token = "";
 let principal;
@@ -13,6 +13,8 @@ let albumPhotoRequests;
 const albumPhotoURLs = new Set();
 let indexStatus;
 let archiveSearch;
+let collectionPick;
+let collectionRequest = 0;
 let originalRequest;
 let originalURL;
 
@@ -64,6 +66,10 @@ function isAdmin() {
   return ["owner", "admin"].includes(principal?.role);
 }
 
+function isOwner() {
+  return principal?.role === "owner";
+}
+
 function resetPhotos() {
   photoRequests?.abort();
   photoRequests = new AbortController();
@@ -79,11 +85,15 @@ function signOut() {
   canCurateAlbums = false;
   requestNumber++;
   connectionNumber++;
+  collectionRequest++;
+  collectionPick = undefined;
+  if ($("collection-picker").open) $("collection-picker").close();
   sessionStorage.removeItem("chromantis.chatToken");
   resetPhotos();
   closeAlbumReview();
   for (const view of views) $(view).hidden = true;
-  for (const id of ["results", "browsing", "statistics", "people-list", "add-person", "saved-list", "admin-content"]) {
+  for (const id of ["results", "browsing", "statistics", "people-list", "add-person", "saved-list",
+    "collection-list", "collection-detail", "admin-content"]) {
     $(id).replaceChildren();
   }
   $("person-details").replaceChildren(element("h2", {}, "Person details"),
@@ -96,6 +106,8 @@ function signOut() {
   $("timeline").open = false;
   message("result-count");
   message("archive-status");
+  message("album-review-status");
+  message("collections-status");
   message("archive-health");
   message("results-title", "Results");
   message("account");
@@ -163,6 +175,7 @@ async function signIn(value, { quiet = false, familyLogin = false } = {}) {
     $("navigation").hidden = false;
     $("connection").hidden = false;
     $("admin-nav").hidden = !isAdmin();
+    $("collections-nav").hidden = !isOwner();
     $("album-review-nav").hidden = !canCurateAlbums;
     $("account").textContent = principal.first_name || principal.username || `Chat ${principal.chat_id}`;
     $("account-role").textContent = family ? "Acceso familiar" : principal.role;
@@ -203,7 +216,8 @@ async function signIn(value, { quiet = false, familyLogin = false } = {}) {
 }
 
 async function showView(view, albumOptions) {
-  if (!principal || (view === "admin" && !isAdmin()) || (view === "album-review" && !canCurateAlbums)) return;
+  if (!principal || (view === "admin" && !isAdmin()) || (view === "album-review" && !canCurateAlbums)
+      || (view === "collections" && !isOwner())) return;
   if (view !== "album-review" && !$("album-review").hidden) closeAlbumReview();
   for (const name of views) $(name).hidden = name !== view;
   for (const nav of document.querySelectorAll("[data-view]")) {
@@ -214,6 +228,7 @@ async function showView(view, albumOptions) {
     if (view === "people") await loadPeople();
     if (view === "album-review") await loadAlbumReview(albumOptions);
     if (view === "searches") await loadSearches();
+    if (view === "collections") await loadCollections();
     if (view === "admin") await loadAdmin();
   } catch (error) {
     message(`${view}-status`, error.message);
@@ -323,7 +338,9 @@ function renderFolders(items, timeline = false) {
         .replaceAll("year_corrected=", "Año corregido ") : item.reason;
       card.append(element("small", {}, reason));
     }
-    return card;
+    if (!isOwner()) return card;
+    return element("article", { class: "collection-card" }, card,
+      collectionButton("folder", item.path, item.title, "archive-status"));
   }));
 }
 
@@ -341,6 +358,7 @@ function renderBatch(batch) {
     actions.push(button("More photos", () => archiveRequest("more")));
     if (batch.folders.length === 1) {
       actions.push(button("Same folder", () => archiveRequest("same_folder")));
+      if (isOwner()) actions.push(collectionButton("folder", batch.folders[0], batch.folders[0], "archive-status"));
       if (canCurateAlbums) actions.push(button("Etiquetar este álbum",
         () => showView("album-review", { path: batch.folders[0] })));
     } else if (batch.folders.length > 1) {
@@ -472,7 +490,9 @@ function photoCard(item, signal, urls = photoURLs, spanish = false) {
   observer.observe(frame);
   return element("article", { class: "photo-card" }, frame,
     element("div", { class: "card-caption" }, element("h3", {}, filename),
-      ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])));
+      ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])),
+    ...(isOwner() ? [collectionButton("image", item.path, filename,
+      spanish ? "album-review-status" : "archive-status")] : []));
 }
 
 function closeAlbumReview() {
@@ -833,6 +853,144 @@ async function loadSearches() {
       element("div", {}, element("strong", {}, search.query), element("p", {}, search.kind)), actions);
   }));
   if (!items.length) message("searches-status", pinnedOnly ? "No pinned searches yet." : "No recent searches yet.");
+}
+
+function collectionButton(kind, path, title, status) {
+  const label = kind === "folder" ? "Add album to collection" : "Add photo to collection";
+  const save = button(label, () => openCollectionPicker({ kind, path }, status), "collection-save");
+  save.setAttribute("aria-label", `${label}: ${title}`);
+  return save;
+}
+
+function updateCollectionPicker() {
+  const creates = !$("collection-selection").value;
+  $("collection-name-label").hidden = !creates;
+  $("collection-name").required = creates;
+}
+
+async function openCollectionPicker(entry = null, status = "collections-status") {
+  if (!isOwner()) return;
+  const pick = { entry, status };
+  collectionPick = pick;
+  $("collection-picker-form").reset();
+  $("collection-selection").replaceChildren(element("option", { value: "" }, "New collection"));
+  $("collection-selection-label").hidden = !entry;
+  $("save-collection").disabled = !!entry;
+  message("collection-picker-title", entry ? "Add to collection" : "New collection");
+  message("collection-picker-status");
+  updateCollectionPicker();
+  $("collection-picker").showModal();
+  if (!entry) return;
+  try {
+    const { items } = await api("/collections");
+    if (collectionPick !== pick) return;
+    $("collection-selection").prepend(...items.map(item => element("option", { value: item.id }, item.name)));
+    $("collection-selection").selectedIndex = 0;
+    updateCollectionPicker();
+    $("save-collection").disabled = false;
+  } catch (error) {
+    if (collectionPick === pick) message("collection-picker-status", error.message);
+  }
+}
+
+$("collection-selection").addEventListener("change", updateCollectionPicker);
+$("new-collection").addEventListener("click", () => openCollectionPicker());
+$("cancel-collection-picker").addEventListener("click", () => $("collection-picker").close());
+$("collection-picker").addEventListener("close", () => {
+  collectionPick = undefined;
+  $("collection-selection").replaceChildren();
+  $("collection-name").value = "";
+  message("collection-picker-status");
+});
+$("collection-picker-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const pick = collectionPick;
+  if (!pick || !isOwner()) return;
+  const selected = $("collection-selection").value;
+  const name = $("collection-name").value.trim();
+  $("save-collection").disabled = true;
+  message("collection-picker-status");
+  try {
+    const existing = pick.entry && selected;
+    const data = existing ? pick.entry : { name, ...(pick.entry ? { entry: pick.entry } : {}) };
+    const { item } = await api(existing ? `/collections/${selected}/entries` : "/collections", {
+      method: "POST", data,
+    });
+    if (collectionPick !== pick) return;
+    $("collection-picker").close();
+    if (!pick.entry) await loadCollections(item.id);
+    message(pick.status, pick.entry ? `Saved to ${item.name}.` : "Collection created.");
+  } catch (error) {
+    if (collectionPick === pick) message("collection-picker-status", error.message);
+  } finally {
+    if (collectionPick === pick) $("save-collection").disabled = false;
+  }
+});
+
+async function loadCollections(selectedId) {
+  const request = ++collectionRequest;
+  message("collections-status");
+  try {
+    const { items } = await api("/collections");
+    if (request !== collectionRequest || !isOwner()) return;
+    const selected = items.find(item => item.id === selectedId) || items[0];
+    $("collection-list").replaceChildren(...items.map(item => {
+      const link = button(`${item.name} · ${item.count}`, () => loadCollections(item.id));
+      link.setAttribute("aria-pressed", String(item.id === selected?.id));
+      return link;
+    }));
+    $("collection-detail").replaceChildren();
+    if (!selected) {
+      $("collection-list").append(element("p", {}, "No collections yet."));
+      return;
+    }
+    const { item } = await api(`/collections/${selected.id}`);
+    if (request !== collectionRequest || !isOwner()) return;
+    renderCollection(item, request);
+  } catch (error) {
+    if (request === collectionRequest && isOwner()) message("collections-status", error.message);
+  }
+}
+
+function renderCollection(collection, request) {
+  const base = `/collections/${collection.id}`;
+  const remove = (path, select) => async event => {
+    const control = event.currentTarget;
+    control.disabled = true;
+    try {
+      await api(path, { method: "DELETE" });
+      if (request === collectionRequest) await loadCollections(select);
+    } catch (error) {
+      if (request === collectionRequest) message("collections-status", error.message);
+    } finally {
+      control.disabled = false;
+    }
+  };
+  const rows = collection.entries.map(entry => {
+    const label = entry.kind === "folder" ? "Album" : "Photo";
+    const actions = element("div", { class: "actions" });
+    if (entry.available) actions.append(button(`Open ${label.toLowerCase()}`, async () => {
+      if (entry.kind === "folder") {
+        await showView("archive");
+        await archiveRequest("open_folder", { folder: entry.path });
+      } else {
+        await openPhoto(entry, entry.path.split("/").at(-1), undefined, true, false);
+      }
+    }));
+    const removeEntry = button("Remove", remove(`${base}/entries/${entry.id}`, collection.id));
+    removeEntry.setAttribute("aria-label", `Remove ${label.toLowerCase()}: ${entry.title}`);
+    actions.append(removeEntry);
+    return element("div", { class: "list-row" }, element("div", {},
+      element("strong", {}, entry.title),
+      element("p", {}, entry.available ? label : `${label} · Missing from index`),
+      element("p", {}, entry.path)), actions);
+  });
+  $("collection-detail").replaceChildren(element("h2", {}, collection.name),
+    rows.length ? element("div", { class: "stack" }, ...rows)
+      : element("p", {}, "Add photos or albums from the archive."),
+    button("Delete collection", event => {
+      if (window.confirm(`Delete “${collection.name}”?`)) return remove(base)(event);
+    }, "danger"));
 }
 
 function definitionList(values) {

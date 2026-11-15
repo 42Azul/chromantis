@@ -87,6 +87,8 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .frame:focus-visible { outline-offset: -3px; }
 .folder-card { min-height: 92px; padding: 14px; display: grid; align-content: center; text-align: left; overflow-wrap: anywhere; }
 .folder-card span { color: var(--muted); margin-top: .2rem; }
+.collection-card { display: grid; gap: .4rem; min-width: 0; align-content: start; }
+.photo-card > .collection-save { margin: 0 10px 10px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
 .actions button[aria-pressed="true"] { color: var(--accent); border-color: #8b6452; }
 
@@ -112,6 +114,11 @@ dialog::backdrop { background: #080807cc; }
 dialog form { display: flex; align-items: center; justify-content: end; gap: 12px; margin-bottom: 8px; }
 dialog img { width: 100%; max-height: 73vh; display: block; object-fit: contain; }
 dialog p { margin-top: 8px; overflow-wrap: anywhere; }
+#collection-picker { width: min(28rem, 94vw); padding: 1rem; }
+#collection-picker-form { display: grid; align-items: stretch; justify-content: stretch; gap: .6rem; margin: .75rem 0 0; }
+#collection-picker-form label { display: grid; gap: .3rem; }
+#collection-picker-form .actions { justify-content: end; margin-top: 0; }
+#collection-list button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 #photo-dates .kv { margin-top: 10px; gap: 4px 14px; font-size: .9rem; }
 
 @media (max-width: 1040px) {
