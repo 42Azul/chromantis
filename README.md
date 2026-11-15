@@ -359,6 +359,27 @@ In the initial comparison with Tesseract 5.5.0, the OCR build took about 1.8 sec
 
 The text cases include repeated signs in different albums and years. The timed search queries use the fields already indexed in SQLite. The build time measures running OCR, and the fixtures are small synthetic illustrations.
 
+#### Local visual search trial
+
+Run this experiment on a development computer with Pillow, NumPy, ONNX Runtime and Tokenizers. Place `tokenizer.json`, `onnx/vision_model_quantized.onnx` and `onnx/text_model_quantized.onnx` from the pinned model revision in one local directory, using the filenames without the `onnx/` prefix. The script verifies the checksums before loading. [Model files](https://huggingface.co/Xenova/clip-vit-base-patch32/tree/6ef1ebc8b0766a7a8d11b146462c99cdf74dd22d)
+
+```bash
+python scripts/evaluate_visual_search.py /path/to/local/model
+```
+
+The script compares ordinary search, tags from a small bilingual vocabulary, and similarity between images and query text. It uses the existing synthetic fixtures, adds a paraphrase, checks an explicit person and year together, and tests an incorrect colour and setting. It creates its own temporary index. The tag vocabulary is tailored to the illustrated concepts.
+
+At the default similarity threshold of 0.28, the x86-64 trial produced these exact results:
+
+| Query group | Indexed metadata | Vocabulary tags | Image/text similarity |
+| --- | ---: | ---: | ---: |
+| Original visual queries | 0/4 | 4/4 | 1/4 |
+| Additional English query with person and year | 0/1 | 1/1 | 1/1 |
+| New paraphrase | 0/1 | 0/1 | 1/1 |
+| Wrong colour or setting correctly excluded | 2/2 | 2/2 | 0/2 |
+
+The three approaches also kept all four metadata cases correct. The model files total about 149 MiB. In the measured development run with ONNX Runtime 1.32, the experiment peaked at about 275 MiB RSS. Building each set of experimental data took about 0.45 seconds for nine drawings. Median query latency was roughly 0.65 ms with stored tags and 4.4 ms with the similarity fallback, which computes the text vector at query time. The tag payload was 208 bytes and the in-memory vectors used 18 KiB, excluding storage overheads. Disk growth for tags happened to fit existing SQLite pages in this tiny run. These measurements describe the synthetic workload on x86-64. The script remains an offline experiment and the normal application has no model dependencies.
+
 ### Browser interface
 
 Run `python scripts/run_api.py` and open `http://127.0.0.1:8787/`. The browser asks for the chat token configured in `API_CHAT_TOKENS` for an authorized Telegram chat.

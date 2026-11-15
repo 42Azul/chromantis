@@ -8,6 +8,7 @@ import math
 import statistics
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -22,6 +23,7 @@ from chromantis.app import ApplicationService
 from chromantis.app.enrichment import CommandImageEnricher, enrich_images
 from chromantis.db.repository import Repository
 from chromantis.parsing.path_parser import PathParser
+from chromantis.search.service import SearchResult
 from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
@@ -122,15 +124,25 @@ def seed_curation(repository: Repository) -> None:
 
 def evaluate(repository: Repository, *, use_ocr: bool, repeat: int) -> dict:
     app = ApplicationService(repository, include_enrichment=use_ocr)
+    return evaluate_queries(lambda query: run_query(app, query), repeat)
+
+
+def run_query(app: ApplicationService, query: Query) -> list[SearchResult]:
+    if query.folders:
+        return app.search_folders(
+            query.text, LIMIT, place=query.place, date_from=query.date_from, date_to=query.date_to,
+        )
+    return app.search_images(query.text, LIMIT)
+
+
+def evaluate_queries(
+    search: Callable[[Query], list[SearchResult]], repeat: int, queries: tuple[Query, ...] = QUERIES,
+) -> dict:
     samples, cases = [], []
-    for query in QUERIES:
+    for query in queries:
         for _ in range(repeat):
             started = perf_counter()
-            if query.folders:
-                results = app.search_folders(query.text, LIMIT, place=query.place,
-                                             date_from=query.date_from, date_to=query.date_to)
-            else:
-                results = app.search_images(query.text, LIMIT)
+            results = search(query)
             samples.append((perf_counter() - started) * 1000)
         actual = {item.path for item in results}
         expected = set(query.expected)

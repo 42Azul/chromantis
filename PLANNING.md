@@ -407,35 +407,40 @@ Current architecture map:
 - Compare deterministic search and the existing local OCR adapter. OCR recovers all four written-text cases, including year and linked-person restrictions. The visual cases still have no matches.
 - Allow manual enrichment runs restricted to one album with the existing resumable index.
 
-## Ready Next
-
 ### MVP 14B — Local Visual Search Trial
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
-- Compare a small local caption/tag model through the existing enrichment adapter against an embedding approach on the visual cases from MVP 14A.
-- Use an explicitly launched batch with model/version provenance and measure indexing time, query latency and extra storage before selecting an approach for the NAS.
-- Keep year and person restrictions in effect for visual matches, and run the same metadata and negative queries to detect regressions.
+- Compare a fixed bilingual tag vocabulary through the existing adapter and a similarity fallback using the same quantized CLIP model, with a pinned revision and verified files.
+- Record build time, query latency and storage. Tags found the four original visual cases but missed a new paraphrase. Similarity found the paraphrase and one original case, and returned false positives for the wrong colour and setting.
+- Verify year and linked-person restrictions together and retain the existing metadata behavior.
 
 **Acceptance:** A visual query such as “red bicycle by the sea” can retrieve an unlabeled fixture. Results identify why they matched, and the baseline search works with the model disabled.
 
-## Planned Later
-
-### Optional EXIF GPS
-
-- Revisit only if manual places leave a specific retrieval gap, such as finding unlabelled photos from a known trip.
-- Reuse the bounded local JPEG header reader in a separate opt-in workflow. Define how the owner controls visibility and clears retained coordinates before storing any.
-- Validate activation and deletion on synthetic coordinates. Default extraction, browsing and search must continue to leave GPS out.
+## Ready Next
 
 ### MVP 15 — Guided Recall
 
-**Status:** `Planned Later`
+**Status:** `Ready Next`
 
 - Let users refine by person, date, or album across turns on Telegram and the web.
 - Ask one specific question when competing albums fit the same description.
 - Let users build named memory collections from selected photos and albums.
 
 **Acceptance:** “The beach trip with Ana” can be narrowed with “before 2020”, and the user can pin the resulting collection without moving the originals.
+
+## Planned Later
+
+### Optional visual curation
+
+- Consider a local batch of suggested visual tags for otherwise unlabeled albums if there is a sufficiently varied evaluation set with Spanish paraphrases and wrong-attribute examples.
+- Reuse the optional enrichment adapter and evaluate on a separate set before choosing a model or deploying it. Measure CPU and memory on the intended machine and check that the suggestions can be corrected.
+
+### Optional EXIF GPS
+
+- Revisit only if manual places leave a specific retrieval gap, such as finding unlabelled photos from a known trip.
+- Reuse the bounded local JPEG header reader in a separate opt-in workflow. Define how the owner controls visibility and clears retained coordinates before storing any.
+- Validate activation and deletion on synthetic coordinates. Default extraction, browsing and search must continue to leave GPS out.
 
 ### MVP 16 — Private Family Sharing and Recovery
 
