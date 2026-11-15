@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import tempfile
 import unittest
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
+
+from telegram import Update
 
 from chromantis.bot.telegram_bot import ChatSession, TelegramBotApp, TelegramBotService
 from chromantis.db.repository import Repository
@@ -614,6 +619,80 @@ class TelegramBotServiceTests(unittest.TestCase):
             if handler.__class__.__name__ == "CallbackQueryHandler"
         ]
         self.assertTrue(callback_handlers)
+
+    def test_telegram_dispatches_people_and_saved_search_buttons(self) -> None:
+        chat_id = OWNER_CHAT_ID
+        self.service.handle_command("/people add Ana", chat_id=chat_id)
+        self.service.handle_command("/folders city", chat_id=chat_id)
+        self.service.handle_callback("language:set:es", chat_id=chat_id)
+        app = TelegramBotApp(token="dummy-token", service=self.service).build()
+        bot_user = {"id": 123, "is_bot": True, "first_name": "Chromantis", "username": "chromantis_test_bot"}
+        user = {"id": chat_id, "is_bot": False, "first_name": "Owner"}
+        chat = {"id": chat_id, "type": "private"}
+        calls = []
+
+        async def request(_request, url, method, request_data=None, **kwargs):
+            action = url.rsplit("/", 1)[1]
+            parameters = request_data.parameters if request_data else {}
+            calls.append((action, parameters))
+            if action == "getMe":
+                result = bot_user
+            elif action == "answerCallbackQuery":
+                result = True
+            else:
+                self.assertEqual(action, "sendMessage")
+                result = {"message_id": len(calls), "date": 1, "chat": chat, "from": bot_user}
+            return 200, json.dumps({"ok": True, "result": result}).encode()
+
+        async def exercise_buttons():
+            update_id = 0
+
+            async def send(data):
+                nonlocal update_id
+                update_id += 1
+                await app.process_update(Update.de_json({"update_id": update_id, **data}, app.bot))
+
+            def button(label, parameters):
+                return next(
+                    button["callback_data"]
+                    for row in parameters["reply_markup"]["inline_keyboard"]
+                    for button in row
+                    if button["text"] == label
+                )
+
+            async def tap(callback_data):
+                call_count = len(calls)
+                await send({"callback_query": {
+                    "id": str(update_id), "from": user, "chat_instance": "test", "data": callback_data,
+                    "message": {"message_id": call_count, "date": 1, "chat": chat, "from": bot_user},
+                }})
+                self.assertEqual([action for action, _ in calls[call_count:]], ["answerCallbackQuery", "sendMessage"])
+                return calls[-1][1]
+
+            async with app:
+                await send({"message": {
+                    "message_id": 1, "date": 1, "chat": chat, "from": user, "text": "/start",
+                    "entities": [{"type": "bot_command", "offset": 0, "length": 6}],
+                }})
+                home = calls[-1][1]
+                people = await tap(button("Personas", home))
+                with self.subTest(menu="people"):
+                    person = await tap(button("Ana", people))
+                    self.assertIn("Ana", person["text"])
+                    prompt = await tap(button("Añadir alias", person))
+                    self.assertIn("alias", prompt["text"])
+                    self.assertIn("Ana", (await tap(button("Cancelar", prompt)))["text"])
+                with self.subTest(menu="history"):
+                    recent = await tap(button("Búsquedas recientes", home))
+                    recent = await tap(button("Fijar", recent))
+                    pinned = await tap(button("Búsquedas fijadas", recent))
+                    self.assertIn("Búsquedas fijadas", pinned["text"])
+                    self.assertIn("city", (await tap(button("Carpetas · city", pinned)))["text"])
+                    await tap(button("Desfijar", pinned))
+                    self.assertFalse(self.repository.list_saved_searches(chat_id, pinned_only=True))
+
+        with patch("telegram.request.HTTPXRequest.do_request", new=request):
+            asyncio.run(exercise_buttons())
 
     def test_settings_reports_current_language(self) -> None:
         self.service.handle_callback("language:set:es", chat_id=VIEWER_CHAT_ID)

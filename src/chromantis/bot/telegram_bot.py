@@ -19,7 +19,7 @@ from chromantis.search.service import SearchResult, SearchService
 logger = logging.getLogger(__name__)
 
 try:
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Message, Update
     from telegram.ext import (
         Application,
         CallbackQueryHandler,
@@ -32,6 +32,7 @@ except ImportError:  # pragma: no cover - optional runtime dependency
     InlineKeyboardButton = None
     InlineKeyboardMarkup = None
     InputMediaPhoto = None
+    Message = object
     Update = object
     Application = None
     CallbackQueryHandler = None
@@ -1654,9 +1655,7 @@ class TelegramBotApp:
             "stats",
         ):
             application.add_handler(CommandHandler(command, self._handle))
-        application.add_handler(
-            CallbackQueryHandler(self._handle_callback, pattern=r"^(nav:|settings:|language:)")
-        )
+        application.add_handler(CallbackQueryHandler(self._handle_callback))
         if MessageHandler is not None and filters is not None:
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_text))
         return application
@@ -1692,21 +1691,22 @@ class TelegramBotApp:
         await self._send_reply(update.message, reply)
 
     async def _handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not update.callback_query:
-            return
         query = update.callback_query
+        if query is None:
+            return
+        await query.answer()
+        if not isinstance(query.message, Message):
+            return
         chat_id = update.effective_chat.id if update.effective_chat else None
         username = update.effective_user.username if update.effective_user else None
         first_name = update.effective_user.first_name if update.effective_user else None
         reply = self.service.handle_callback(
-            query.data or "",
+            query.data if isinstance(query.data, str) else "",
             chat_id=chat_id,
             username=username,
             first_name=first_name,
         )
-        await query.answer()
-        if query.message:
-            await self._send_reply(query.message, reply)
+        await self._send_reply(query.message, reply)
 
     async def _send_reply(self, message, reply: BotReply) -> None:
         markup = self._build_markup(reply.buttons)
