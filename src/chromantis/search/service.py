@@ -3,9 +3,12 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 import sqlite3
 from dataclasses import dataclass
+from datetime import date
 from functools import lru_cache
+from itertools import islice
 
 from chromantis.db.repository import PersonDetail, PersonSummary, Repository, YearSummary
 from chromantis.parsing.path_parser import normalize_text
@@ -31,6 +34,8 @@ class SearchResult:
     year: int
     folder_path: str | None = None
     event_date: str | None = None
+    place: str | None = None
+    event_date_source: str | None = None
 
 
 class SearchService:
@@ -100,25 +105,48 @@ class SearchService:
         )
         return detail
 
-    def search_folders(self, raw_query: str, limit: int = 10) -> list[SearchResult]:
+    def search_folders(
+        self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
+        date_to: str | None = None, chronological: bool = False, offset: int = 0,
+    ) -> list[SearchResult]:
         query = self._parse_query(raw_query)
+        date_from, date_to = _calendar_date(date_from), _calendar_date(date_to)
+        if date_from and date_to and date_from > date_to:
+            raise ValueError("The start date must be on or before the end date.")
+        place_filter = _place_phrase(place)
+        if place.strip() and (not place_filter or len(place) > 120):
+            raise ValueError("Enter a place name of up to 120 characters.")
+        predicates, values = [], []
+        for operator, boundary in ((">=", date_from), ("<=", date_to)):
+            if boundary:
+                predicates.append(f"f.event_date {operator} ?")
+                values.append(boundary)
+        if place_filter:
+            predicates.append("f.place IS NOT NULL")
+        where = "WHERE " + " AND ".join(predicates) if predicates else ""
+        order = ("COALESCE(f.event_date, printf('%04d-00-00', f.year)) DESC"
+                 if chronological else "f.year DESC")
         logger.debug("Searching folders raw_query=%r parsed_query=%s limit=%d", raw_query, query, limit)
         with self.repository.connect() as connection:
             rows = connection.execute(
                 f"""
                 SELECT f.folder_path, f.title, f.year, f.event_date, f.indexed_title, f.indexed_year, f.aliases_json,
+                       f.place, f.date_override,
                        {_FOLDER_TAGS_SQL} AS tags,
                        GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                        GROUP_CONCAT(DISTINCT p.display_name) AS people_names
                 FROM album_metadata f
                 LEFT JOIN folder_people fp ON fp.folder_id = f.id
                 LEFT JOIN people p ON p.id = fp.person_id
+                {where}
                 GROUP BY f.id
-                ORDER BY f.year DESC, f.folder_path ASC
-                """
-            ).fetchall()
-        matches = [self._folder_result(row, query) for row in rows]
-        results = [result for result in matches if result][:limit]
+                ORDER BY {order}, f.folder_path ASC
+                """,
+                values,
+            )
+            matches = (self._folder_result(row, query, place_filter) for row in rows)
+            found = (item for item in matches if item is not None)
+            results = list(islice(found, offset, offset + limit)) if limit >= 0 else list(found)[offset:][:limit]
         logger.info("Folder search query=%r returned %d results", raw_query, len(results))
         return results
 
@@ -289,11 +317,18 @@ class SearchService:
         )
         return results
 
-    def _folder_result(self, row: sqlite3.Row, query: ParsedQuery) -> SearchResult | None:
+    def _folder_result(self, row: sqlite3.Row, query: ParsedQuery, place_filter: str) -> SearchResult | None:
         tokens = set((row["tags"] or "").split(",")) if row["tags"] else set()
-        reasons = self._match_reasons(query, row, tokens)
+        place = row["place"]
+        place_phrase = _place_phrase(place) if place else ""
+        if place_filter and f" {place_filter} " not in f" {place_phrase} ":
+            return None
+        reasons = self._match_reasons(query, row, tokens, album_place=place, place_phrase=place_phrase)
         if not reasons:
             return None
+        if place_filter:
+            reasons = [reason for reason in reasons if reason != "all"]
+            reasons = list(dict.fromkeys([*reasons, f'place="{place}"']))
         return SearchResult(
             kind="folder",
             path=row["folder_path"],
@@ -302,6 +337,9 @@ class SearchService:
             year=row["year"],
             folder_path=row["folder_path"],
             event_date=row["event_date"],
+            place=place,
+            event_date_source=("album_correction" if row["date_override"] else "folder_name")
+            if row["event_date"] else None,
         )
 
     def _image_result(self, row: sqlite3.Row, query: ParsedQuery) -> SearchResult | None:
@@ -360,6 +398,8 @@ class SearchService:
         tags: set[str],
         filename: str = "",
         enrichment_text: str = "",
+        album_place: str | None = None,
+        place_phrase: str = "",
     ) -> list[str]:
         year = row["year"]
         aliases = _normalized_aliases(row["aliases_json"]) if row["aliases_json"] else ()
@@ -409,6 +449,8 @@ class SearchService:
                 reasons.append(f'album_alias="{alias}"')
             elif keyword in tags:
                 reasons.append(f'tag="{keyword}"')
+            elif keyword in place_phrase.split():
+                reasons.append(f'place="{album_place}"')
             elif keyword in enrichment_text:
                 reasons.append(f'enrichment~"{keyword}"')
             else:
@@ -417,6 +459,20 @@ class SearchService:
             reasons.append("all")
         return list(dict.fromkeys(reasons))
 
+
+def _calendar_date(value: str | None) -> str | None:
+    if value is None:
+        return None
+    try:
+        if date.fromisoformat(value).isoformat() == value:
+            return value
+    except ValueError:
+        pass
+    raise ValueError("Use a valid calendar date in YYYY-MM-DD format.")
+
+
+def _place_phrase(value: str) -> str:
+    return " ".join(re.findall(r"[^\W_]+", normalize_text(value)))
 
 @lru_cache(maxsize=128)
 def _normalized_aliases(aliases_json: str) -> tuple[tuple[str, str], ...]:

@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from chromantis.db.schema import SCHEMA_SQL
+from chromantis.db.schema import ALBUM_METADATA_VIEW_SQL, SCHEMA_SQL
 from chromantis.parsing.path_parser import ParsedImageRecord, normalize_text
 
 
@@ -131,6 +131,7 @@ class Repository:
     def init_schema(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA_SQL)
+            connection.execute("BEGIN IMMEDIATE")
             self._migrate_schema(connection)
             connection.commit()
 
@@ -1499,6 +1500,11 @@ class Repository:
         return any(row["name"] == column_name for row in rows)
 
     def _migrate_schema(self, connection: sqlite3.Connection) -> None:
+        if not self._has_column(connection, "album_context", "place"):
+            connection.execute("ALTER TABLE album_context ADD COLUMN place TEXT")
+        if not self._has_column(connection, "album_metadata", "place"):
+            connection.execute("DROP VIEW IF EXISTS album_metadata")
+            connection.execute(ALBUM_METADATA_VIEW_SQL)
         if not self._has_column(connection, "authorized_chats", "role"):
             connection.execute(
                 "ALTER TABLE authorized_chats ADD COLUMN role TEXT NOT NULL DEFAULT 'viewer'"

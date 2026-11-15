@@ -384,6 +384,8 @@ class TelegramBotService:
             return self._handle_people(command_text=command_text, chat_id=chat_id, language=language)
         if command == "/album":
             return self._handle_album(args, chat_id, language)
+        if command == "/timeline":
+            return self._handle_timeline(args, language)
         if command == "/folders":
             try:
                 results = self.app_service.search_folders(args)
@@ -789,6 +791,30 @@ class TelegramBotService:
         text = self._t(language, f"saved_{kind}_title" if searches else f"saved_{kind}_empty")
         return BotReply(text, buttons=tuple(rows))
 
+    def _handle_timeline(self, args: str, language: str) -> BotReply:
+        when, _, place = args.partition("|")
+        start, separator, end = when.partition("..")
+        date_from = (start.strip() or None) if separator else None
+        date_to = (end.strip() or None) if separator else None
+        if separator and not (date_from or date_to):
+            return BotReply(self._t(language, "timeline_usage"))
+        try:
+            albums = self.app_service.search_folders(
+                "" if separator else when.strip(), limit=6, chronological=True,
+                place=place.strip(), date_from=date_from, date_to=date_to,
+            )
+        except ValueError:
+            return BotReply(self._t(language, "timeline_usage"))
+        if not albums:
+            return BotReply(self._t(language, "no_results_folders"))
+        lines = [self._t(language, "timeline_title")]
+        for album in albums:
+            source = self._t(language, f"timeline_date_{album.event_date_source or 'year'}")
+            label = f"{album.event_date or album.year} ({source})"
+            location = f" · {album.place}" if album.place else ""
+            lines.append(f"- {label} · {album.title}{location}\n  {album.path}")
+        return BotReply("\n".join(lines))
+
     def _handle_album(self, args: str, chat_id: int | None, language: str) -> BotReply:
         if chat_id is None or not self._is_admin(chat_id):
             return BotReply(self._t(language, "album_requires_admin"))
@@ -802,7 +828,7 @@ class TelegramBotService:
                 return BotReply(self._t(language, "album_not_found"))
             if len(parts) == 3:
                 _, key, value = parts
-                fields = {"title": "title", "date": "event_date", "note": "note", "aliases": "aliases"}
+                fields = {"title": "title", "date": "event_date", "note": "note", "aliases": "aliases", "place": "place"}
                 if key not in fields:
                     return BotReply(self._t(language, "album_usage"))
                 change = [alias.strip() for alias in value.splitlines() if alias.strip()] if key == "aliases" else value
@@ -814,7 +840,7 @@ class TelegramBotService:
         return BotReply(self._t(
             language, "album_context_text", title=item["title"], path=path, date=item["event_date"] or item["year"],
             indexed_title=item["indexed_title"], indexed_date=item["indexed_date"] or item["indexed_year"],
-            aliases=" / ".join(item["aliases"]) or "—", note=item["note"] or "—",
+            aliases=" / ".join(item["aliases"]) or "—", note=item["note"] or "—", place=item["place"] or "—",
         ))
 
     def _handle_people(self, command_text: str, chat_id: int | None, language: str) -> BotReply:
@@ -1596,6 +1622,7 @@ class TelegramBotApp:
             "more",
             "people",
             "album",
+            "timeline",
             "invite",
             "authorized",
             "whoami",

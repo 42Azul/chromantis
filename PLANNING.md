@@ -31,6 +31,7 @@ Chromantis currently provides:
 - album aliases, notes, and title and date corrections shared by the browser and Telegram
 - optional local thumbnails with a disk budget and an index freshness indicator
 - opt-in JPEG capture dates with separate camera, album and file-time provenance
+- manually curated album places and a dated timeline shared by the browser, API and Telegram
 
 Not implemented yet:
 
@@ -388,28 +389,36 @@ Current architecture map:
 
 **Acceptance:** A photo with an inconsistent folder date and EXIF date exposes both values with sources. An unchanged JPEG does not need to be read again.
 
-## Ready Next
-
 ### MVP 13B — Album Places and Timeline
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
-- Support manually curated locations and make embedded GPS indexing opt-in.
-- Build a timeline and expose date- and place-based queries through the API and Telegram.
+- Store an optional place in the existing album context and reuse its edit permissions.
+- Browse by date and place from the family web, local API and Telegram. Show where each date came from.
+- Use curated labels for place matching and keep GPS outside the album index.
 
 **Acceptance:** Find a curated album by place and year, see the source of its date, and verify that private GPS metadata stays outside the default index.
 
-## Planned Later
+## Ready Next
 
 ### MVP 14 — Local Semantic Search
 
-**Status:** `Planned Later`
+**Status:** `Ready Next`
 
+- Measure lexical search on a small synthetic evaluation set before adding any model or dependency.
 - Add optional local image and text embeddings with model/version provenance and a bounded background queue.
 - Combine lexical and semantic candidates while keeping year and person filters enforced across both.
 - Build a synthetic evaluation set with realistic queries, and compare recall and latency against lexical search on the NAS.
 
 **Acceptance:** A visual query such as “red bicycle by the sea” can retrieve an unlabeled fixture. Results identify why they matched, and the baseline search works with the model disabled.
+
+## Planned Later
+
+### Optional EXIF GPS
+
+- Revisit only if manual places leave a specific retrieval gap, such as finding unlabelled photos from a known trip.
+- Reuse the bounded local JPEG header reader in a separate opt-in workflow. Define how the owner controls visibility and clears retained coordinates before storing any.
+- Validate activation and deletion on synthetic coordinates. Default extraction, browsing and search must continue to leave GPS out.
 
 ### MVP 15 — Guided Recall
 

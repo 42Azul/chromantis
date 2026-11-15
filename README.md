@@ -364,6 +364,12 @@ Para dar acceso de curación a un familiar, conserva su rol de lector y añade s
 
 En Telegram, un administrador puede usar `/album <ruta>` para ver los detalles y `/album <ruta> | title | <título>` para editarlos. Usa `date` con el formato `AAAA-MM-DD`, `note` para la nota o `aliases` para sustituir la lista, con un alias por línea. Deja el valor vacío para borrarlo. La ruta es la que muestra `/folders`.
 
+#### Lugares y cronología
+
+En **Detalles del álbum**, puedes escribir o borrar el **Lugar del álbum**, por ejemplo *Cabo de Palos, Murcia*. Busca «Palos 2024» en álbumes o abre **Cronología de álbumes** para filtrar por lugar y fechas. La cronología ordena de más reciente a más antiguo y señala si cada fecha sale de la carpeta o de una corrección. Los álbumes sin fecha completa aparecen por año cuando dejas el intervalo vacío. El lugar describe el álbum en conjunto y se guarda como texto en SQLite, fuera de los originales.
+
+En Telegram, `/album <ruta> | place | <lugar>` edita el lugar con permisos de administración. Cualquier lector autorizado puede consultar los seis primeros resultados de `/timeline 2024 | Cartagena` o `/timeline 2024-06-01..2024-08-31 | Cartagena`. La API local ofrece los mismos filtros en `GET /api/v1/folders` con `sort=timeline`, `place`, `date_from` y `date_to` (fechas inclusive). También acepta la consulta habitual `q` y la paginación con `offset` y `limit`.
+
 #### Acceso familiar sin Telegram
 
 Con la API protegida por `API_CHAT_TOKENS` o `API_TOKEN`, el propietario puede crear un código para cada navegador desde la terminal del NAS:

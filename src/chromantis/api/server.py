@@ -159,7 +159,8 @@ def _dispatch(
             return 200, {"item": asdict(app_service.interpret_text(text))}
         if method == "GET":
             result = _query_route(path, params, app_service)
-            if path == "/api/v1/folders" and chat_id is not None:
+            if (path == "/api/v1/folders" and chat_id is not None
+                    and not {"sort", "place", "date_from", "date_to", "offset"} & params.keys()):
                 q = params.get("q", [""])[0]
                 limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
                 app_service.remember_search(chat_id, "folders", q, limit)
@@ -422,7 +423,18 @@ def _query_route(
     if path == "/api/v1/folders":
         query = params.get("q", [""])[0]
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
-        return 200, {"items": [asdict(item) for item in app_service.search_folders(query, limit=limit)]}
+        order = params.get("sort", ["default"])[0]
+        if order not in {"default", "timeline"}:
+            raise ValueError("sort must be default or timeline.")
+        offset = _optional_int(params.get("offset", [None])[0]) or 0
+        if not 0 <= offset < 2**63 - limit:
+            raise ValueError("Invalid offset.")
+        items = app_service.search_folders(
+            query, limit=limit, offset=offset, chronological=order == "timeline",
+            place=params.get("place", [""])[0], date_from=params.get("date_from", [None])[0],
+            date_to=params.get("date_to", [None])[0],
+        )
+        return 200, {"items": [asdict(item) for item in items]}
     if path == "/api/v1/images":
         query = params.get("q", [""])[0]
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)

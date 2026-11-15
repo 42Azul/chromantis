@@ -88,6 +88,8 @@ function signOut() {
     element("p", {}, "Select a person to see their folders."));
   $("year").replaceChildren(element("option", { value: "" }, "All years"));
   $("search-form").reset();
+  $("timeline-form").reset();
+  $("timeline").open = false;
   message("result-count");
   message("archive-status");
   message("archive-health");
@@ -109,6 +111,11 @@ function setArchiveMode(family) {
   message("query-label", family ? "Buscar en el archivo" : "Search the archive");
   message("archive-search", family ? "Buscar" : "Search");
   message("results-title", family ? "Álbumes" : "Results");
+  message("timeline-label", family ? "Cronología de álbumes" : "Album timeline");
+  message("timeline-search", family ? "Ver cronología" : "Show timeline");
+  message("place-filter-label", family ? "Lugar" : "Place");
+  message("date-from-label", family ? "Desde" : "From");
+  message("date-to-label", family ? "Hasta" : "To");
   $("query").placeholder = family ? "Ana, playa, 2024" : "Try beach 2021";
   for (const id of ["year", "scope", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
   $("search-form").classList.toggle("family-search", family);
@@ -213,9 +220,19 @@ async function archiveRequest(action, arguments_ = {}) {
   const family = principal?.auth_mode === "family";
   message("archive-status", family ? "Buscando…" : "Loading…");
   try {
-    if (action === "folders") {
-      const { items } = await api("/folders" + queryParams({ q: arguments_.q, limit: 30 }));
-      if (request === requestNumber) renderFolders(items);
+    if (action === "folders" || action === "timeline") {
+      const timeline = action === "timeline";
+      const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 } : { q: arguments_.q, limit: 30 };
+      const { items } = await api("/folders" + queryParams(params));
+      if (request !== requestNumber) return;
+      renderFolders(items.slice(0, 30), timeline);
+      if (timeline) {
+        const offset = arguments_.offset || 0;
+        if (offset) $("browsing").append(button(family ? "Página anterior" : "Previous page",
+          () => archiveRequest("timeline", { ...arguments_, offset: offset - 30 })));
+        if (items.length > 30) $("browsing").append(button(family ? "Página siguiente" : "Next page",
+          () => archiveRequest("timeline", { ...arguments_, offset: offset + 30 })));
+      }
     } else {
       const batch = await api("/browse", { method: "POST", data: { action, ...arguments_ } });
       if (request === requestNumber) {
@@ -229,17 +246,28 @@ async function archiveRequest(action, arguments_ = {}) {
   }
 }
 
-function renderFolders(items) {
+function renderFolders(items, timeline = false) {
   const family = principal?.auth_mode === "family";
   resetPhotos();
   message("archive-status", items.length ? "" : family ? "No se han encontrado álbumes." : "No matching folders.");
-  $("results-title").textContent = family ? "Álbumes" : "Folders";
+  $("results-title").textContent = timeline ? (family ? "Cronología" : "Timeline") : (family ? "Álbumes" : "Folders");
   $("result-count").textContent = family ? String(items.length) : `${items.length} shown`;
   $("browsing").replaceChildren();
+  $("results").classList.toggle("timeline-results", timeline);
   $("results").replaceChildren(...items.map(item => {
     const card = button("", () => family ? showView("album-review", { path: item.path }) :
       archiveRequest("open_folder", { folder: item.path }), "folder-card");
-    card.append(element("strong", {}, item.title), element("span", {}, item.path));
+    card.append(element("strong", {}, item.title));
+    const details = [];
+    if (timeline) {
+      const sources = family
+        ? { album_correction: "fecha corregida", folder_name: "fecha de carpeta", year: "año del índice" }
+        : { album_correction: "corrected date", folder_name: "folder date", year: "indexed year" };
+      details.push(`${item.event_date || item.year} (${sources[item.event_date_source || "year"]})`);
+    }
+    if (item.place) details.push(item.place);
+    if (details.length) card.append(element("span", {}, details.join(" · ")));
+    card.append(element("span", {}, item.path));
     if (/album_alias=|album_title[=~]|year_corrected=/.test(item.reason)) {
       const reason = family ? item.reason
         .replaceAll("album_alias=", "Alias ")
@@ -253,6 +281,7 @@ function renderFolders(items) {
 
 function renderBatch(batch) {
   resetPhotos();
+  $("results").classList.remove("timeline-results");
   message("archive-status", batch.items.length ? "" : "No matching photos.");
   $("results-title").textContent = "Photos";
   $("result-count").textContent = `${batch.items.length} shown`;
@@ -590,6 +619,7 @@ function albumContextEditor(album, heading, date, request) {
   const dateInput = element("input", { type: "date" });
   const aliasInput = element("textarea", { rows: 3, maxlength: 647 });
   const noteInput = element("textarea", { rows: 3, maxlength: 500 });
+  const placeInput = element("input", { type: "text", maxlength: 120 });
   const submit = element("button", { type: "submit" }, "Guardar detalles");
   const status = element("p", { class: "message", "aria-live": "polite" });
   let revision = album.context_revision;
@@ -598,6 +628,7 @@ function albumContextEditor(album, heading, date, request) {
     dateInput.value = item.date_override || "";
     aliasInput.value = item.aliases.join("\n");
     noteInput.value = item.note || "";
+    placeInput.value = item.place || "";
   }
   populate(album);
   const form = element("form", { class: "stack album-context" },
@@ -606,6 +637,7 @@ function albumContextEditor(album, heading, date, request) {
     element("label", {}, "Fecha corregida", dateInput),
     element("p", {}, "Deja vacío el título o la fecha para usar el valor del índice."),
     element("label", {}, "Alias, uno por línea", aliasInput),
+    element("label", {}, "Lugar del álbum", placeInput),
     element("label", {}, "Nota del álbum", noteInput), submit, status);
   form.addEventListener("submit", async event => {
     event.preventDefault();
@@ -615,7 +647,7 @@ function albumContextEditor(album, heading, date, request) {
       const { item } = await api("/album-review/context", { method: "PATCH", data: {
         id: album.id, path: album.path, revision,
         changes: {
-          title: titleInput.value, event_date: dateInput.value, note: noteInput.value,
+          title: titleInput.value, event_date: dateInput.value, note: noteInput.value, place: placeInput.value,
           aliases: aliasInput.value.split("\n").map(alias => alias.trim()).filter(Boolean),
         },
       } });
@@ -889,6 +921,12 @@ $("search-form").addEventListener("submit", event => {
   const q = [keywords, year].filter(Boolean).join(" ");
   const folders = principal?.auth_mode === "family" || $("scope").value === "folders";
   archiveRequest(folders ? "folders" : "search", { q });
+});
+$("timeline-form").addEventListener("submit", event => {
+  event.preventDefault();
+  archiveRequest("timeline", {
+    place: $("place-filter").value.trim(), date_from: $("timeline-from").value, date_to: $("timeline-to").value,
+  });
 });
 $("random").addEventListener("click", () => archiveRequest("random", { q: $("year").value }));
 $("recent").addEventListener("click", () => { pinnedOnly = false; showView("searches"); });

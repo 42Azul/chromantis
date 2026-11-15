@@ -63,6 +63,16 @@
           <button type="button" id="random">Surprise me</button>
         </form>
 
+        <details id="timeline" class="timeline">
+          <summary id="timeline-label">Album timeline</summary>
+          <form id="timeline-form">
+            <label><span id="place-filter-label">Place</span><input id="place-filter" type="text" maxlength="120"></label>
+            <label><span id="date-from-label">From</span><input id="timeline-from" type="date"></label>
+            <label><span id="date-to-label">To</span><input id="timeline-to" type="date"></label>
+            <button id="timeline-search" type="submit">Show timeline</button>
+          </form>
+        </details>
+
         <div class="results-header"><h2 id="results-title">Results</h2><span id="result-count"></span></div>
         <p id="archive-status" class="message" aria-live="polite"></p>
         <div id="results" class="photo-grid"></div>

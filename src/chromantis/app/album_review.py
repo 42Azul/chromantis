@@ -41,7 +41,7 @@ def review_folder(
     sql = """
         SELECT f.id, f.folder_path AS path, f.title, f.event_date, f.year, f.folder_name_raw,
                f.indexed_title, f.indexed_date, f.indexed_year,
-               f.title_override, f.date_override, f.note, f.aliases_json, f.context_revision,
+               f.title_override, f.date_override, f.note, f.aliases_json, f.context_revision, f.place,
                COALESCE(r.revision, 0) AS revision
         FROM album_metadata f LEFT JOIN album_reviews r ON r.folder_id = f.id
     """
@@ -91,16 +91,20 @@ def save_context(connection: Connection, folder, changes: dict[str, object]) -> 
         "title": folder["title_override"],
         "event_date": folder["date_override"],
         "note": folder["note"],
+        "place": folder["place"],
         "aliases": json.loads(folder["aliases_json"] or "[]"),
     }
     if not changes or changes.keys() - current.keys():
         raise ValueError("Indica qué detalles del álbum quieres cambiar.")
     updated = {**current, **changes}
-    for key, limit in (("title", 160), ("note", 500), ("event_date", 10)):
+    for key, limit in (("title", 160), ("note", 500), ("event_date", 10), ("place", 120)):
         value = updated[key]
         if value is not None and (not isinstance(value, str) or len(value.strip()) > limit):
             raise ValueError(f"El campo {key} admite hasta {limit} caracteres.")
         updated[key] = (value.strip() or None) if value else None
+    place = updated["place"]
+    if place is not None and (not place.isprintable() or not any(ch.isalnum() for ch in place)):
+        raise ValueError("Escribe el lugar en una sola línea.")
     event_date = updated["event_date"]
     if event_date is not None:
         try:
@@ -122,12 +126,13 @@ def save_context(connection: Connection, folder, changes: dict[str, object]) -> 
     if updated == current:
         return False
     connection.execute(
-        """INSERT INTO album_context (folder_id, title, event_date, note, aliases_json, revision)
-           VALUES (?, ?, ?, ?, ?, ?)
+        """INSERT INTO album_context (folder_id, title, event_date, note, aliases_json, revision, place)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT (folder_id) DO UPDATE SET title = excluded.title, event_date = excluded.event_date,
-               note = excluded.note, aliases_json = excluded.aliases_json, revision = excluded.revision""",
+               note = excluded.note, aliases_json = excluded.aliases_json, revision = excluded.revision,
+               place = excluded.place""",
         (folder["id"], updated["title"], updated["event_date"], updated["note"], json.dumps(updated["aliases"]),
-         folder["context_revision"] + 1),
+         folder["context_revision"] + 1, place),
     )
     return True
 
