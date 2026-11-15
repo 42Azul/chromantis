@@ -30,7 +30,8 @@ function message(id, text = "") {
 }
 
 async function api(path, { method = "GET", data, signal, raw = false } = {}) {
-  const headers = { Authorization: `Bearer ${token}` };
+  const connection = connectionNumber;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
   if (data !== undefined) headers["Content-Type"] = "application/json";
   const response = await fetch(`/api/v1${path}`, {
     method, headers, signal, cache: "no-store",
@@ -38,6 +39,11 @@ async function api(path, { method = "GET", data, signal, raw = false } = {}) {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
+    if (response.status === 401 && connection === connectionNumber && principal?.auth_mode === "family") {
+      signOut();
+      $("family-sign-in").open = true;
+      message("family-login-error", "La sesión familiar ha caducado. Pide otro código para volver a entrar.");
+    }
     const error = new Error(payload.error || `Request failed (${response.status}).`);
     error.status = response.status;
     throw error;
@@ -81,13 +87,29 @@ function signOut() {
   message("result-count");
   message("archive-status");
   message("results-title", "Results");
+  message("account");
+  message("account-role");
   $("navigation").hidden = true;
   $("connection").hidden = true;
   $("sign-in").hidden = false;
   $("token").focus();
 }
 
-async function signIn(value) {
+function setArchiveMode(family) {
+  $("archive").lang = family ? "es" : "en";
+  $("archive-nav").lang = $("archive").lang;
+  $("archive-nav").textContent = family ? "Buscar álbumes" : "Archive";
+  message("archive-title", family ? "Buscar álbumes" : "Photo archive");
+  message("archive-description", family ? "Busca por nombre, persona o año." : "Search by folder name, person, or year.");
+  message("query-label", family ? "Buscar en el archivo" : "Search the archive");
+  message("archive-search", family ? "Buscar" : "Search");
+  message("results-title", family ? "Álbumes" : "Results");
+  $("query").placeholder = family ? "Ana, playa, 2024" : "Try beach 2021";
+  for (const id of ["year", "scope", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
+  $("search-form").classList.toggle("family-search", family);
+}
+
+async function signIn(value, { quiet = false, familyLogin = false } = {}) {
   token = value;
   const connection = ++connectionNumber;
   const initialRequest = requestNumber;
@@ -97,7 +119,10 @@ async function signIn(value) {
     if (connection !== connectionNumber) return;
     principal = item;
     canCurateAlbums = can_curate_albums;
-    sessionStorage.setItem("chromantis.chatToken", token);
+    if (token) sessionStorage.setItem("chromantis.chatToken", token);
+    else sessionStorage.removeItem("chromantis.chatToken");
+    const family = principal.auth_mode === "family";
+    setArchiveMode(family);
     $("token").value = "";
     $("sign-in").hidden = true;
     $("navigation").hidden = false;
@@ -105,9 +130,11 @@ async function signIn(value) {
     $("admin-nav").hidden = !isAdmin();
     $("album-review-nav").hidden = !canCurateAlbums;
     $("account").textContent = principal.first_name || principal.username || `Chat ${principal.chat_id}`;
-    $("account-role").textContent = principal.role;
+    $("account-role").textContent = family ? "Acceso familiar" : principal.role;
+    $("disconnect").textContent = family ? "Cerrar sesión" : "Sign out";
     const initialView = canCurateAlbums && principal.role === "viewer" ? "album-review" : "archive";
     await showView(initialView);
+    if (family) return;
     Promise.all([api("/stats"), api("/years")]).then(([{ item }, { items }]) => {
       if (connection !== connectionNumber) return;
       $("statistics").replaceChildren(...Object.entries({
@@ -132,8 +159,10 @@ async function signIn(value) {
     }
   } catch (error) {
     if (connection !== connectionNumber) return;
+    if (quiet && error.status === 401) return;
     signOut();
-    message("login-error", error.status === 401 ? "That chat token could not be verified." : error.message);
+    if (familyLogin) message("family-login-error", error.message);
+    else message("login-error", error.status === 401 ? "That chat token could not be verified." : error.message);
   }
 }
 
@@ -157,7 +186,8 @@ async function showView(view, albumOptions) {
 
 async function archiveRequest(action, arguments_ = {}) {
   const request = ++requestNumber;
-  message("archive-status", "Loading…");
+  const family = principal?.auth_mode === "family";
+  message("archive-status", family ? "Buscando…" : "Loading…");
   try {
     if (action === "folders") {
       const { items } = await api("/folders" + queryParams({ q: arguments_.q, limit: 30 }));
@@ -176,13 +206,15 @@ async function archiveRequest(action, arguments_ = {}) {
 }
 
 function renderFolders(items) {
+  const family = principal?.auth_mode === "family";
   resetPhotos();
-  message("archive-status", items.length ? "" : "No matching folders.");
-  $("results-title").textContent = "Folders";
-  $("result-count").textContent = `${items.length} shown`;
+  message("archive-status", items.length ? "" : family ? "No se han encontrado álbumes." : "No matching folders.");
+  $("results-title").textContent = family ? "Álbumes" : "Folders";
+  $("result-count").textContent = family ? String(items.length) : `${items.length} shown`;
   $("browsing").replaceChildren();
   $("results").replaceChildren(...items.map(item => {
-    const card = button("", () => archiveRequest("open_folder", { folder: item.path }), "folder-card");
+    const card = button("", () => family ? showView("album-review", { path: item.path }) :
+      archiveRequest("open_folder", { folder: item.path }), "folder-card");
     card.append(element("strong", {}, item.title), element("span", {}, item.path));
     return card;
   }));
@@ -661,14 +693,41 @@ $("login-form").addEventListener("submit", async event => {
   await signIn($("token").value.trim());
   submit.disabled = false;
 });
-$("disconnect").addEventListener("click", signOut);
+$("family-login-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = event.currentTarget.querySelector("button");
+  const code = $("family-code").value.trim();
+  $("family-code").value = "";
+  message("family-login-error");
+  submit.disabled = true;
+  try {
+    await api("/family/session", { method: "POST", data: { code } });
+    await signIn("", { familyLogin: true });
+  } catch (error) {
+    message("family-login-error", error.message);
+  } finally {
+    submit.disabled = false;
+  }
+});
+$("disconnect").addEventListener("click", async () => {
+  if (principal?.auth_mode === "family") {
+    try {
+      await api("/family/session", { method: "DELETE" });
+    } catch (error) {
+      message("account-role", error.message);
+      return;
+    }
+  }
+  signOut();
+});
 $("search-form").addEventListener("submit", event => {
   event.preventDefault();
   const year = $("year").value;
   const text = $("query").value.trim();
   const keywords = year ? text.replace(/\b(?:19|20)\d{2}(?:\s*[-–]\s*(?:19|20)\d{2})?\b/g, "").trim() : text;
   const q = [keywords, year].filter(Boolean).join(" ");
-  archiveRequest($("scope").value === "folders" ? "folders" : "search", { q });
+  const folders = principal?.auth_mode === "family" || $("scope").value === "folders";
+  archiveRequest(folders ? "folders" : "search", { q });
 });
 $("random").addEventListener("click", () => archiveRequest("random", { q: $("year").value }));
 $("recent").addEventListener("click", () => { pinnedOnly = false; showView("searches"); });
@@ -678,4 +737,4 @@ for (const tab of document.querySelectorAll("[data-view]")) {
 }
 
 const rememberedToken = sessionStorage.getItem("chromantis.chatToken");
-if (rememberedToken) signIn(rememberedToken);
+signIn(rememberedToken || "", { quiet: !rememberedToken });

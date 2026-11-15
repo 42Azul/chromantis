@@ -12,10 +12,10 @@
     <aside class="sidebar">
       <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>Chromantis</a>
       <nav id="navigation" aria-label="Main navigation" hidden>
-        <button data-view="archive" aria-current="page">Archive</button>
-        <button data-view="people">People</button>
+        <button data-view="archive" id="archive-nav" aria-current="page">Archive</button>
+        <button data-view="people" id="people-nav">People</button>
         <button data-view="album-review" id="album-review-nav" lang="es" hidden>Etiquetar álbumes</button>
-        <button data-view="searches">Saved searches</button>
+        <button data-view="searches" id="searches-nav">Saved searches</button>
         <button data-view="admin" id="admin-nav" hidden>Administration</button>
       </nav>
       <div class="sidebar-bottom" id="connection" hidden>
@@ -34,22 +34,31 @@
           <button class="primary" type="submit">Connect</button>
           <p id="login-error" class="message" role="alert"></p>
         </form>
+        <details id="family-sign-in" lang="es">
+          <summary>Acceso familiar</summary>
+          <form id="family-login-form">
+            <label for="family-code">Código de invitación</label>
+            <input id="family-code" type="password" autocomplete="off" required maxlength="43">
+            <button class="primary" type="submit">Entrar</button>
+            <p id="family-login-error" class="message" role="alert"></p>
+          </form>
+        </details>
       </section>
 
       <section id="archive" hidden>
         <header class="page-header">
-          <div><h1>Photo archive</h1><p>Search by folder name, person, or year.</p></div>
+          <div><h1 id="archive-title">Photo archive</h1><p id="archive-description">Search by folder name, person, or year.</p></div>
           <div id="statistics" class="statistics"></div>
         </header>
 
         <form id="search-form" class="search-bar">
-          <label class="sr-only" for="query">Search the archive</label>
+          <label class="sr-only" id="query-label" for="query">Search the archive</label>
           <input id="query" type="search" placeholder="Try beach 2021" autocomplete="off">
           <label class="sr-only" for="year">Year</label>
           <select id="year" aria-label="Year"><option value="">All years</option></select>
           <label class="sr-only" for="scope">Result type</label>
           <select id="scope" aria-label="Result type"><option value="images">Photos</option><option value="folders">Folders</option></select>
-          <button class="primary" type="submit">Search</button>
+          <button class="primary" id="archive-search" type="submit">Search</button>
           <button type="button" id="random">Surprise me</button>
         </form>
 

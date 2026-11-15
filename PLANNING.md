@@ -27,6 +27,7 @@ Chromantis currently provides:
 - incremental indexing with stored sync summaries, a cron recipe, and bounded enrichment retries
 - a browser interface for visual search, browsing, people, saved searches, and role-based administration
 - browser-based album review with name-only tag suggestions, manual tags, curated people and limited viewer permissions
+- local browser-only family sign-in with one-time codes and revocable SQLite sessions
 
 Not implemented yet:
 
@@ -337,18 +338,19 @@ Current architecture map:
 
 **Acceptance:** Select Ana (or her alias), save and find the album by searching Ana. Reindex and verify that tags, decisions and the person link survive. Cover migration and restricted permissions with synthetic fixtures.
 
-## Ready Next
-
 ### MVP 11B — Local Family Web Sign-in
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Let a family member curate from a mobile browser on the home network without registering through Telegram.
 
-- Reuse the album review permission. Prototype a local, revocable web session with the existing SQLite and HTTP stack before adding dependencies.
-- Keep the current browser token and Telegram paths available and keep the archive on the trusted network.
+- The owner issues one-time codes and revokes sessions from the NAS CLI. Only hashes are stored in SQLite.
+- Family members redeem a code in the local web app and can return to album review and search with the same browser. The session is scoped to album review, folder search and indexed previews.
+- Existing Telegram and browser-token flows use the same indexing, search and curation logic.
 
 **Acceptance:** A family member opens the browser, signs in once and can resume album review after a reload. The owner can revoke the session and the curator cannot access administration.
+
+## Ready Next
 
 ### MVP 11C — Album Context and Corrections
 

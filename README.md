@@ -360,6 +360,21 @@ El flujo de etiquetado funciona con el archivo desconectado. **Ver hasta 3 fotos
 
 Para dar acceso de curación a un familiar, conserva su rol de lector y añade su ID autorizado a `API_CURATOR_CHAT_IDS` y un token propio en `API_CHAT_TOKENS`. Su navegador abrirá directamente **Etiquetar álbumes** al iniciar sesión. Reinicia la API después de editar `.env`. En una red doméstica de confianza puedes configurar `API_BIND_HOST` con la IP privada del NAS y abrir esa dirección y puerto desde el navegador. El valor por defecto es la interfaz local y el ejemplo anterior muestra el acceso por túnel SSH.
 
+#### Acceso familiar sin Telegram
+
+Con la API protegida por `API_CHAT_TOKENS` o `API_TOKEN`, el propietario puede crear un código para cada navegador desde la terminal del NAS:
+
+```bash
+cd /path/to/chromantis
+.venv/bin/python scripts/family_access.py invite "Móvil de papá"
+.venv/bin/python scripts/family_access.py list
+.venv/bin/python scripts/family_access.py revoke 1
+```
+
+Comparte el código en privado. El familiar abre la dirección local de Chromantis, elige **Acceso familiar** y pega el código una sola vez en las 24 horas siguientes. La sesión dura hasta 90 días en ese navegador y abre **Etiquetar álbumes** al volver. El familiar puede buscar y etiquetar cualquier álbum del archivo. Para cancelar un acceso, usa el ID mostrado por `list`. Si el familiar cierra sesión o cambia de navegador, genera un código nuevo.
+
+Usa la web en una red doméstica de confianza. Si sirves la web desde un proxy HTTPS local, conserva la cabecera `Host` del navegador para que la API pueda comprobar el origen y marcar la cookie como `Secure`.
+
 ### Scheduled indexing and status
 
 After the initial index, use incremental mode for routine updates.

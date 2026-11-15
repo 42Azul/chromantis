@@ -61,6 +61,8 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .sign-in p { margin-block: 12px 20px; }
 .sign-in form { display: grid; gap: 10px; max-width: 320px; }
 .sign-in label { font-weight: 650; }
+#family-sign-in { margin-top: 22px; }
+#family-login-form { margin-top: 12px; }
 .page-header { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .page-header p { margin-top: .6rem; }
 .statistics { display: flex; gap: clamp(12px, 2vw, 28px); align-items: flex-end; }
@@ -69,6 +71,8 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .stat span { color: var(--muted); font-size: .78rem; }
 
 .search-bar { display: grid; grid-template-columns: minmax(130px, 1fr) auto auto auto auto; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.search-bar.family-search { grid-template-columns: minmax(0, 1fr) auto; }
+.search-bar.family-search input { grid-column: auto; }
 .results-header { display: flex; align-items: center; justify-content: space-between; margin-top: 34px; padding-bottom: 11px; border-bottom: 1px solid var(--line); }
 #result-count { color: var(--muted); font-size: .85rem; }
 .message { color: var(--accent); margin: .8rem 0; }

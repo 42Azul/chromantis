@@ -79,6 +79,14 @@ CREATE TABLE IF NOT EXISTS album_tag_decisions (
     PRIMARY KEY (folder_id, origin, label)
 );
 
+CREATE TABLE IF NOT EXISTS family_access (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    label TEXT NOT NULL,
+    secret_hash TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL CHECK (kind IN ('invite', 'session')),
+    expires_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS image_tags (
     image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,

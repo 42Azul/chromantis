@@ -5,6 +5,7 @@ from sqlite3 import Connection
 
 from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
+from chromantis.db.family_access import FamilyAccess, FamilySession
 from chromantis.db.repository import (
     AuthorizedChat,
     ChatPreferences,
@@ -53,6 +54,7 @@ class ApplicationService:
         self.static_viewer_chat_ids = frozenset(static_viewer_chat_ids)
         self.static_owner_chat_ids = frozenset(static_owner_chat_ids)
         self.curator_chat_ids = frozenset(curator_chat_ids)
+        self.family_access = FamilyAccess(repository)
 
     def list_years(self, year_from: int | None = None, year_to: int | None = None) -> list[YearSummary]:
         return self.search.list_year_summaries(year_from=year_from, year_to=year_to)
@@ -131,21 +133,29 @@ class ApplicationService:
             principal.role == "viewer" and principal.chat_id in self.curator_chat_ids
         )
 
-    def require_album_curator(self, chat_id: int, connection: Connection | None = None) -> None:
-        if not self.can_curate_albums(self.resolve_principal(chat_id, connection=connection)):
+    def require_album_curator(self, actor: int | FamilySession, connection: Connection | None = None) -> None:
+        if isinstance(actor, FamilySession):
+            if connection is not None:
+                active = self.family_access.still_active(connection, actor)
+            else:
+                with self.repository.session() as check_connection:
+                    active = self.family_access.still_active(check_connection, actor)
+            if not active:
+                raise AuthOperationError("family_session_expired", "La sesión familiar ha caducado.", 401)
+        elif not self.can_curate_albums(self.resolve_principal(actor, connection=connection)):
             raise AuthOperationError("album_curation_required", "No tienes permiso para etiquetar álbumes.")
 
     def get_album_review(
-        self, chat_id: int, *, after: int = 0, reviewed: bool = False, path: str | None = None
+        self, actor: int | FamilySession, *, after: int = 0, reviewed: bool = False, path: str | None = None
     ) -> dict | None:
         with self.repository.session() as connection:
             connection.execute("BEGIN")
-            self.require_album_curator(chat_id, connection)
+            self.require_album_curator(actor, connection)
             folder = review_folder(connection, after=after, reviewed=reviewed, path=path)
             return review_item(connection, folder) if folder is not None else None
 
-    def album_people_directory(self, chat_id: int) -> list[dict]:
-        self.require_album_curator(chat_id)
+    def album_people_directory(self, actor: int | FamilySession) -> list[dict]:
+        self.require_album_curator(actor)
         people = {}
         with self.repository.session() as connection:
             for row in connection.execute(
@@ -161,12 +171,14 @@ class ApplicationService:
         return list(people.values())
 
     def save_album_review(
-        self, chat_id: int, path: str, folder_id: int, revision: int, *,
+        self, actor: int | FamilySession, path: str, folder_id: int, revision: int, *,
         add_people: set[int], remove_people: set[int], new_person: str | None,
         decisions: dict[str, str | None], manual_add: set[str], manual_remove: set[str],
     ) -> None:
         with self.repository.write_transaction() as connection:
-            self.require_album_curator(chat_id, connection)
+            self.require_album_curator(actor, connection)
+            chat_id = actor if isinstance(actor, int) else None
+            family_audit = {"family_access_id": actor.id} if isinstance(actor, FamilySession) else {}
             folder = review_folder(connection, path=path)
             if folder is None or (folder["id"], folder["revision"]) != (folder_id, revision):
                 raise AuthOperationError(
@@ -183,7 +195,7 @@ class ApplicationService:
                 person = self.repository.create_person(new_person, connection=connection)
                 add_people = add_people | {person.id}
                 self.repository.record_audit_event(
-                    "create_person", "person", str(person.id), {"display_name": person.display_name},
+                    "create_person", "person", str(person.id), {"display_name": person.display_name, **family_audit},
                     chat_id, connection=connection,
                 )
             connection.executemany(
@@ -203,7 +215,8 @@ class ApplicationService:
             self.repository.record_audit_event(
                 "save_album_review", "folder", path,
                 {"add_people": sorted(add_people), "remove_people": sorted(remove_people),
-                 "decisions": decisions, "manual_add": sorted(manual_add), "manual_remove": sorted(manual_remove)},
+                 "decisions": decisions, "manual_add": sorted(manual_add), "manual_remove": sorted(manual_remove),
+                 **family_audit},
                 chat_id, connection=connection,
             )
 

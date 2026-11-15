@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from ftplib import Error as FtpError
 from hmac import compare_digest
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from mimetypes import guess_type
 from pathlib import Path
@@ -13,6 +14,11 @@ from urllib.parse import parse_qs, unquote, urlparse
 from chromantis.app import ApplicationService, AuthOperationError
 from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
+from chromantis.db.family_access import FamilySession, SESSION_SECONDS
+
+FAMILY_COOKIE = "chromantis_family"
+FAMILY_SESSION_PATH = "/api/v1/family/session"
+ALBUM_REVIEW_PATH = "/api/v1/album-review"
 
 UI_ROOT = Path(__file__).with_name("ui")
 UI_FILES = {
@@ -51,6 +57,7 @@ def _dispatch(
     body: dict[str, object] | None = None,
     image_fetcher: Callable[[str], bytes] | None = None,
     deployment_info: dict[str, object] | None = None,
+    family_secret: str | None = None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
     try:
         parsed = urlparse(url)
@@ -70,20 +77,37 @@ def _dispatch(
         )
 
     chat_id = next((chat_id for chat_id, token in api_chat_tokens if accepts(token)), None)
+    if auth_header or x_api_token:
+        family_secret = None
     if chat_id is not None and not app_service.is_authorized_chat(chat_id):
         return 401, {"error": "Unauthorized"}
-    if chat_id is None and (api_token or api_chat_tokens) and not (api_token and accepts(api_token)):
+    if (family_secret is None and chat_id is None and (api_token or api_chat_tokens)
+            and not (api_token and accepts(api_token))):
         return 401, {"error": "Unauthorized"}
 
     try:
         params = parse_qs(parsed.query)
+        if family_secret is not None:
+            session = app_service.family_access.resolve(family_secret) if api_token or api_chat_tokens else None
+            if session is None:
+                return 401, {"error": "La sesión familiar ha caducado."}
+            if path == "/api/v1/auth/me" and method == "GET":
+                return 200, {"item": {"first_name": session.label, "role": "viewer", "auth_mode": "family"},
+                             "can_curate_albums": True}
+            if path == ALBUM_REVIEW_PATH or path.startswith(ALBUM_REVIEW_PATH + "/"):
+                return _album_review_route(method, path, app_service, session, body or {}, params)
+            if path == "/api/v1/folders" and method == "GET":
+                return _query_route(path, params, app_service)
+            if path == "/api/v1/image" and method == "GET":
+                return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
+            return 403, {"error": "El acceso familiar solo permite consultar y etiquetar álbumes."}
         if path.startswith(("/api/v1/auth/", "/api/v1/admin/")):
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
             return _auth_route(
                 method, path, app_service, chat_id, body or {}, params, deployment_info or {}
             )
-        if path == "/api/v1/album-review" or path.startswith("/api/v1/album-review/"):
+        if path == ALBUM_REVIEW_PATH or path.startswith(ALBUM_REVIEW_PATH + "/"):
             if chat_id is None:
                 return 401, {"error": "A chat token is required"}
             return _album_review_route(method, path, app_service, chat_id, body or {}, params)
@@ -191,25 +215,25 @@ def _album_review_route(
     method: str,
     path: str,
     app: ApplicationService,
-    chat_id: int,
+    actor: int | FamilySession,
     body: dict[str, object],
     params: dict[str, list[str]],
 ) -> tuple[int, dict[str, object]]:
-    base = "/api/v1/album-review"
-    app.require_album_curator(chat_id)
+    base = ALBUM_REVIEW_PATH
+    app.require_album_curator(actor)
     album_path = params.get("path", [None])[0]
     if method == "GET" and path == base:
         after = _optional_int(params.get("after", [None])[0]) or 0
         if not 0 <= after < 2**63:
             raise ValueError("Álbum anterior no válido.")
         item = app.get_album_review(
-            chat_id, after=after, reviewed=params.get("reviewed") == ["true"], path=album_path
+            actor, after=after, reviewed=params.get("reviewed") == ["true"], path=album_path
         )
         if album_path is not None and item is None:
             return 404, {"error": "No se encuentra el álbum."}
         return 200, {"item": item}
     if method == "GET" and path == f"{base}/people":
-        return 200, {"items": app.album_people_directory(chat_id)}
+        return 200, {"items": app.album_people_directory(actor)}
     if method == "GET" and path == f"{base}/photos" and album_path is not None:
         return 200, {"items": [asdict(item) for item in app.images_in_folder(album_path, limit=3)]}
     if method == "POST" and path == base:
@@ -224,7 +248,7 @@ def _album_review_route(
         if new_person is not None and (not isinstance(new_person, str) or not 1 <= len(new_person.strip()) <= 100):
             raise ValueError("Escribe un nombre de hasta 100 caracteres.")
         app.save_album_review(
-            chat_id, _text(body, "path"), folder_id, revision,
+            actor, _text(body, "path"), folder_id, revision,
             add_people=_review_people(body, "add_people"), remove_people=_review_people(body, "remove_people"),
             new_person=new_person,
             decisions={key: parse_tag(value) if value is not None else None for key, value in decisions.items()},
@@ -416,6 +440,15 @@ def make_api_handler(
             self._handle(body)
 
         def _handle(self, body: dict[str, object] | None = None) -> None:
+            family_secret = self._family_secret()
+            if self.path == FAMILY_SESSION_PATH and self.command in {"POST", "DELETE"}:
+                self._handle_family_session(body or {}, family_secret)
+                return
+            if (family_secret is not None and self.command != "GET"
+                    and not (self.headers.get("Authorization") or self.headers.get("X-API-Token"))
+                    and not self._same_origin_family_request()):
+                self._write_json(403, {"error": "La petición debe proceder de la web de Chromantis."})
+                return
             status, payload = _dispatch(
                 self.command,
                 self.path,
@@ -427,20 +460,69 @@ def make_api_handler(
                 body,
                 image_fetcher,
                 deployment_info,
+                family_secret,
             )
             if isinstance(payload, PhotoPayload):
                 self._write(status, payload.content, payload.content_type)
             else:
                 self._write_json(status, payload)
 
+        def _family_secret(self) -> str | None:
+            cookies = SimpleCookie()
+            try:
+                cookies.load(self.headers.get("Cookie", ""))
+            except CookieError:
+                return None
+            cookie = cookies.get(FAMILY_COOKIE)
+            return cookie.value if cookie is not None else None
+
+        def _same_origin_family_request(self) -> bool:
+            host = self.headers.get("Host")
+            origin = self.headers.get("Origin")
+            return bool(host) and origin in {f"http://{host}", f"https://{host}"} and (
+                self.command == "DELETE" or self.headers.get_content_type() == "application/json"
+            )
+
+        def _handle_family_session(self, body: dict[str, object], family_secret: str | None) -> None:
+            if not self._same_origin_family_request():
+                self._write_json(403, {"error": "La petición debe proceder de la web de Chromantis."})
+                return
+            cookie = SimpleCookie()
+            if self.command == "POST":
+                if not (api_token or api_chat_tokens):
+                    self._write_json(403, {"error": "El acceso familiar requiere proteger primero el archivo."})
+                    return
+                if family_secret and app_service.family_access.resolve(family_secret):
+                    self._write_json(409, {"error": "Cierra la sesión familiar actual para usar otro código."})
+                    return
+                secret = app_service.family_access.redeem(body.get("code"))
+                if secret is None:
+                    self._write_json(401, {"error": "El código es incorrecto, ya se usó o ha caducado."})
+                    return
+                cookie[FAMILY_COOKIE] = secret
+                cookie[FAMILY_COOKIE]["max-age"] = SESSION_SECONDS
+            else:
+                if family_secret:
+                    app_service.family_access.sign_out(family_secret)
+                cookie[FAMILY_COOKIE] = ""
+                cookie[FAMILY_COOKIE]["max-age"] = 0
+            cookie[FAMILY_COOKIE]["path"] = "/api/v1"
+            cookie[FAMILY_COOKIE]["httponly"] = True
+            cookie[FAMILY_COOKIE]["samesite"] = "Strict"
+            if self.headers["Origin"].startswith("https://"):
+                cookie[FAMILY_COOKIE]["secure"] = True
+            self._write_json(200, {"ok": True}, cookie[FAMILY_COOKIE].OutputString())
+
         def log_message(self, format: str, *args) -> None:
             return
 
-        def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
+        def _write_json(
+            self, status_code: int, payload: dict[str, object], cookie: str | None = None
+        ) -> None:
             body = json.dumps(payload, sort_keys=True).encode("utf-8")
-            self._write(status_code, body, "application/json; charset=utf-8")
+            self._write(status_code, body, "application/json; charset=utf-8", cookie)
 
-        def _write(self, status_code: int, body: bytes, content_type: str) -> None:
+        def _write(self, status_code: int, body: bytes, content_type: str, cookie: str | None = None) -> None:
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -452,6 +534,8 @@ def make_api_handler(
             )
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            if cookie is not None:
+                self.send_header("Set-Cookie", cookie)
             self.end_headers()
             self.wfile.write(body)
 
