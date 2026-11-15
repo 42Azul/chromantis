@@ -7,6 +7,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from chromantis.api import ApiServer, make_api_handler
+from chromantis.api.thumbnails import build_thumbnail_cache
 from chromantis.app import ApplicationService, CommandQueryInterpreter
 from chromantis.config import AppConfig
 from chromantis.db.repository import Repository
@@ -32,9 +33,11 @@ def main() -> None:
         include_enrichment=config.enrichment_search,
         curator_chat_ids=config.api_curator_chat_ids,
     )
+    source = build_archive_source(config)
     handler = make_api_handler(
         app_service, api_token=config.api_token, api_chat_tokens=config.api_chat_tokens,
-        image_fetcher=build_archive_source(config).read_bytes,
+        image_fetcher=source.read_bytes,
+        thumbnails=build_thumbnail_cache(config.sqlite_path, config.thumbnail_cache_mib, source),
         deployment_info={
             "source_type": config.source_type,
             "enrichment_search": config.enrichment_search,

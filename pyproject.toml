@@ -12,6 +12,7 @@ dependencies = []
 
 [project.optional-dependencies]
 telegram = ["python-telegram-bot>=21,<22"]
+thumbnails = ["Pillow>=11"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

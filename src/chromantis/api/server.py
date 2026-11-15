@@ -11,6 +11,7 @@ from mimetypes import guess_type
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from chromantis.api.thumbnails import ThumbnailCache
 from chromantis.app import ApplicationService, AuthOperationError
 from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
@@ -58,6 +59,7 @@ def _dispatch(
     image_fetcher: Callable[[str], bytes] | None = None,
     deployment_info: dict[str, object] | None = None,
     family_secret: str | None = None,
+    thumbnails: ThumbnailCache | None = None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
     try:
         parsed = urlparse(url)
@@ -87,10 +89,20 @@ def _dispatch(
 
     try:
         params = parse_qs(parsed.query)
+        session = None
         if family_secret is not None:
             session = app_service.family_access.resolve(family_secret) if api_token or api_chat_tokens else None
             if session is None:
                 return 401, {"error": "La sesión familiar ha caducado."}
+        if method == "GET":
+            if path == "/api/v1/image":
+                return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
+            if path == "/api/v1/thumbnail":
+                return _read_thumbnail(params.get("path", [""])[0], app_service, thumbnails)
+            if path == "/api/v1/archive-status":
+                status = app_service.repository.archive_index_status()
+                return 200, {"item": {**status, "thumbnails": thumbnails is not None}}
+        if session is not None:
             if path == "/api/v1/auth/me" and method == "GET":
                 return 200, {"item": {"first_name": session.label, "role": "viewer", "auth_mode": "family"},
                              "can_curate_albums": True}
@@ -98,8 +110,6 @@ def _dispatch(
                 return _album_review_route(method, path, app_service, session, body or {}, params)
             if path == "/api/v1/folders" and method == "GET":
                 return _query_route(path, params, app_service)
-            if path == "/api/v1/image" and method == "GET":
-                return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
             return 403, {"error": "El acceso familiar solo permite consultar y etiquetar álbumes."}
         if path.startswith(("/api/v1/auth/", "/api/v1/admin/")):
             if chat_id is None:
@@ -143,8 +153,6 @@ def _dispatch(
         if path == "/api/v1/interpret" and method == "POST":
             text = _text(body or {}, "text")
             return 200, {"item": asdict(app_service.interpret_text(text))}
-        if path == "/api/v1/image" and method == "GET":
-            return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
         if method == "GET":
             result = _query_route(path, params, app_service)
             if path == "/api/v1/folders" and chat_id is not None:
@@ -359,12 +367,32 @@ def _read_image(
         content = image_fetcher(path)
     except (FileNotFoundError, ValueError):
         return 404, {"error": "Image no longer available"}
-    except (FtpError, OSError):
+    except (FtpError, OSError, EOFError):
         return 502, {"error": "Archive unavailable"}
     content_type = guess_type(path)[0] or "application/octet-stream"
     if not content_type.startswith("image/"):
         content_type = "application/octet-stream"
     return 200, PhotoPayload(content, content_type)
+
+
+def _read_thumbnail(
+    path: str, app: ApplicationService, thumbnails: ThumbnailCache | None,
+) -> tuple[int, dict[str, object] | PhotoPayload]:
+    if not path:
+        return 400, {"error": "path is required"}
+    if thumbnails is None:
+        return 404, {"error": "Thumbnails are disabled"}
+    fingerprint = app.repository.indexed_image_fingerprint(path)
+    if fingerprint is None:
+        return 404, {"error": "Image not found"}
+    try:
+        return 200, PhotoPayload(thumbnails.get(path, fingerprint), "image/jpeg")
+    except ValueError:
+        return 422, {"error": "Preview unavailable"}
+    except FileNotFoundError:
+        return 404, {"error": "Image no longer available"}
+    except (FtpError, OSError, EOFError):
+        return 502, {"error": "Archive unavailable"}
 
 
 def _role(body: dict[str, object], roles: set[str], default: str | None = None) -> str:
@@ -416,6 +444,7 @@ def make_api_handler(
     api_chat_tokens: tuple[tuple[int, str], ...] = (),
     image_fetcher: Callable[[str], bytes] | None = None,
     deployment_info: dict[str, object] | None = None,
+    thumbnails: ThumbnailCache | None = None,
 ):
     class ChromantisApiHandler(BaseHTTPRequestHandler):
         server_version = "ChromantisAPI/0.1"
@@ -473,6 +502,7 @@ def make_api_handler(
                 image_fetcher,
                 deployment_info,
                 family_secret,
+                thumbnails,
             )
             if isinstance(payload, PhotoPayload):
                 self._write(status, payload.content, payload.content_type)

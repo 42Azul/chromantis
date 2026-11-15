@@ -14,6 +14,10 @@ MAX_SCAN_DEPTH = 2
 YEAR_DIR_RE = re.compile(r"^\d{4}(?:\(\d+\))?$")
 
 
+class ArchiveReadLimit(ValueError):
+    """The source exceeded the caller's read budget."""
+
+
 @dataclass(frozen=True)
 class ArchiveEntry:
     path: str
@@ -28,7 +32,7 @@ class ArchiveSource(Protocol):
     def iter_entries(self, max_depth: int = MAX_SCAN_DEPTH) -> Iterator[ArchiveEntry]:
         ...
 
-    def read_bytes(self, relative_path: str) -> bytes:
+    def read_bytes(self, relative_path: str, *, max_bytes: int | None = None) -> bytes:
         ...
 
     def read_many_bytes(self, relative_paths: tuple[str, ...]) -> tuple[bytes, ...]:
@@ -53,12 +57,25 @@ class FtpArchiveSource:
             logger.debug("Closing FTP connection")
             ftp.quit()
 
-    def read_bytes(self, relative_path: str) -> bytes:
+    def read_bytes(self, relative_path: str, *, max_bytes: int | None = None) -> bytes:
         chunks: list[bytes] = []
+        received = 0
+
+        def collect(chunk: bytes) -> None:
+            nonlocal received
+            received += len(chunk)
+            if max_bytes is not None and received > max_bytes:
+                raise ArchiveReadLimit("Archive file exceeds the read limit.")
+            chunks.append(chunk)
+
+        absolute_path = self._absolute_path(relative_path)
         with self._connect() as ftp:
-            absolute_path = self._absolute_path(relative_path)
             logger.debug("Downloading FTP file %s", absolute_path)
-            ftp.retrbinary(f"RETR {absolute_path}", chunks.append)
+            try:
+                ftp.retrbinary(f"RETR {absolute_path}", collect)
+            except ArchiveReadLimit:
+                ftp.close()
+                raise
         return b"".join(chunks)
 
     def read_many_bytes(self, relative_paths: tuple[str, ...]) -> tuple[bytes, ...]:
@@ -279,8 +296,15 @@ class LocalArchiveSource:
                 ).isoformat(),
             )
 
-    def read_bytes(self, relative_path: str) -> bytes:
-        return self._absolute_path(relative_path).read_bytes()
+    def read_bytes(self, relative_path: str, *, max_bytes: int | None = None) -> bytes:
+        path = self._absolute_path(relative_path)
+        if max_bytes is None:
+            return path.read_bytes()
+        with path.open("rb") as source:
+            content = source.read(max_bytes + 1)
+        if len(content) > max_bytes:
+            raise ArchiveReadLimit("Archive file exceeds the read limit.")
+        return content
 
     def read_many_bytes(self, relative_paths: tuple[str, ...]) -> tuple[bytes, ...]:
         return tuple(self.read_bytes(relative_path) for relative_path in relative_paths)

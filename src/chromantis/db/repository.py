@@ -192,6 +192,23 @@ class Repository:
             for row in rows
         ]
 
+    def archive_index_status(self) -> dict[str, str | None]:
+        with self.session() as connection:
+            row = connection.execute(
+                """SELECT (SELECT status FROM sync_runs ORDER BY id DESC LIMIT 1) AS sync_status,
+                          (SELECT MAX(finished_at) FROM sync_runs WHERE status = 'succeeded') AS indexed_at"""
+            ).fetchone()
+        return dict(row)
+
+    def indexed_image_fingerprint(self, path: str) -> tuple[str, int | None, str | None] | None:
+        with self.session() as connection:
+            row = connection.execute(
+                """SELECT f.ftp_root_path, i.file_size, i.ftp_modified_at
+                   FROM images i JOIN folders f ON f.id = i.folder_id WHERE i.file_path = ?""",
+                (path,),
+            ).fetchone()
+        return (row["ftp_root_path"], row["file_size"], row["ftp_modified_at"]) if row else None
+
     def indexed_image_metadata(
         self, connection: sqlite3.Connection
     ) -> dict[str, tuple[str, int | None, str | None]]:

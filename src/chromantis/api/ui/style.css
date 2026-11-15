@@ -109,7 +109,7 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 
 dialog { width: min(900px, 94vw); border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: inherit; padding: 14px; }
 dialog::backdrop { background: #080807cc; }
-dialog form { display: flex; justify-content: end; margin-bottom: 8px; }
+dialog form { display: flex; align-items: center; justify-content: end; gap: 12px; margin-bottom: 8px; }
 dialog img { width: 100%; max-height: 73vh; display: block; object-fit: contain; }
 dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 

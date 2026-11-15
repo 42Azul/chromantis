@@ -87,6 +87,7 @@ class AppConfig:
     query_interpreter_command: tuple[str, ...] = ()
     query_interpreter_timeout: float = 10.0
     enrichment_search: bool = False
+    thumbnail_cache_mib: int = 0
 
     @classmethod
     def from_env(cls, dotenv_path: str | None = None) -> "AppConfig":
@@ -123,6 +124,10 @@ class AppConfig:
         if not 0 < query_interpreter_timeout <= 300:
             raise ValueError("QUERY_INTERPRETER_TIMEOUT must be in (0, 300] seconds.")
 
+        thumbnail_cache_mib = int(os.getenv("THUMBNAIL_CACHE_MIB", "0"))
+        if not 0 <= thumbnail_cache_mib <= 512:
+            raise ValueError("THUMBNAIL_CACHE_MIB must be between 0 and 512.")
+
         return cls(
             source_type=source_type,
             source_root=source_root,
@@ -147,6 +152,7 @@ class AppConfig:
             query_interpreter_command=query_interpreter_command,
             query_interpreter_timeout=query_interpreter_timeout,
             enrichment_search=os.getenv("ENRICHMENT_SEARCH", "false").strip().lower() == "true",
+            thumbnail_cache_mib=thumbnail_cache_mib,
             log_level=log_level,
         )
 

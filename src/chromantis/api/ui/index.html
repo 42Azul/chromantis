@@ -25,6 +25,7 @@
     </aside>
 
     <main>
+      <p id="archive-health" class="message" aria-live="polite"></p>
       <section id="sign-in" class="sign-in">
         <h1>Your photo archive</h1>
         <p>Sign in with the API token assigned to your Telegram chat.</p>
@@ -106,9 +107,13 @@
   </div>
 
   <dialog id="lightbox">
-    <form method="dialog"><button type="submit" autofocus>Close</button></form>
+    <form method="dialog">
+      <a id="download-original" hidden>Download original</a>
+      <button id="close-photo" type="submit" autofocus>Close</button>
+    </form>
     <img alt="">
     <p></p>
+    <p id="original-status" class="message" aria-live="polite"></p>
   </dialog>
 </body>
 </html>

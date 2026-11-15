@@ -379,6 +379,22 @@ Comparte el código en privado. El familiar abre la dirección local de Chromant
 
 Usa la web en una red doméstica de confianza. Si sirves la web desde un proxy HTTPS local, conserva la cabecera `Host` del navegador para que la API pueda comprobar el origen y marcar la cookie como `Secure`.
 
+#### Miniaturas para navegar desde el móvil
+
+La caché es opcional. Para activarla, instala el extra local y configura el espacio reservado en `.env` antes de reiniciar la API:
+
+```bash
+.venv/bin/python -m pip install '.[telegram,thumbnails]'
+```
+
+```dotenv
+THUMBNAIL_CACHE_MIB=64
+```
+
+La galería solicita miniaturas JPEG de hasta 480 píxeles al entrar cada foto en pantalla. En la primera visita, la API lee la foto desde el archivo para crearla. El navegador recibe el original al abrir la foto y puedes guardarlo con **Descargar original**. Si una imagen excede el límite de generación (32 MiB de entrada o 30 megapíxeles), sigue disponible el botón para abrir el original.
+
+La carpeta `<nombre-de-la-base-de-datos>.thumbnails` queda junto al índice, fuera del archivo de fotos. La caché guarda hasta el presupuesto indicado de datos JPEG y un máximo de 2.048 archivos. Elimina primero los más antiguos. Cuando el siguiente reindexado detecta un cambio de tamaño o fecha de modificación, se genera otra miniatura al volver a verla. Las miniaturas guardadas pueden abrirse desde el navegador mientras la fuente esté desconectada. La web muestra la fecha del último índice correcto y avisa si la fuente falla al pedir una foto. El ajuste `0` deja disponibles las vistas originales y desactiva la generación de miniaturas.
+
 ### Scheduled indexing and status
 
 After the initial index, use incremental mode for routine updates.

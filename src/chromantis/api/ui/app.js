@@ -11,6 +11,9 @@ let canCurateAlbums = false;
 let albumRequest = 0;
 let albumPhotoRequests;
 const albumPhotoURLs = new Set();
+let indexStatus;
+let originalRequest;
+let originalURL;
 
 function element(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -70,6 +73,7 @@ function resetPhotos() {
 function signOut() {
   token = "";
   principal = undefined;
+  indexStatus = undefined;
   canCurateAlbums = false;
   requestNumber++;
   connectionNumber++;
@@ -86,6 +90,7 @@ function signOut() {
   $("search-form").reset();
   message("result-count");
   message("archive-status");
+  message("archive-health");
   message("results-title", "Results");
   message("account");
   message("account-role");
@@ -109,6 +114,22 @@ function setArchiveMode(family) {
   $("search-form").classList.toggle("family-search", family);
 }
 
+function archiveHealth(offline = false) {
+  if (!indexStatus) return;
+  const spanish = principal?.auth_mode === "family";
+  $("archive-health").lang = spanish ? "es" : "en";
+  const parts = [];
+  if (offline) parts.push(spanish ? "Archivo no disponible" : "Archive unavailable");
+  if (indexStatus.indexed_at) {
+    const time = new Date(indexStatus.indexed_at).toLocaleString(spanish ? "es" : undefined);
+    parts.push(spanish ? `Último índice: ${time}` : `Last indexed: ${time}`);
+  }
+  if (!offline && indexStatus.sync_status === "failed") {
+    parts.push(spanish ? "La última indexación falló" : "The last indexing run failed");
+  }
+  message("archive-health", parts.join(" · "));
+}
+
 async function signIn(value, { quiet = false, familyLogin = false } = {}) {
   token = value;
   const connection = ++connectionNumber;
@@ -116,13 +137,16 @@ async function signIn(value, { quiet = false, familyLogin = false } = {}) {
   message("login-error");
   try {
     const { item, can_curate_albums } = await api("/auth/me");
+    const status = await api("/archive-status").catch(() => null);
     if (connection !== connectionNumber) return;
     principal = item;
+    indexStatus = status?.item;
     canCurateAlbums = can_curate_albums;
     if (token) sessionStorage.setItem("chromantis.chatToken", token);
     else sessionStorage.removeItem("chromantis.chatToken");
     const family = principal.auth_mode === "family";
     setArchiveMode(family);
+    archiveHealth();
     $("token").value = "";
     $("sign-in").hidden = true;
     $("navigation").hidden = false;
@@ -258,18 +282,59 @@ function renderBatch(batch) {
   $("browsing").replaceChildren(...actions);
 }
 
+async function openPhoto(item, filename, previewURL, isThumbnail, spanish) {
+  const box = $("lightbox");
+  const image = box.querySelector("img");
+  const download = $("download-original");
+  const request = new AbortController();
+  originalRequest = request;
+  download.hidden = true;
+  image.removeAttribute("src");
+  image.hidden = !previewURL;
+  if (previewURL) image.src = previewURL;
+  image.alt = item.title;
+  box.querySelector("p").textContent = item.path;
+  box.lang = spanish ? "es" : "en";
+  message("close-photo", spanish ? "Cerrar" : "Close");
+  message("download-original", spanish ? "Descargar original" : "Download original");
+  message("original-status", isThumbnail ? (spanish ? "Cargando original…" : "Loading original…") : "");
+  box.showModal();
+  try {
+    if (isThumbnail) {
+      const blob = await api("/image" + queryParams({ path: item.path }), { raw: true, signal: request.signal });
+      if (request.signal.aborted || originalRequest !== request || !box.open) return;
+      originalURL = URL.createObjectURL(blob);
+      image.src = originalURL;
+      image.hidden = false;
+      archiveHealth();
+    }
+    download.href = originalURL || previewURL;
+    download.download = filename;
+    download.hidden = false;
+    message("original-status");
+  } catch (error) {
+    if (request.signal.aborted || originalRequest !== request) return;
+    if (error.status === 502) archiveHealth(true);
+    message("original-status", spanish ? "No se pudo abrir el original." : "Could not open the original.");
+  }
+}
+
+$("lightbox").addEventListener("close", () => {
+  originalRequest?.abort();
+  originalRequest = undefined;
+  if (originalURL) URL.revokeObjectURL(originalURL);
+  originalURL = undefined;
+  $("download-original").removeAttribute("href");
+  $("lightbox").querySelector("img").removeAttribute("src");
+});
+
 function photoCard(item, signal, urls = photoURLs, spanish = false) {
   const filename = item.path.split("/").at(-1);
-  let sourceURL;
+  const isThumbnail = !!indexStatus?.thumbnails;
+  let previewURL;
   const unavailable = spanish ? "Foto no disponible" : "Preview unavailable";
-  const frame = button(spanish ? "Cargando foto…" : "Loading photo…", () => {
-    if (!sourceURL) return;
-    const box = $("lightbox");
-    box.querySelector("img").src = sourceURL;
-    box.querySelector("img").alt = item.title;
-    box.querySelector("p").textContent = item.path;
-    box.showModal();
-  }, "frame");
+  const frame = button(spanish ? "Cargando foto…" : "Loading photo…",
+    () => openPhoto(item, filename, previewURL, isThumbnail, spanish), "frame");
   frame.setAttribute("aria-label", `${spanish ? "Abrir" : "Open"} ${filename}`);
   frame.disabled = true;
   const image = element("img", { alt: filename, decoding: "async" });
@@ -277,16 +342,22 @@ function photoCard(item, signal, urls = photoURLs, spanish = false) {
     frame.replaceChildren(image);
     frame.disabled = false;
   });
-  image.addEventListener("error", () => { frame.textContent = unavailable; });
+  const failed = error => {
+    if (signal.aborted) return;
+    if (error?.status === 502) archiveHealth(true);
+    frame.textContent = isThumbnail ? (spanish ? "Abrir original" : "Open original") : unavailable;
+    frame.disabled = !isThumbnail;
+  };
+  image.addEventListener("error", failed);
   const observer = new IntersectionObserver(entries => {
     if (!entries.some(entry => entry.isIntersecting)) return;
     observer.disconnect();
-    api("/image" + queryParams({ path: item.path }), { raw: true, signal }).then(blob => {
+    api((isThumbnail ? "/thumbnail" : "/image") + queryParams({ path: item.path }), { raw: true, signal }).then(blob => {
       if (signal.aborted) return;
-      sourceURL = URL.createObjectURL(blob);
-      urls.add(sourceURL);
-      image.src = sourceURL;
-    }).catch(() => { frame.textContent = unavailable; });
+      previewURL = URL.createObjectURL(blob);
+      urls.add(previewURL);
+      image.src = previewURL;
+    }).catch(failed);
   }, { rootMargin: "120px" });
   signal.addEventListener("abort", () => observer.disconnect(), { once: true });
   observer.observe(frame);

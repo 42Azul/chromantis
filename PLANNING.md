@@ -29,6 +29,7 @@ Chromantis currently provides:
 - browser-based album review with name-only tag suggestions, manual tags, curated people and limited viewer permissions
 - local browser-only family sign-in with one-time codes and revocable SQLite sessions
 - album aliases, notes, and title and date corrections shared by the browser and Telegram
+- optional local thumbnails with a disk budget and an index freshness indicator
 
 Not implemented yet:
 
@@ -363,31 +364,32 @@ Current architecture map:
 
 **Acceptance:** “Abuela's birthday” finds the same album as its original folder name. A full reindex preserves corrections and the source files stay unchanged.
 
-## Ready Next
-
 ### MVP 12 — Fast Browsing on the NAS
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Goal:** Make the archive usable from a phone without a burst of full-size downloads.
 
-- Generate a lazy thumbnail cache keyed by image path and source fingerprint, with a disk budget.
-- Use thumbnails for web grids and retain access to the original through the authorized download endpoint.
-- Reuse the existing sync status to show archive availability and the age of the index.
+- Generate optional 480 px JPEG previews on demand and limit concurrent rendering, input size and cache size.
+- Invalidate thumbnails when the indexed source fingerprint changes. Keep warmed previews available during a source outage.
+- Use previews for web grids and fetch the authorized original only when the user opens a photo.
+- Show the latest successful index date and source errors in the browser.
 
 **Acceptance:** A gallery page loads small previews. Changing a source image invalidates its thumbnail. The original remains downloadable to authorized users.
 
-## Planned Later
+## Ready Next
 
 ### MVP 13 — Dates, Places, and Provenance
 
-**Status:** `Planned Later`
+**Status:** `Ready Next`
 
 - Read EXIF capture dates with confidence and retain the existing distinction between event and source timestamps.
 - Support manually curated locations and make embedded GPS indexing opt-in.
 - Build a timeline and expose date- and place-based queries through the API and Telegram.
 
 **Acceptance:** A photo with an inconsistent folder date and EXIF date exposes both values with sources. Private GPS metadata is excluded by default.
+
+## Planned Later
 
 ### MVP 14 — Local Semantic Search
 
