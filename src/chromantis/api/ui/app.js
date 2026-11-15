@@ -12,6 +12,7 @@ let albumRequest = 0;
 let albumPhotoRequests;
 const albumPhotoURLs = new Set();
 let indexStatus;
+let archiveSearch;
 let originalRequest;
 let originalURL;
 
@@ -49,6 +50,7 @@ async function api(path, { method = "GET", data, signal, raw = false } = {}) {
     }
     const error = new Error(payload.error || `Request failed (${response.status}).`);
     error.status = response.status;
+    error.code = payload.code;
     throw error;
   }
   return raw ? response.blob() : response.json();
@@ -88,6 +90,8 @@ function signOut() {
     element("p", {}, "Select a person to see their folders."));
   $("year").replaceChildren(element("option", { value: "" }, "All years"));
   $("search-form").reset();
+  setRecallSearch();
+  $("refine-choices").replaceChildren();
   $("timeline-form").reset();
   $("timeline").open = false;
   message("result-count");
@@ -180,6 +184,7 @@ async function signIn(value, { quiet = false, familyLogin = false } = {}) {
       try {
         const batch = await api("/browse");
         if (requestNumber === initialRequest && connection === connectionNumber && !$("archive").hidden) {
+          if (batch.scope === "search_images") setRecallSearch("search", batch.q, batch.count);
           renderBatch(batch);
         }
       } catch (error) {
@@ -218,6 +223,7 @@ async function showView(view, albumOptions) {
 async function archiveRequest(action, arguments_ = {}) {
   const request = ++requestNumber;
   const family = principal?.auth_mode === "family";
+  $("refine-choices").replaceChildren();
   message("archive-status", family ? "Buscando…" : "Loading…");
   try {
     if (action === "folders" || action === "timeline") {
@@ -225,6 +231,8 @@ async function archiveRequest(action, arguments_ = {}) {
       const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 } : { q: arguments_.q, limit: 30 };
       const { items } = await api("/folders" + queryParams(params));
       if (request !== requestNumber) return;
+      if (timeline) setRecallSearch();
+      else setRecallSearch("folders", arguments_.q);
       renderFolders(items.slice(0, 30), timeline);
       if (timeline) {
         const offset = arguments_.offset || 0;
@@ -236,6 +244,8 @@ async function archiveRequest(action, arguments_ = {}) {
     } else {
       const batch = await api("/browse", { method: "POST", data: { action, ...arguments_ } });
       if (request === requestNumber) {
+        if (action === "search") setRecallSearch(action, batch.q, batch.count);
+        if (action === "random") setRecallSearch();
         if (batch.items.length === 0 && ["more", "same_folder", "same_year", "related"].includes(action)) {
           message("archive-status", "No more photos in that selection.");
         } else renderBatch(batch);
@@ -243,6 +253,44 @@ async function archiveRequest(action, arguments_ = {}) {
     }
   } catch (error) {
     if (request === requestNumber) message("archive-status", error.message);
+  }
+}
+
+function setRecallSearch(action, q, count) {
+  archiveSearch = q ? { action, q, count } : undefined;
+  const family = principal?.auth_mode === "family";
+  $("refine-hint").hidden = !archiveSearch;
+  message("refine-hint", family ? "Puedes acotar esta búsqueda con «antes de 2020» o «con Ana»."
+    : "Refine this search with “before 2020” or “with Ana”.");
+}
+
+async function refineArchive(text) {
+  const family = principal?.auth_mode === "family";
+  const previous = archiveSearch;
+  if (!previous) {
+    message("archive-status", family ? "Busca primero fotos o álbumes." : "Start a search before refining it.");
+    return;
+  }
+  const request = ++requestNumber;
+  $("refine-choices").replaceChildren();
+  message("archive-status", family ? "Buscando…" : "Loading…");
+  try {
+    const { q, choices } = await api("/refine", { method: "POST", data: { q: previous.q, text } });
+    if (request !== requestNumber) return;
+    if (choices.length) {
+      message("archive-status", family ? "¿A qué álbum te refieres?" : "Which album did you mean?");
+      $("refine-choices").replaceChildren(...choices.map(item =>
+        button(`${item.title} · ${item.path}`, () => refineArchive(`album ${item.path}`))));
+      return;
+    }
+    await archiveRequest(previous.action, previous.count ? { q, count: previous.count } : { q });
+  } catch (error) {
+    if (request !== requestNumber) return;
+    const translations = {
+      year: "Escribe un año de cuatro cifras.", year_conflict: "Ese año queda fuera de la búsqueda actual.",
+      person: "Ese nombre o alias no figura en Personas.", album: "No se encuentra ese álbum.",
+    };
+    message("archive-status", (family && translations[error.code]) || error.message);
   }
 }
 
@@ -917,6 +965,10 @@ $("search-form").addEventListener("submit", event => {
   event.preventDefault();
   const year = $("year").value;
   const text = $("query").value.trim();
+  if (/^(?:antes de|despu[eé]s de|s[oó]lo|en el [aá]lbum|[aá]lbum|con|before|after|only|in album|with)\s+\S/i.test(text)) {
+    refineArchive(text);
+    return;
+  }
   const keywords = year ? text.replace(/\b(?:19|20)\d{2}(?:\s*[-–]\s*(?:19|20)\d{2})?\b/g, "").trim() : text;
   const q = [keywords, year].filter(Boolean).join(" ");
   const folders = principal?.auth_mode === "family" || $("scope").value === "folders";

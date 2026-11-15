@@ -143,6 +143,8 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 .album-context button { justify-self: start; }
 .folder-card small { color: var(--accent); }
 .timeline { margin-top: 1rem; }
+.refine-hint { margin-top: .55rem; font-size: .9rem; }
+#refine-choices:not(:empty) { margin-top: .75rem; }
 #timeline-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-top: .75rem; }
 #timeline-form label { display: grid; gap: 4px; min-width: 0; }
 #timeline-form input { width: 100%; }

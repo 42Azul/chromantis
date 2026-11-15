@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -8,10 +9,50 @@ from chromantis.parsing.path_parser import normalize_text
 
 YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
 YEAR_RANGE_RE = re.compile(r"\b((?:19|20)\d{2})\s*-\s*((?:19|20)\d{2})\b")
+RECALL_FILTER_RE = re.compile(
+    r'(?<!\S)(?:years:(?P<years>[1-9]\d{3}-[1-9]\d{3})|person:(?P<person>[1-9]\d{0,18})'
+    r'|album:(?P<album>"(?:[^"\\]|\\.)*"))(?=\s|$)'
+)
 
 
 class QueryParseError(ValueError):
     """Raised when a search query contains unsupported or invalid syntax."""
+
+
+@dataclass(frozen=True)
+class RecallFilters:
+    years: tuple[int, int] | None = None
+    people: tuple[int, ...] = ()
+    album: str | None = None
+
+    def apply(self, text: str) -> str:
+        parts = [text]
+        if self.years:
+            parts.append(f"years:{self.years[0]}-{self.years[1]}")
+        parts.extend(f"person:{person_id}" for person_id in self.people)
+        if self.album:
+            parts.append("album:" + json.dumps(self.album, ensure_ascii=False))
+        return " ".join(part for part in parts if part)
+
+
+def split_recall(raw: str) -> tuple[str, RecallFilters]:
+    years, album = None, None
+    people = []
+    for match in RECALL_FILTER_RE.finditer(raw):
+        if value := match["years"]:
+            first, last = map(int, value.split("-"))
+            if first > last:
+                raise QueryParseError("The refinement starts after it ends.")
+            years = (first, last)
+        elif value := match["person"]:
+            people.append(int(value))
+        else:
+            try:
+                album = json.loads(match["album"])
+            except ValueError as exc:
+                raise QueryParseError("Invalid album filter.") from exc
+    text = RECALL_FILTER_RE.sub(" ", raw).strip()
+    return text, RecallFilters(years, tuple(dict.fromkeys(people)), album)
 
 
 @dataclass(frozen=True)
@@ -23,6 +64,7 @@ class ParsedQuery:
     keywords: tuple[str, ...]
     phrase: str = ""
     literal_phrase: str = ""
+    recall: RecallFilters = RecallFilters()
 
     @property
     def person_ids(self) -> tuple[int, ...]:
@@ -32,7 +74,8 @@ class ParsedQuery:
 def parse_query(
     raw: str, alias_map: dict[str, ResolvedPerson] | None = None
 ) -> ParsedQuery:
-    working_text = raw.strip()
+    base, recall = split_recall(raw)
+    working_text = base
     year_from: int | None = None
     year_to: int | None = None
 
@@ -61,7 +104,8 @@ def parse_query(
         people=people,
         keywords=keywords,
         phrase=" ".join(normalized_tokens),
-        literal_phrase=normalize_text(raw),
+        literal_phrase=normalize_text(base),
+        recall=recall,
     )
 
 
@@ -93,6 +137,8 @@ def _extract_people_and_keywords(
                 matched_alias = candidate
                 break
         if matched_alias is not None:
+            if index and keywords and tokens[index - 1] in {"with", "con"} and keywords[-1] == tokens[index - 1]:
+                keywords.pop()
             person = alias_map[matched_alias]
             if person.id not in seen_person_ids:
                 matched_people.append(person)

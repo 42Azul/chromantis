@@ -9,6 +9,7 @@ from secrets import token_hex
 from typing import Callable
 
 from chromantis.app import ApplicationService, AuthOperationError
+from chromantis.app.recall import RefinementError, is_refinement
 from chromantis.bot.formatters import format_search_results, format_years
 from chromantis.bot.i18n import DEFAULT_LANGUAGE, language_name, t
 from chromantis.db.repository import IndexStats
@@ -386,6 +387,8 @@ class TelegramBotService:
             return self._handle_album(args, chat_id, language)
         if command == "/timeline":
             return self._handle_timeline(args, language)
+        if command == "/refine":
+            return self._handle_refinement(args, chat_id, language)
         if command == "/folders":
             try:
                 results = self.app_service.search_folders(args)
@@ -462,6 +465,8 @@ class TelegramBotService:
             return BotReply(self._t(language, "unauthorized"), buttons=self._guest_buttons(language))
         if chat_id is not None and chat_id in self.people_edits:
             return self._people_edit_text(chat_id, stripped, language)
+        if is_refinement(stripped):
+            return self._handle_refinement(stripped, chat_id, language)
         interpreted = self.app_service.interpret_text(stripped)
         logger.info(
             "Interpreted text input action=%s query=%r count=%d chat_id=%s",
@@ -790,6 +795,25 @@ class TelegramBotService:
         ))
         text = self._t(language, f"saved_{kind}_title" if searches else f"saved_{kind}_empty")
         return BotReply(text, buttons=tuple(rows))
+
+    def _handle_refinement(self, text: str, chat_id: int | None, language: str) -> BotReply:
+        searches = self.app_service.repository.list_saved_searches(chat_id, limit=1) if chat_id is not None else []
+        if not searches or searches[0].kind not in {"images", "folders"}:
+            return BotReply(self._t(language, "recall_no_query"))
+        previous = searches[0]
+        try:
+            result = self.app_service.refine_query(previous.query, text)
+        except RefinementError as error:
+            return BotReply(self._t(language, f"recall_{error.code}"))
+        except QueryParseError as error:
+            return BotReply(str(error))
+        if result.choices:
+            choices = "\n".join(f"- {item.title} · {item.path}" for item in result.choices)
+            return BotReply(self._t(language, "recall_choose_album", choices=choices))
+        query = result.query
+        assert query is not None
+        command = f"/folders {query}" if previous.kind == "folders" else f"/images {previous.count} {query}"
+        return self.handle_command(command, chat_id=chat_id)
 
     def _handle_timeline(self, args: str, language: str) -> BotReply:
         when, _, place = args.partition("|")
@@ -1623,6 +1647,7 @@ class TelegramBotApp:
             "people",
             "album",
             "timeline",
+            "refine",
             "invite",
             "authorized",
             "whoami",

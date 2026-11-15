@@ -412,6 +412,14 @@ En **Detalles del álbum**, puedes escribir o borrar el **Lugar del álbum**, po
 
 En Telegram, `/album <ruta> | place | <lugar>` edita el lugar con permisos de administración. Cualquier lector autorizado puede consultar los seis primeros resultados de `/timeline 2024 | Cartagena` o `/timeline 2024-06-01..2024-08-31 | Cartagena`. La API local ofrece los mismos filtros en `GET /api/v1/folders` con `sort=timeline`, `place`, `date_from` y `date_to` (fechas inclusive). También acepta la consulta habitual `q` y la paginación con `offset` y `limit`.
 
+#### Acotar una búsqueda
+
+Busca **playa con Ana** y, en el mismo campo de la web, escribe **antes de 2020** para acotar los resultados que ya estás viendo. Los años se acumulan. También puedes escribir **solo 2019**, **después de 2016**, **con Ana** o **álbum Verano**. Al añadir una persona, se exige un vínculo con ese álbum en el directorio de Personas. Si varios álbumes coinciden con el nombre, elige uno. Escribe otra consulta para empezar una búsqueda nueva.
+
+En Telegram puedes enviar la aclaración como mensaje posterior o usar `/refine antes de 2020`. Si el bot ofrece varios álbumes, responde con `/refine album <ruta>`. El bot usa la búsqueda de fotos o álbumes más reciente del chat. Puedes fijar la búsqueda refinada en el historial habitual. En la web familiar, la búsqueda actual se conserva mientras la página está abierta.
+
+La API local acepta `POST /api/v1/refine` con `{"q":"playa con Ana","text":"antes de 2020"}`. Usa el `q` devuelto en la búsqueda de fotos o álbumes. Si hay varias opciones, el servidor devuelve `choices` en lugar de una consulta.
+
 #### Acceso familiar sin Telegram
 
 Con la API protegida por `API_CHAT_TOKENS` o `API_TOKEN`, el propietario puede crear un código para cada navegador desde la terminal del NAS:

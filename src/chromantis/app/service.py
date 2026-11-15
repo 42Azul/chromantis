@@ -5,6 +5,7 @@ from sqlite3 import Connection
 
 from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item, save_context
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
+from chromantis.app.recall import Refinement, refine
 from chromantis.db.family_access import FamilyAccess, FamilySession
 from chromantis.db.repository import (
     AuthorizedChat,
@@ -335,6 +336,9 @@ class ApplicationService:
 
     def interpret_text(self, text: str) -> InterpretedRequest:
         return self.interpreter.interpret(text)
+
+    def refine_query(self, base: str, text: str) -> Refinement:
+        return refine(base, text, self.repository.list_alias_map(), self.search_folders)
 
     def authorize_with_code(
         self,

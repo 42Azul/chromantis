@@ -417,17 +417,26 @@ Current architecture map:
 
 **Acceptance:** A visual query such as “red bicycle by the sea” can retrieve an unlabeled fixture. Results identify why they matched, and the baseline search works with the model disabled.
 
+### MVP 15A — Guided Recall
+
+**Status:** `Done`
+
+- Narrow the preceding album or photo search by year, a linked person, or an exact album.
+- Ask which album the user meant if multiple names match within the active filters.
+- Reuse the web search form, Telegram's saved-search history and the existing retrieval service.
+
+**Acceptance:** “Playa con Ana” can be narrowed with “antes de 2020”. The refined search can be pinned through the existing history.
+
 ## Ready Next
 
-### MVP 15 — Guided Recall
+### MVP 15B — Named Memory Collections
 
 **Status:** `Ready Next`
 
-- Let users refine by person, date, or album across turns on Telegram and the web.
-- Ask one specific question when competing albums fit the same description.
-- Let users build named memory collections from selected photos and albums.
+- Save selected photos and albums in a named collection, using references to the existing index.
+- Reuse private web permissions and keep collections under the owner's control.
 
-**Acceptance:** “The beach trip with Ana” can be narrowed with “before 2020”, and the user can pin the resulting collection without moving the originals.
+**Acceptance:** Name a collection, reopen it later, remove one entry and verify that the originals are still in the same place.
 
 ## Planned Later
 

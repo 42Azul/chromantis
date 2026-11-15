@@ -123,6 +123,9 @@ class SearchService:
                 values.append(boundary)
         if place_filter:
             predicates.append("f.place IS NOT NULL")
+        if query.recall.album:
+            predicates.append("f.folder_path = ?")
+            values.append(query.recall.album)
         where = "WHERE " + " AND ".join(predicates) if predicates else ""
         order = ("COALESCE(f.event_date, printf('%04d-00-00', f.year)) DESC"
                  if chronological else "f.year DESC")
@@ -165,12 +168,15 @@ class SearchService:
             len(exclude_paths),
         )
         excluded = set(exclude_paths)
+        album = query.recall.album
+        where = "WHERE f.folder_path = ?" if album else ""
         with self.repository.connect() as connection:
             rows = connection.execute(
                 f"""
-                {self._image_search_sql(self.include_enrichment)}
+                {self._image_search_sql(self.include_enrichment, where)}
                 ORDER BY f.year DESC, i.file_path ASC
-                """
+                """,
+                (album,) if album else (),
             ).fetchall()
         matches = [self._image_result(row, query) for row in rows]
         results = [
@@ -365,7 +371,7 @@ class SearchService:
         )
 
     @staticmethod
-    def _image_search_sql(include_enrichment: bool = False) -> str:
+    def _image_search_sql(include_enrichment: bool = False, where: str = "") -> str:
         enriched_column = """
             , COALESCE((
                 SELECT GROUP_CONCAT(e.searchable_text, ' ')
@@ -385,6 +391,7 @@ class SearchService:
             JOIN album_metadata f ON f.id = i.folder_id
             LEFT JOIN folder_people fp ON fp.folder_id = f.id
             LEFT JOIN people p ON p.id = fp.person_id
+            {where}
             GROUP BY i.id
         """
 
@@ -402,6 +409,20 @@ class SearchService:
         place_phrase: str = "",
     ) -> list[str]:
         year = row["year"]
+        recall = query.recall
+        reasons: list[str] = []
+        if recall.years:
+            first, last = recall.years
+            if not first <= year <= last:
+                return []
+            reasons.append(f"refined_year={year}")
+        available_person_ids = _person_ids_from_row(row["person_ids"])
+        if not available_person_ids.issuperset(recall.people):
+            return []
+        if recall.people:
+            reasons.append("linked_person")
+        if recall.album:
+            reasons.append("selected_album")
         aliases = _normalized_aliases(row["aliases_json"]) if row["aliases_json"] else ()
         original_title = row["indexed_title"]
         corrected_title = normalize_text(row["title"]) if row["title"] != original_title else ""
@@ -411,10 +432,9 @@ class SearchService:
         if phrase and literal != phrase:
             exact_reason = _album_name_reason(literal, aliases, corrected_title, row["title"])
             if exact_reason:
-                return [exact_reason]
+                return [*reasons, exact_reason]
             if literal == original_title.replace("’", "'"):
-                return [f'title~"{original_title}"']
-        reasons: list[str] = []
+                return [*reasons, f'title~"{original_title}"']
         if query.year_from is not None and year < query.year_from:
             return []
         if query.year_to is not None and year > query.year_to:
@@ -423,14 +443,13 @@ class SearchService:
             reasons.append(f"year={year}")
         elif query.year_from is not None and query.year_to is not None:
             reasons.append(f"year_range={query.year_from}-{query.year_to}")
-        if reasons and year != row["indexed_year"]:
+        if (query.year_from is not None or recall.years) and year != row["indexed_year"]:
             reasons.append(f"year_corrected={year}")
         exact_reason = _album_name_reason(phrase, aliases, corrected_title, row["title"])
         if exact_reason:
             return [*reasons, exact_reason]
 
         normalized_text = f"{original_title} / {filename.lower()}" if filename else original_title
-        available_person_ids = _person_ids_from_row(row["person_ids"])
         for person in query.people:
             if person.id in available_person_ids:
                 reasons.append(f'person="{person.display_name}"')
@@ -455,7 +474,7 @@ class SearchService:
                 reasons.append(f'enrichment~"{keyword}"')
             else:
                 return []
-        if not query.keywords and query.year_from is None and not query.people:
+        if not reasons and not query.keywords and query.year_from is None and not query.people:
             reasons.append("all")
         return list(dict.fromkeys(reasons))
 

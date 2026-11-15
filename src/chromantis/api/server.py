@@ -15,6 +15,7 @@ from chromantis.api.thumbnails import ThumbnailCache
 from chromantis.app import ApplicationService, AuthOperationError
 from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
+from chromantis.app.recall import RefinementError
 from chromantis.db.family_access import FamilySession, SESSION_SECONDS
 
 FAMILY_COOKIE = "chromantis_family"
@@ -106,6 +107,16 @@ def _dispatch(
             if path == "/api/v1/archive-status":
                 status = app_service.repository.archive_index_status()
                 return 200, {"item": {**status, "thumbnails": thumbnails is not None}}
+        if path == "/api/v1/refine" and method == "POST":
+            data = body or {}
+            query = data.get("q", "")
+            if not isinstance(query, str):
+                raise ValueError("q must be a string.")
+            try:
+                result = app_service.refine_query(query, _text(data, "text"))
+            except RefinementError as error:
+                return 400, {"error": str(error), "code": error.code}
+            return 200, {"q": result.query, "choices": [asdict(item) for item in result.choices]}
         if session is not None:
             if path == "/api/v1/auth/me" and method == "GET":
                 return 200, {"item": {"first_name": session.label, "role": "viewer", "auth_mode": "family"},
