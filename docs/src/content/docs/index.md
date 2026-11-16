@@ -29,4 +29,6 @@ hero:
   <a href="use/family/"><strong>Find and tag albums</strong><span>Search by name or alias, review suggestions, and open photos when you need them.</span></a>
   <a href="start/private-access/"><strong>Give family access</strong><span>Issue a one-time browser code or share a single album with an expiring link.</span></a>
   <a href="operate/maintenance/"><strong>Keep it running</strong><span>Index new folders, enable a bounded thumbnail cache, and back up SQLite.</span></a>
+  <a href="use/android/"><strong>Try the Android app</strong><span>See what the preview can do and build an APK for your phone.</span></a>
+  <a href="use/telegram/"><strong>Search from Telegram</strong><span>Find albums in chat and revisit recent or pinned searches.</span></a>
 </div>

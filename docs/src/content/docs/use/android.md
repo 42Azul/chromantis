@@ -3,11 +3,15 @@ title: Android preview
 description: Build the native Kotlin and Compose APK and try it over private HTTPS.
 ---
 
-The native Android client in `android/` uses **Kotlin and Jetpack Compose with Material 3**. Write new Android code in Kotlin and build the UI in Compose. Keep archive access, permissions, indexing, and curation rules in the existing service. The Android app uses the same local HTTPS API as the web client.
+Chromantis for Android is a preview for Android 8.0 and later. It connects to your own Chromantis server over private HTTPS and needs a [family access code](../start/private-access.md#invite-a-family-member-without-telegram).
+
+**APK availability:** Build the APK from source using the instructions below. There is no public prebuilt APK at this stage.
+
+## What you can do
 
 **Folders** (*Carpetas*) lists years and albums, searches indexed albums, and opens a paged gallery. It requests thumbnails for visible tiles when the server has them enabled and loads an original after a tap. Family sign-in uses the existing one-time code and revocable session. Open **Tag albums** (*Etiquetar álbumes*) for the pending queue or **Tag this album** (*Etiquetar este álbum*) in a gallery to make a correction. Search for a person by name or alias, select or clear the link, add a person, or decide on tags suggested from folder names. Use **View up to three photos** to request previews. Skipping leaves the album pending.
 
-The Android client is a preview. The full flow on a current physical phone is pending. Read [Private access](../start/private-access.md) before using a home-network endpoint.
+The full flow on a current physical phone is pending. The native client in `android/` uses Kotlin and Jetpack Compose with Material 3. Archive access, permissions, indexing, and curation remain in the shared service.
 
 ## Build and install
 

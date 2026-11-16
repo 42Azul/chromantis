@@ -12,13 +12,18 @@ export default defineConfig({
     starlight({
       title: 'Chromantis',
       description: 'Install, use, and maintain your family photo archive.',
+      defaultLocale: 'root',
+      locales: {
+        root: { label: 'English', lang: 'en' },
+        es: { label: 'Español', lang: 'es' },
+      },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/42Azul/chromantis' }],
       customCss: ['./src/styles/chromantis.css'],
       sidebar: [
-        { label: 'Start here', items: ['start/install', 'start/private-access'] },
-        { label: 'Use Chromantis', items: ['use/family', 'use/telegram', 'use/android'] },
-        { label: 'Run your archive', items: ['operate/maintenance', 'operate/configuration'] },
-        { label: 'Reference', items: ['reference/api', 'reference/experiments', 'reference/mcp', 'reference/contributing'] },
+        { label: 'Start here', translations: { es: 'Primeros pasos' }, items: ['start/install', 'start/private-access'] },
+        { label: 'Use Chromantis', translations: { es: 'Usar Chromantis' }, items: ['use/family', 'use/telegram', 'use/android'] },
+        { label: 'Run your archive', translations: { es: 'Mantener tu archivo' }, items: ['operate/maintenance', 'operate/configuration'] },
+        { label: 'Reference', translations: { es: 'Referencia' }, items: ['reference/api', 'reference/experiments', 'reference/mcp', 'reference/contributing'] },
       ],
     }),
   ],

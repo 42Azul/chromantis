@@ -1,0 +1,41 @@
+---
+title: Explorar y etiquetar álbumes
+description: Encuentra fotos familiares, revisa álbumes y guarda correcciones desde el navegador.
+---
+
+Abre la dirección local de Chromantis e [inicia sesión](../start/private-access.md). Puedes usar un móvil o un ordenador.
+
+## Encuentra un álbum
+
+Abre **Archivo** (*Archive*) para navegar por año o buscar por palabras de la carpeta, título, alias, lugar o persona. Prueba `playa 2024` o `Ana`. Abre un álbum para ver sus fotos y usa el visor para abrir o descargar un original. La [caché opcional de miniaturas](../operate/maintenance.md#carga-miniaturas-solo-cuando-hagan-falta) aligera la galería en el móvil.
+
+Usa la cronología para buscar por lugar o fecha. La fecha puede venir de la carpeta indexada o de una corrección guardada. Si están disponibles, el visor indica por separado la fecha de captura y la de modificación del archivo.
+
+Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coinciden varios álbumes, elige uno. Escribe una consulta nueva para empezar de cero.
+
+## Etiqueta tu primer álbum
+
+1. Abre **Etiquetar álbumes** y elige uno de los pendientes. Verás su título y la fecha, si se conoce.
+2. Busca a **Ana** por nombre o alias y selecciónala. Puedes elegir a más personas o añadir una nueva. Si necesitas recordar quién aparecía, pulsa **Ver hasta 3 fotos**.
+3. Acepta, rechaza o corrige las sugerencias del nombre de la carpeta. También puedes añadir etiquetas de una sola palabra.
+4. Pulsa **Guardar y siguiente**. Abre **Archivo** y busca `Ana` para encontrar el álbum.
+
+El vínculo indica que la persona aparece en alguna foto del álbum. La API ofrece una [búsqueda independiente por foto confirmada](../reference/api.md#etiquetado-manual-por-foto) basada en vínculos explícitos a fotos concretas.
+
+Pulsa **Saltar** si tienes dudas. Para corregir a quién vinculaste, abre **Ya revisados** o pulsa **Etiquetar este álbum** desde la galería, desmarca a la persona y guarda.
+
+## Revisa sugerencias por lotes
+
+Abre **Por lotes** para agrupar álbumes con la misma sugerencia. Cada sugerencia muestra la palabra del nombre de carpeta que la originó. Puedes aceptarla en unos álbumes, rechazarla en otros y dejar pendientes los dudosos. Pulsa **Revisar** para hacer correcciones individuales.
+
+El grupo se guarda de una vez. Si un álbum cambió mientras revisabas, recarga el grupo y vuelve a decidir. Este flujo solo usa los nombres guardados en SQLite. Las decisiones y las etiquetas manuales se conservan al reindexar si la ruta sigue siendo la misma. Una carpeta trasladada o renombrada se indexa como un álbum nuevo. Las palabras del nombre original siguen encontrando el álbum aunque rechaces una sugerencia.
+
+## Edita los detalles del álbum
+
+Abre **Detalles del álbum** para añadir una nota, un lugar o hasta ocho alias, o para corregir el título y la fecha. Borra una corrección para volver al valor indexado. El año corregido se usa para navegar por años. Puedes seguir buscando por el nombre original de la carpeta o por otros nombres.
+
+## Guarda una colección privada
+
+Con una sesión de propietario, usa **Add photo to collection** o **Add album to collection** y elige una colección o crea una. En **Collections** puedes volver a las entradas y quitarlas. Cada propietario tiene sus propias colecciones, con un máximo de 100 colecciones y 250 entradas por colección. Una entrada vuelve a estar disponible si el índice recupera la misma ruta y raíz del archivo.
+
+Para que otra persona pueda ver un álbum, usa un [enlace revocable](../start/private-access.md#comparte-un-solo-álbum).
