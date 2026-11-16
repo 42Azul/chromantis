@@ -11,3 +11,6 @@ build/
 android/keystore.properties
 *.jks
 *.keystore
+docs/node_modules/
+docs/.astro/
+docs/dist/

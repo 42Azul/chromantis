@@ -1,4 +1,7 @@
-# Read-only MCP trial
+---
+title: Read-only MCP trial
+description: Evaluate album-scoped MCP tools with SQLite and a synthetic archive.
+---
 
 Chromantis now has a transport-neutral MCP tool core for evaluating album-scoped retrieval without exposing the NAS or adding a permanent model process.
 
@@ -15,7 +18,7 @@ The core deliberately has no network listener and adds no dependency. It exposes
 
 ## Transport decision
 
-As checked on 16 November 2026, ChatGPT cannot connect directly to a local MCP process. OpenAI documents a public HTTPS MCP endpoint or a Secure MCP Tunnel for a private-network server. The official MCP Python SDK supports stdio and Streamable HTTP, but its current stable v2 line requires Python 3.11 while Chromantis still supports Python 3.10.
+This trial exposes no MCP endpoint. Before adding a transport, check the official client connection requirements and the Python compatibility of the selected SDK version.
 
 For that reason this trial does not publish an endpoint, install the SDK, enable a tunnel or implement OAuth. A remote connection remains a separate opt-in decision involving availability, authentication, privacy, NAS cost and whether a household use case justifies it.
 

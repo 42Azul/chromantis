@@ -1,0 +1,17 @@
+{
+  "name": "chromantis-docs",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.22.0" },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro build && node scripts/check-links.mjs"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "7.3.0",
+    "@astrojs/starlight": "0.43.1",
+    "astro": "7.4.12"
+  }
+}

@@ -2,7 +2,7 @@
 
 This file tracks delivery status, upcoming MVPs, and the implementation direction of the project. Use it as the roadmap and progress ledger for Chromantis.
 
-`README.md` explains how to run the current system. This document explains what is already shipped, what is ready next, and what is intentionally deferred.
+`README.md` is the project index. The [documentation sources](docs/src/content/docs/) cover installation, usage, maintenance, and development. This document explains what is already shipped, what is ready next, and what is intentionally deferred.
 
 ## Status Legend
 
