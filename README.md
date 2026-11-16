@@ -401,6 +401,10 @@ Abre **Etiquetar álbumes**, busca a las personas por nombre o alias y pulsa **G
 
 El nombre de la carpeta genera sugerencias con un vocabulario corto de términos en español e inglés. Cada sugerencia muestra el término que coincidió. Puedes aceptar o rechazar las pendientes de una vez, corregir etiquetas por separado y añadir etiquetas manuales de una palabra. Si dejas alguna sugerencia sin decidir, el álbum vuelve a aparecer en la siguiente vuelta. La revisión se guarda en SQLite y se conserva al reindexar mientras se mantenga la ruta. Si se renombra o se mueve la carpeta, el índice la trata como un álbum nuevo. Los términos del nombre original siguen sirviendo para buscar aunque se rechace una sugerencia.
 
+Abre **Por lotes** para agrupar los álbumes pendientes por una misma sugerencia. En cada grupo puedes aceptar la etiqueta para varios álbumes, rechazarla en otros y dejar los dudosos pendientes. **Revisar** abre el editor completo cuando necesites corregir la etiqueta, elegir personas o consultar fotos. Guardar un grupo es atómico: si uno de los álbumes cambió, no se aplica ninguna decisión hasta recargar. Este flujo usa solo nombres y SQLite y no solicita miniaturas ni originales.
+
+La API equivalente usa `GET /api/v1/album-review/batch` y `POST /api/v1/album-review/batch`, acepta hasta 50 decisiones por envío y exige el permiso limitado de curación de álbumes.
+
 El flujo de etiquetado funciona con el archivo desconectado. **Ver hasta 3 fotos** solicita los originales de forma puntual. El catálogo y la búsqueda siguen disponibles sin modelos ni dependencias nuevas.
 
 Abre **Detalles del álbum** para añadir una nota y hasta ocho alias o corregir el título y la fecha. Los valores del índice aparecen encima del formulario. Borra el título o la fecha corregidos para volver a usar los originales. El año de la fecha corregida se usa en los filtros y la navegación por año. Al buscar por un alias o por el título corregido, el resultado indica qué coincidió. Puedes seguir buscando por el nombre original de la carpeta.

@@ -4,7 +4,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from sqlite3 import Connection
 
-from chromantis.app.album_review import apply_tag_decisions, review_folder, review_item, save_context
+from chromantis.app.album_review import (
+    apply_tag_decisions,
+    review_batch,
+    review_folder,
+    review_item,
+    save_context,
+    save_review_progress,
+)
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
 from chromantis.app.recall import Refinement, refine
 from chromantis.db.album_shares import AlbumShareStore
@@ -180,6 +187,12 @@ class ApplicationService:
                     person["aliases"].append(row["alias"])
         return list(people.values())
 
+    def get_album_review_batch(self, actor: int | FamilySession, limit: int = 50) -> list[dict]:
+        with self.repository.session() as connection:
+            connection.execute("BEGIN")
+            self.require_album_curator(actor, connection)
+            return review_batch(connection, limit)
+
     def edit_album_context(
         self, actor: int | FamilySession, path: str, folder_id: int, revision: int, changes: dict[str, object],
     ) -> dict:
@@ -238,18 +251,50 @@ class ApplicationService:
                 "INSERT OR IGNORE INTO folder_people (folder_id, person_id) VALUES (?, ?)",
                 ((folder_id, person_id) for person_id in add_people),
             )
-            connection.execute(
-                """INSERT INTO album_reviews (folder_id, reviewed_name, revision) VALUES (?, ?, ?)
-                   ON CONFLICT (folder_id) DO UPDATE SET reviewed_name = excluded.reviewed_name,
-                                                        revision = excluded.revision""",
-                (folder_id, folder["folder_name_raw"] if reviewed else None, revision + 1),
-            )
+            save_review_progress(connection, folder, reviewed)
             self.repository.record_audit_event(
                 "save_album_review", "folder", path,
                 {"add_people": sorted(add_people), "remove_people": sorted(remove_people),
                  "decisions": decisions, "manual_add": sorted(manual_add), "manual_remove": sorted(manual_remove),
                  **family_audit},
                 chat_id, connection=connection,
+            )
+
+    def save_album_review_batch(
+        self, actor: int | FamilySession, entries: list[dict[str, object]],
+    ) -> None:
+        with self.repository.write_transaction() as connection:
+            self.require_album_curator(actor, connection)
+            chat_id = actor if isinstance(actor, int) else None
+            family_audit = {"family_access_id": actor.id} if isinstance(actor, FamilySession) else {}
+            seen = set()
+            for entry in entries:
+                identity = entry["id"]
+                if identity in seen:
+                    raise ValueError("Cada álbum solo puede aparecer una vez por lote.")
+                seen.add(identity)
+                folder = review_folder(connection, path=entry["path"])
+                if folder is None or (folder["id"], folder["revision"]) != (
+                    entry["id"], entry["revision"],
+                ):
+                    raise AuthOperationError(
+                        "album_review_changed", "Algún álbum ha cambiado. Recarga el lote.", 409
+                    )
+                item = review_item(connection, folder)
+                label = entry["label"]
+                suggestion = item["suggestions"].get(label)
+                if suggestion is None or suggestion["state"] != "pending":
+                    raise AuthOperationError(
+                        "album_review_changed", "Alguna sugerencia ya ha sido revisada. Recarga el lote.", 409
+                    )
+                tag = label if entry["decision"] == "accepted" else None
+                reviewed = apply_tag_decisions(
+                    connection, folder["id"], item, {label: tag}, set(), set()
+                )
+                save_review_progress(connection, folder, reviewed)
+            self.repository.record_audit_event(
+                "save_album_review_batch", "folder_batch", str(len(entries)),
+                {"items": entries, **family_audit}, chat_id, connection=connection,
             )
 
     def get_person_detail(self, identifier: str | int) -> PersonDetail | None:

@@ -28,6 +28,7 @@ Chromantis currently provides:
 - incremental indexing with stored sync summaries, a cron recipe, and bounded enrichment retries
 - a browser interface for visual search, browsing, people, saved searches, and role-based administration
 - browser-based album review with name-only tag suggestions, manual tags, curated people and limited viewer permissions
+- batch acceptance and rejection of repeated name-based album suggestions without photo reads
 - local browser-only family sign-in with one-time codes and revocable SQLite sessions
 - album aliases, notes, and title and date corrections shared by the browser and Telegram
 - optional local thumbnails with a disk budget and an index freshness indicator
@@ -472,11 +473,9 @@ Current architecture map:
 
 **Acceptance:** At a 360 px viewport, a guest can understand the album, browse previews and open one original; revocation still blocks the next metadata, preview and original request.
 
-## Ready Next
-
 ### MVP 17B — Batch Album Review
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Case:** After an index adds many albums, a curator should resolve repeated name-based suggestions without opening every album or loading photos.
 
@@ -487,6 +486,22 @@ Current architecture map:
 **Dependencies:** Existing deterministic vocabulary, album review permissions and decision persistence only.
 
 **Acceptance:** Select three pending albums, accept a shared suggestion for two and reject it for one, then reindex and verify that all three decisions persist without any archive byte reads.
+
+## Ready Next
+
+### MVP 18A — Scoped Read-only MCP Trial
+
+**Status:** `Ready Next`
+
+**Case:** Fernando should be able to query selected family albums from an MCP-capable assistant without granting it access to the whole archive or making MCP necessary for normal use.
+
+- Verify current MCP client and authentication capabilities against official documentation before choosing a transport.
+- Prototype with synthetic metadata only and reuse the application service behind a read-only album-scoped principal. Do not send real photos, family metadata or credentials to an external provider.
+- Keep the adapter optional and disabled by default. The browser, Telegram and indexing workflows must remain fully functional without it.
+
+**Dependencies:** Existing application query service and album-level permission semantics. Any new SDK or network transport requires a separate cost, privacy and NAS-resource decision.
+
+**Acceptance:** A synthetic scoped identity can list and search one granted album but cannot inspect another album, mutate curation or retrieve unrestricted originals; disabling the adapter leaves the existing test suite unchanged.
 
 ## Planned Later
 

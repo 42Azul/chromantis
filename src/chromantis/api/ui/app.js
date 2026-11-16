@@ -603,11 +603,16 @@ function closeAlbumReview() {
   $("album-review-content").replaceChildren();
 }
 
+function setAlbumReviewMode(mode) {
+  $("pending-albums").setAttribute("aria-pressed", String(mode === "pending"));
+  $("reviewed-albums").setAttribute("aria-pressed", String(mode === "reviewed"));
+  $("batch-albums").setAttribute("aria-pressed", String(mode === "batch"));
+}
+
 async function loadAlbumReview({ after = 0, reviewed = false, directory, saved = false, path } = {}) {
   closeAlbumReview();
   const request = albumRequest;
-  $("pending-albums").setAttribute("aria-pressed", String(!reviewed));
-  $("reviewed-albums").setAttribute("aria-pressed", String(reviewed));
+  setAlbumReviewMode(reviewed ? "reviewed" : "pending");
   message("album-review-status", "Cargando álbum…");
   try {
     const [{ item }, { items: people }] = await Promise.all([
@@ -620,6 +625,66 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
     else $("album-review-content").append(element("p", {},
       reviewed ? "No hay más álbumes revisados." : "No hay más álbumes pendientes en esta vuelta."
     ));
+  } catch (error) {
+    if (request === albumRequest) message("album-review-status", error.message);
+  }
+}
+
+async function loadAlbumReviewBatch(saved = false) {
+  closeAlbumReview();
+  const request = albumRequest;
+  setAlbumReviewMode("batch");
+  message("album-review-status", "Cargando sugerencias…");
+  try {
+    const { groups } = await api("/album-review/batch?limit=50");
+    if (request !== albumRequest) return;
+    message("album-review-status", saved ? "Decisiones guardadas." : "");
+    if (!groups.length) {
+      $("album-review-content").append(element("p", {},
+        "No hay sugerencias pendientes para revisar por lotes. Los álbumes ambiguos siguen en Pendientes."));
+      return;
+    }
+    $("album-review-content").replaceChildren(...groups.map(group => {
+      const rows = group.albums.map(album => {
+        const select = element("select", { "aria-label": `Decisión para ${album.title}` },
+          element("option", { value: "" }, "Pendiente"),
+          element("option", { value: "accepted" }, "Aceptar"),
+          element("option", { value: "rejected" }, "Rechazar"));
+        const row = element("div", { class: "batch-review-row" },
+          element("div", {}, element("strong", {}, album.title),
+            element("p", {}, `${album.event_date || album.year} · encontró «${album.evidence}»`)),
+          select, button("Revisar", () => loadAlbumReview({ path: album.path })));
+        return { album, select, row };
+      });
+      const submit = element("button", { class: "primary", type: "submit" }, "Guardar decisiones");
+      const status = element("p", { class: "message", "aria-live": "polite" });
+      const form = element("form", { class: "panel batch-review-group" },
+        element("h3", {}, `Etiqueta sugerida: ${group.label}`),
+        element("p", {}, "Decide solo los álbumes claros. Deja el resto pendiente o ábrelo para corregir."),
+        ...rows.map(row => row.row), element("div", { class: "actions" }, submit), status);
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        const items = rows.filter(row => row.select.value).map(({ album, select }) => ({
+          id: album.id, path: album.path, revision: album.revision,
+          label: group.key, decision: select.value,
+        }));
+        if (!items.length) {
+          status.textContent = "Elige al menos una decisión.";
+          return;
+        }
+        submit.disabled = true;
+        status.textContent = "";
+        try {
+          await api("/album-review/batch", { method: "POST", data: { items } });
+          if (request === albumRequest) await loadAlbumReviewBatch(true);
+        } catch (error) {
+          if (request === albumRequest) status.textContent = error.message;
+        } finally {
+          submit.disabled = false;
+        }
+      });
+      return form;
+    }));
   } catch (error) {
     if (request === albumRequest) message("album-review-status", error.message);
   }
@@ -835,6 +900,7 @@ function albumContextEditor(album, heading, date, request) {
 
 $("pending-albums").addEventListener("click", () => loadAlbumReview());
 $("reviewed-albums").addEventListener("click", () => loadAlbumReview({ reviewed: true }));
+$("batch-albums").addEventListener("click", () => loadAlbumReviewBatch());
 
 function inlineForm(label, input, buttonText, submit, statusID) {
   const form = element("form", { class: "inline-form" },

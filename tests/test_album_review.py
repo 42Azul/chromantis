@@ -128,12 +128,50 @@ class AlbumReviewTests(unittest.TestCase):
         self.assertEqual(self.review()["suggestions"]["playa"]["state"], "accepted")
         self.assertEqual(self.review()["suggestions"]["viaje"]["state"], "pending")
 
+    def test_batch_accepts_and_rejects_shared_suggestion_offline_and_survives_reindex(self):
+        accepted_paths = [ALBUM_PATH, "2024/2024-05-01_beach_picnic"]
+        rejected_path = "2024/2024-06-01_playa_dudosa"
+        self.add_photo(accepted_paths[1])
+        self.add_photo(rejected_path)
+        self.scanner.scan(incremental=True)
+        offline_path = self.archive.with_name("disconnected-batch")
+        self.archive.rename(offline_path)
+
+        status, payload = self.request("GET", "/album-review/batch?limit=50")
+        self.assertEqual(status, 200)
+        playa = next(group for group in payload["groups"] if group["key"] == "playa")
+        by_path = {album["path"]: album for album in playa["albums"]}
+        self.assertEqual(set(by_path), {*accepted_paths, rejected_path})
+        items = [{
+            **{key: by_path[path][key] for key in ("id", "path", "revision")},
+            "label": "playa",
+            "decision": "accepted" if path in accepted_paths else "rejected",
+        } for path in (*accepted_paths, rejected_path)]
+        stale = [dict(item) for item in items]
+        stale[-1]["revision"] += 1
+        self.assertEqual(self.request("POST", "/album-review/batch", {"items": stale})[0], 409)
+        self.assertEqual(self.review(accepted_paths[0])["suggestions"]["playa"]["state"], "pending")
+        self.assertEqual(self.request("POST", "/album-review/batch", {"items": items})[0], 200)
+
+        for path in accepted_paths:
+            self.assertEqual(self.review(path)["suggestions"]["playa"]["state"], "accepted")
+        self.assertEqual(self.review(rejected_path)["suggestions"]["playa"]["state"], "rejected")
+        self.image_fetcher.assert_not_called()
+        self.assertEqual(self.repository.list_audit_events(limit=1)[0].action, "save_album_review_batch")
+
+        offline_path.rename(self.archive)
+        self.scanner.scan()
+        for path in accepted_paths:
+            self.assertEqual(self.review(path)["suggestions"]["playa"]["state"], "accepted")
+        self.assertEqual(self.review(rejected_path)["suggestions"]["playa"]["state"], "rejected")
+
     def test_curator_cannot_administer_and_revocation_is_live(self):
         self.assertEqual(self.request("GET", "/auth/me")[1]["can_curate_albums"], True)
         self.assertEqual(self.request("GET", "/admin/config")[0], 403)
         self.assertEqual(self.request("POST", "/admin/people", {"display_name": "New"})[0], 403)
         for token, status in (("shared-read", 401), ("viewer", 403)):
             self.assertEqual(self.request("GET", "/album-review", token=token)[0], status)
+            self.assertEqual(self.request("GET", "/album-review/batch", token=token)[0], status)
         self.assertEqual(self.request("GET", "/album-review", token="owner")[0], 200)
         self.repository.revoke_chat(20)
         self.assertEqual(self.request("GET", "/album-review")[0], 401)

@@ -17,6 +17,14 @@ TAG_RULES = {
     "viaje": ("viaje", "trip"),
 }
 
+REVIEW_SELECT = """
+    SELECT f.id, f.folder_path AS path, f.title, f.event_date, f.year, f.folder_name_raw,
+           f.indexed_title, f.indexed_date, f.indexed_year,
+           f.title_override, f.date_override, f.note, f.aliases_json, f.context_revision, f.place,
+           COALESCE(r.revision, 0) AS revision
+    FROM album_metadata f LEFT JOIN album_reviews r ON r.folder_id = f.id
+"""
+
 
 def name_suggestions(folder_name: str) -> dict[str, tuple[str, str]]:
     words = set(re.findall(r"[^\W_]+", normalize_text(folder_name)))
@@ -38,20 +46,37 @@ def parse_tag(value: object) -> str:
 def review_folder(
     connection: Connection, *, after: int = 0, reviewed: bool = False, path: str | None = None
 ):
-    sql = """
-        SELECT f.id, f.folder_path AS path, f.title, f.event_date, f.year, f.folder_name_raw,
-               f.indexed_title, f.indexed_date, f.indexed_year,
-               f.title_override, f.date_override, f.note, f.aliases_json, f.context_revision, f.place,
-               COALESCE(r.revision, 0) AS revision
-        FROM album_metadata f LEFT JOIN album_reviews r ON r.folder_id = f.id
-    """
     if path is not None:
-        return connection.execute(sql + "WHERE f.folder_path = ?", (path,)).fetchone()
+        return connection.execute(REVIEW_SELECT + "WHERE f.folder_path = ?", (path,)).fetchone()
     state = "IS" if reviewed else "IS NOT"
     return connection.execute(
-        sql + f"WHERE f.id > ? AND r.reviewed_name {state} f.folder_name_raw ORDER BY f.id LIMIT 1",
+        REVIEW_SELECT
+        + f"WHERE f.id > ? AND r.reviewed_name {state} f.folder_name_raw ORDER BY f.id LIMIT 1",
         (after,),
     ).fetchone()
+
+
+def review_batch(connection: Connection, limit: int = 50) -> list[dict]:
+    folders = connection.execute(
+        REVIEW_SELECT
+        + "WHERE r.reviewed_name IS NOT f.folder_name_raw ORDER BY f.id LIMIT 200"
+    )
+    groups: dict[str, dict] = {}
+    count = 0
+    for folder in folders:
+        item = review_item(connection, folder)
+        for key, suggestion in item["suggestions"].items():
+            if suggestion["state"] != "pending":
+                continue
+            group = groups.setdefault(key, {"key": key, "label": suggestion["label"], "albums": []})
+            group["albums"].append({
+                field: item[field]
+                for field in ("id", "path", "title", "event_date", "year", "revision")
+            } | {"evidence": suggestion["evidence"]})
+            count += 1
+            if count >= limit:
+                return list(groups.values())
+    return list(groups.values())
 
 
 def review_item(connection: Connection, folder) -> dict:
@@ -165,4 +190,13 @@ def apply_tag_decisions(
     return all(
         label in decisions or suggestion["state"] != "pending"
         for label, suggestion in item["suggestions"].items()
+    )
+
+
+def save_review_progress(connection: Connection, folder, reviewed: bool) -> None:
+    connection.execute(
+        """INSERT INTO album_reviews (folder_id, reviewed_name, revision) VALUES (?, ?, ?)
+           ON CONFLICT (folder_id) DO UPDATE SET reviewed_name = excluded.reviewed_name,
+                                                revision = excluded.revision""",
+        (folder["id"], folder["folder_name_raw"] if reviewed else None, folder["revision"] + 1),
     )

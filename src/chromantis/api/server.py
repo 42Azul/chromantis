@@ -360,6 +360,12 @@ def _album_review_route(
     base = ALBUM_REVIEW_PATH
     app.require_album_curator(actor)
     album_path = params.get("path", [None])[0]
+    if path == f"{base}/batch" and method == "GET":
+        limit = _bounded_limit(params.get("limit", ["50"])[0], default=50)
+        return 200, {"groups": app.get_album_review_batch(actor, limit)}
+    if path == f"{base}/batch" and method == "POST":
+        app.save_album_review_batch(actor, _batch_review_entries(body))
+        return 200, {"saved": True}
     if method == "GET" and path == base:
         after = _optional_int(params.get("after", [None])[0]) or 0
         if not 0 <= after < 2**63:
@@ -421,6 +427,28 @@ def _review_people(body: dict[str, object], key: str) -> set[int]:
     if any(type(value) is not int or not 1 <= value < 2**63 for value in values):
         raise ValueError("La selección de personas no es válida.")
     return set(values)
+
+
+def _batch_review_entries(body: dict[str, object]) -> list[dict[str, object]]:
+    values = body.get("items")
+    if not isinstance(values, list) or not 1 <= len(values) <= 50:
+        raise ValueError("El lote debe contener entre 1 y 50 decisiones.")
+    entries = []
+    for value in values:
+        if not isinstance(value, dict):
+            raise ValueError("Las decisiones del lote no son válidas.")
+        folder_id, revision = _album_revision(value)
+        decision = value.get("decision")
+        if not isinstance(decision, str) or decision not in {"accepted", "rejected"}:
+            raise ValueError("Elige aceptar o rechazar cada sugerencia del lote.")
+        entries.append({
+            "id": folder_id,
+            "path": _text(value, "path"),
+            "revision": revision,
+            "label": parse_tag(value.get("label")),
+            "decision": decision,
+        })
+    return entries
 
 
 def _people_admin_route(
