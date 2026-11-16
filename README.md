@@ -573,21 +573,18 @@ For a recovery drill, stop the bot and API only before switching `SQLITE_PATH`, 
 
 ## Android explorer preview
 
-Chromantis has a native Android client in `android/`. Its first increment opens **Carpetas**, lists years and albums, searches indexed albums, and opens a paged gallery. It requests thumbnails for visible tiles when the server has thumbnails enabled and loads the original after a tap. Family sign-in uses the existing one-time code and revocable session. Album editing is the next Android increment.
+The native Android client in `android/` uses **Kotlin and Jetpack Compose with Material 3**. Write new Android code in Kotlin and build the UI in Compose. Keep archive access, permissions, indexing, and curation rules in the existing service. The Android app uses the same local HTTPS API as the web client.
+
+**Carpetas** lists years and albums, searches indexed albums, and opens a paged gallery. It requests thumbnails for visible tiles when the server has them enabled and loads an original after a tap. Family sign-in uses the existing one-time code and revocable session. Open **Etiquetar álbumes** for the pending queue or **Etiquetar este álbum** in a gallery to make a correction. Search for a person by name or alias, select or clear the link, add a person, or decide on tags suggested from folder names. Use **Ver hasta tres fotos** to request previews. Skipping leaves the album pending.
 
 Build on a development computer with JDK 17 or 21, Gradle 8.13, Android SDK Platform 36 and Build Tools 36.0.0. Set `ANDROID_HOME` to the SDK directory. From the repository root:
 
 ```bash
-gradle -p android assembleDebug lintDebug
+gradle -p android spotlessCheck assembleDebug lintDebug
 adb install -r android/build/outputs/apk/debug/Chromantis-debug.apk
 ```
 
-The debug APK is signed by the local debug key. Open it with a private HTTPS origin reachable by the device and a family code. If HTTPS is terminated by a local reverse proxy, preserve the original `Host` header for family session writes. Plain HTTP is disabled. The debug build also trusts certificates installed by the Android user for local fixtures. Release builds use the platform trust store. Format the Java source with google-java-format 1.25.2:
-
-```bash
-java -jar /path/to/google-java-format-1.25.2-all-deps.jar \
-  --aosp --dry-run --set-exit-if-changed android/src/main/java/org/chromantis/android/*.java
-```
+The debug APK is signed by the local debug key. Open it with a private HTTPS origin reachable by the device and a family code. If HTTPS is terminated by a local reverse proxy, preserve the original `Host` header for family session writes. Plain HTTP is disabled. The debug build also trusts certificates installed by the Android user for local fixtures. Release builds use the platform trust store. Run `gradle -p android spotlessApply` to format Kotlin with the pinned ktfmt version.
 
 For a local emulator smoke test, install the existing thumbnails extra for Pillow. Generate a temporary certificate for the emulator's host alias and run the fixture without the NAS:
 
@@ -600,7 +597,9 @@ PYTHONPATH=src python tests/android_fixture.py \
   --cert "$fixture_dir/cert.pem" --key "$fixture_dir/key.pem"
 ```
 
-Install the temporary certificate as a trusted user CA on the disposable emulator. Set the address to `https://10.0.2.2:8443` and use the fixture's printed one-time code. Open 2024, browse the second gallery page, open a photo, go back, and relaunch the app to check the retained session. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and synthetic photos.
+Install the temporary certificate as a trusted user CA on the disposable emulator. Set the address to `https://10.0.2.2:8443` and use the fixture's printed one-time code. Open 2024, browse the second gallery page, open a photo, go back, and relaunch the app to check the retained session.
+
+From **Carpetas**, open **Etiquetar álbumes**, filter people with `Anita`, select Ana, and save. Return to **Carpetas** and search `Ana` to find the album. Open its gallery and use **Etiquetar este álbum** to remove the link or check which suggestion decisions were saved. Repeat with `--index-only` on a fresh fixture to check that navigation, filenames, and album editing still work with the synthetic archive disconnected. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and synthetic photos.
 
 ## Current v1 limits
 

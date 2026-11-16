@@ -9,7 +9,6 @@
     <string name="sign_in">Entrar</string>
     <string name="sign_out">Cerrar sesión</string>
     <string name="invalid_address">Escribe una dirección HTTPS válida del NAS.</string>
-    <string name="missing_code">Introduce un código familiar.</string>
     <string name="invalid_code">El código es incorrecto, ya se usó o ha caducado.</string>
     <string name="connecting">Conectando…</string>
     <string name="folders">Carpetas</string>
@@ -20,8 +19,6 @@
     <string name="search_hint">Buscar álbumes</string>
     <string name="search">Buscar</string>
     <string name="results">Resultados</string>
-    <string name="open_photo_hint">Toca una foto para abrirla.</string>
-    <string name="opening_photo">Abriendo foto…</string>
     <string name="closing_session">Cerrando sesión…</string>
     <string name="expired_session">La sesión ha caducado o se ha revocado. Pide otro código.</string>
     <string name="untrusted_certificate">No se pudo verificar el certificado del NAS.</string>
@@ -29,11 +26,34 @@
     <string name="operation_forbidden">El servidor no permite esta operación.</string>
     <string name="request_failed">No se pudo completar la petición. Comprueba la dirección y el Wi-Fi.</string>
     <string name="retry">Reintentar</string>
-    <string name="back_to_folders">Volver a Carpetas</string>
     <string name="back">Volver</string>
     <string name="thumbnail_unavailable">Miniatura no disponible</string>
+    <string name="review_album">Etiquetar este álbum</string>
+    <string name="review_albums">Etiquetar álbumes</string>
+    <string name="people_in_album">Personas que aparecen</string>
+    <string name="album_people_explanation">Vincula personas al álbum. Puedes corregir un vínculo desmarcándolo y guardando.</string>
+    <string name="people_filter">Buscar persona por nombre o alias</string>
+    <string name="narrow_people">Escribe un nombre o alias para ver más personas.</string>
+    <string name="new_person_hint">Añadir una persona nueva</string>
+    <string name="suggested_tags">Etiquetas sugeridas</string>
+    <string name="suggestion_evidence">%1$s · por «%2$s» en el nombre de la carpeta</string>
+    <string name="corrected_tag">Corrección guardada: %1$s</string>
+    <string name="accept_tag">Aceptar</string>
+    <string name="reject_tag">Rechazar</string>
+    <string name="show_review_photos">Ver hasta tres fotos</string>
+    <string name="no_pending_albums">No hay más álbumes pendientes.</string>
+    <string name="restart_review">Volver al principio</string>
+    <string name="save_and_next">Guardar y seguir</string>
+    <string name="save_album">Guardar</string>
+    <string name="skip_album">Saltar</string>
+    <string name="saving">Guardando…</string>
+    <string name="album_saved">Álbum guardado</string>
+    <string name="review_conflict">El álbum cambió mientras lo revisabas. Vuelve a cargarlo para ver los cambios.</string>
+    <string name="reload_review">Recargar álbum</string>
+    <string name="review_invalid">No se pudo guardar. Comprueba el nombre y la selección.</string>
     <plurals name="album_count">
         <item quantity="one">%d álbum</item>
         <item quantity="other">%d álbumes</item>
     </plurals>
 </resources>
+

@@ -1,0 +1,288 @@
+package org.chromantis.android
+
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.LruCache
+import java.io.IOException
+import java.net.URI
+import java.net.URLEncoder
+import java.util.Locale
+import javax.net.ssl.HttpsURLConnection
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+
+internal data class Entry(val title: String, val path: String, val albumCount: Int? = null)
+
+internal data class EntryPage(
+    val entries: List<Entry>,
+    val nextOffset: Int? = null,
+    val hasThumbnails: Boolean = false,
+)
+
+internal data class Person(val id: Long, val name: String, val aliases: List<String>)
+
+internal data class Suggestion(
+    val key: String,
+    val label: String,
+    val evidence: String,
+    val state: String,
+    val tag: String?,
+)
+
+internal data class ReviewAlbum(
+    val id: Long,
+    val path: String,
+    val revision: Long,
+    val title: String,
+    val date: String?,
+    val people: Set<Long>,
+    val suggestions: List<Suggestion>,
+)
+
+internal class ChromantisApi(address: String, val secret: String? = null) {
+    val origin = parseOrigin(address)
+    private val thumbnailRequests = Semaphore(2)
+    private val thumbnails =
+        object : LruCache<String, Bitmap>(4 * 1024 * 1024) {
+            override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
+        }
+
+    suspend fun signIn(code: String): ChromantisApi =
+        withContext(Dispatchers.IO) {
+            request("POST", "/family/session", JSONObject().put("code", code)) { connection ->
+                val session =
+                    connection.headerFields.entries
+                        .asSequence()
+                        .filter { "Set-Cookie".equals(it.key, ignoreCase = true) }
+                        .flatMap { it.value.asSequence() }
+                        .mapNotNull { sessionCookie.find(it)?.groupValues?.get(1) }
+                        .firstOrNull() ?: throw IOException("Missing family session cookie.")
+                ChromantisApi(origin, session)
+            }
+        }
+
+    suspend fun signOut() =
+        withContext(Dispatchers.IO) { request("DELETE", "/family/session") { Unit } }
+
+    suspend fun years() =
+        EntryPage(
+            json("/years").getJSONArray("items").mapObjects {
+                val year = it.getString("year")
+                Entry(year, year, albumCount = it.getInt("folders"))
+            }
+        )
+
+    suspend fun albums(query: String, offset: Int): EntryPage {
+        val entries =
+            json("/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset")
+                .getJSONArray("items")
+                .mapObjects { Entry(it.getString("title"), it.getString("path")) }
+        return EntryPage(
+            entries.take(pageSize),
+            (offset + pageSize).takeIf { entries.size > pageSize },
+        )
+    }
+
+    suspend fun photos(path: String, offset: Int): EntryPage {
+        val response = json("/album-images?path=${encode(path)}&limit=$pageSize&offset=$offset")
+        return EntryPage(
+            response.getJSONArray("items").mapObjects(::photoEntry),
+            if (response.isNull("next_offset")) null else response.getInt("next_offset"),
+            thumbnailsEnabled(),
+        )
+    }
+
+    suspend fun review(path: String?, after: Long): ReviewAlbum? {
+        val query = if (path == null) "after=$after" else "path=${encode(path)}"
+        val item = json("/album-review?$query").optJSONObject("item") ?: return null
+        val suggestions = item.getJSONObject("suggestions")
+        return ReviewAlbum(
+            item.getLong("id"),
+            item.getString("path"),
+            item.getLong("revision"),
+            item.getString("title"),
+            item.optionalString("event_date") ?: item.optionalString("year"),
+            item.getJSONArray("person_ids").let { ids ->
+                (0 until ids.length()).map(ids::getLong).toSet()
+            },
+            suggestions
+                .keys()
+                .asSequence()
+                .sorted()
+                .map { key ->
+                    val suggestion = suggestions.getJSONObject(key)
+                    Suggestion(
+                        key,
+                        suggestion.getString("label"),
+                        suggestion.getString("evidence"),
+                        suggestion.getString("state"),
+                        suggestion.optionalString("tag"),
+                    )
+                }
+                .toList(),
+        )
+    }
+
+    suspend fun people() =
+        json("/album-review/people").getJSONArray("items").mapObjects {
+            Person(
+                it.getLong("id"),
+                it.getString("display_name"),
+                it.getJSONArray("aliases").let { aliases ->
+                    (0 until aliases.length()).map(aliases::getString)
+                },
+            )
+        }
+
+    suspend fun reviewPhotos(path: String) =
+        EntryPage(
+            json("/album-review/photos?path=${encode(path)}")
+                .getJSONArray("items")
+                .mapObjects(::photoEntry),
+            hasThumbnails = thumbnailsEnabled(),
+        )
+
+    suspend fun saveReview(
+        album: ReviewAlbum,
+        selectedPeople: Set<Long>,
+        newPerson: String,
+        decisions: Map<String, String?>,
+    ) =
+        withContext(Dispatchers.IO) {
+            val changes = JSONObject()
+            decisions.forEach { (key, value) -> changes.put(key, value ?: JSONObject.NULL) }
+            val body =
+                JSONObject()
+                    .put("id", album.id)
+                    .put("revision", album.revision)
+                    .put("path", album.path)
+                    .put("add_people", JSONArray((selectedPeople - album.people).sorted()))
+                    .put("remove_people", JSONArray((album.people - selectedPeople).sorted()))
+                    .put("decisions", changes)
+            if (newPerson.isNotBlank()) body.put("new_person", newPerson.trim())
+            request("POST", "/album-review", body) { Unit }
+        }
+
+    suspend fun thumbnail(path: String): Bitmap =
+        thumbnailRequests.withPermit {
+            thumbnails.get(path) ?: photo(path, preview = true).also { thumbnails.put(path, it) }
+        }
+
+    suspend fun photo(path: String, preview: Boolean = false): Bitmap =
+        withContext(Dispatchers.IO) {
+            val route = if (preview) "/thumbnail" else "/image"
+            request("GET", "$route?path=${encode(path)}") { connection ->
+                val data = connection.readBytes(if (preview) 1 shl 20 else 32 shl 20)
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(data, 0, data.size, options)
+                val limit = if (preview) 480 else 2048
+                options.inSampleSize = 1
+                while (maxOf(options.outWidth, options.outHeight) / options.inSampleSize > limit) {
+                    options.inSampleSize *= 2
+                }
+                options.inJustDecodeBounds = false
+                BitmapFactory.decodeByteArray(data, 0, data.size, options)
+                    ?: throw IOException("Invalid image data.")
+            }
+        }
+
+    private suspend fun thumbnailsEnabled() =
+        json("/archive-status").getJSONObject("item").optBoolean("thumbnails")
+
+    private suspend fun json(route: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            request("GET", route) { JSONObject(it.readBytes(1 shl 20).decodeToString()) }
+        }
+
+    private fun <T> request(
+        method: String,
+        route: String,
+        body: JSONObject? = null,
+        read: (HttpsURLConnection) -> T,
+    ): T {
+        val connection =
+            URI.create("$origin/api/v1$route").toURL().openConnection() as HttpsURLConnection
+        try {
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 6000
+            connection.readTimeout = 8000
+            connection.useCaches = false
+            connection.requestMethod = method
+            secret?.let { connection.setRequestProperty("Cookie", "chromantis_family=$it") }
+            if (method != "GET") connection.setRequestProperty("Origin", origin)
+            body?.let {
+                val bytes = it.toString().encodeToByteArray()
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+                connection.setFixedLengthStreamingMode(bytes.size)
+                connection.outputStream.use { output -> output.write(bytes) }
+            }
+            val status = connection.responseCode
+            if (status !in 200..299) throw HttpFailure(status)
+            return read(connection)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    internal class HttpFailure(val status: Int) : IOException("Chromantis returned HTTP $status")
+
+    companion object {
+        const val pageSize = 30
+        private val sessionCookie = Regex("^chromantis_family=([A-Za-z0-9_-]{43})(?:;|$)")
+
+        private fun encode(value: String) = URLEncoder.encode(value, "UTF-8")
+
+        private fun parseOrigin(value: String): String {
+            val uri =
+                try {
+                    URI(value.trim())
+                } catch (error: java.net.URISyntaxException) {
+                    throw IllegalArgumentException("Invalid server address.", error)
+                }
+            require(
+                "https".equals(uri.scheme, ignoreCase = true) &&
+                    uri.host != null &&
+                    (uri.port == -1 || uri.port in 1..65535) &&
+                    uri.rawUserInfo == null &&
+                    uri.rawQuery == null &&
+                    uri.rawFragment == null &&
+                    uri.rawPath in setOf("", "/")
+            ) {
+                "Expected a private HTTPS server address."
+            }
+            val port = if (uri.port == -1 || uri.port == 443) "" else ":${uri.port}"
+            return "https://${uri.host.lowercase(Locale.ROOT)}$port"
+        }
+    }
+}
+
+private fun HttpsURLConnection.readBytes(limit: Int): ByteArray {
+    if (contentLengthLong > limit) throw IOException("Response is too large.")
+    return inputStream.use { input ->
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(16 * 1024)
+        while (true) {
+            val count = input.read(buffer)
+            if (count == -1) break
+            if (output.size() + count > limit) throw IOException("Response is too large.")
+            output.write(buffer, 0, count)
+        }
+        output.toByteArray()
+    }
+}
+
+private inline fun <T> JSONArray.mapObjects(read: (JSONObject) -> T): List<T> =
+    List(length()) { read(getJSONObject(it)) }
+
+private fun JSONObject.optionalString(key: String): String? =
+    if (isNull(key)) null else getString(key)
+
+private fun photoEntry(item: JSONObject): Entry {
+    val path = item.getString("path")
+    return Entry(path.substringAfterLast('/'), path)
+}

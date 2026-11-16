@@ -23,6 +23,7 @@ def main() -> None:
     parser.add_argument("--key", required=True)
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8443)
+    parser.add_argument("--index-only", action="store_true", help="Disconnect the synthetic archive after indexing.")
     args = parser.parse_args()
 
     with TemporaryDirectory(prefix="chromantis-android-") as directory:
@@ -39,8 +40,12 @@ def main() -> None:
         db = str(root / "index.db")
         repository = Repository(db)
         repository.init_schema()
+        ana = repository.create_person("Ana")
+        repository.add_person_alias(ana.id, "Anita")
         source = LocalArchiveSource(str(archive))
         ArchiveScanner(source, repository, PathParser()).scan()
+        if args.index_only:
+            archive.rename(root / "disconnected")
         app = ApplicationService(repository)
         _, invite = app.family_access.invite("Android fixture")
         handler = make_api_handler(
@@ -64,3 +69,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
