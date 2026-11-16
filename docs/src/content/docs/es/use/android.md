@@ -10,7 +10,7 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 ## Qué puedes hacer
 
 - **Carpetas** muestra años, álbumes y una galería paginada. Si el servidor tiene miniaturas activadas, la app carga las visibles. Toca una foto para abrir el original.
-- **Clasificar** abre la cola de álbumes pendientes. Busca personas por nombre o alias, revisa las etiquetas sugeridas a partir del nombre de la carpeta o salta un álbum si tienes dudas. Pide una vista previa solo cuando la necesites. Para corregir un álbum, abre **Etiquetar este álbum** en la galería.
+- **Clasificar** muestra una tarjeta por álbum. Desliza a la derecha para aceptar la etiqueta que ves o a la izquierda para dejar el álbum pendiente. También puedes pulsar los botones. En **Personas, fotos y etiquetas** puedes buscar personas por nombre o alias, ver algunas fotos bajo demanda o corregir decisiones. Para editar un álbum ya revisado, abre **Etiquetar este álbum** en la galería.
 - **Buscar** empieza con palabras del álbum o el nombre de una persona. Escribe después `antes de 2020` o `con Ana` para acotar esos resultados. Si el nombre del álbum es ambiguo, elige uno de los candidatos. Se usan las reglas de búsqueda locales.
 
 En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elección se guarda en el dispositivo.
@@ -56,4 +56,6 @@ PYTHONPATH=src python tests/android_fixture.py \
 
 Instala el certificado temporal como CA de usuario de confianza en un emulador de pruebas. Usa la dirección `https://10.0.2.2:8443` y el código de un solo uso que imprime el ejemplo. Abre 2024, pasa a la segunda página de la galería, abre una foto y gira el dispositivo. Comprueba que sigue abierta la misma foto y que al volver atrás aparece la segunda página. Relanza la app para comprobar que conserva la sesión.
 
-En **Clasificar**, filtra por `Anita`, selecciona a Ana y guarda. Abre **Buscar**, busca `Ana` y afina con `solo 2024` para encontrar el álbum. Abre la galería y pulsa **Etiquetar este álbum** para retirar el vínculo o comprobar las decisiones guardadas. Repite la prueba con `--index-only` para comprobar que la navegación, los nombres y la edición de álbumes siguen funcionando con el archivo sintético desconectado. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
+En **Clasificar**, desliza la primera tarjeta a la izquierda y usa **Volver al principio** al final de la cola para recuperarla. Abre **Personas, fotos y etiquetas**, filtra por `Anita`, selecciona a Ana y guarda. En **Buscar**, busca `Ana` y afina con `solo 2024` para encontrar el álbum.
+
+Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre una etiqueta sugerida. La app muestra la siguiente sugerencia del mismo álbum o pasa al siguiente cuando terminas. Abre el álbum desde **Carpetas** y comprueba la decisión en **Etiquetar este álbum**. Prueba los botones y los gestos con el archivo sintético desconectado. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.

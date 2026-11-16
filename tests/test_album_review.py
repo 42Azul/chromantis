@@ -128,6 +128,28 @@ class AlbumReviewTests(unittest.TestCase):
         self.assertEqual(self.review()["suggestions"]["playa"]["state"], "accepted")
         self.assertEqual(self.review()["suggestions"]["viaje"]["state"], "pending")
 
+    def test_quick_review_accepts_only_the_displayed_tag_and_skip_keeps_pending(self):
+        self.archive.rename(self.archive.with_name("disconnected"))
+        _, payload = self.request("GET", "/album-review")
+        item = payload["item"]
+        self.assertEqual(item["path"], ALBUM_PATH)
+        self.assertEqual(self.save(item, decisions={"playa": "playa"})[0], 200)
+
+        _, payload = self.request("GET", "/album-review")
+        partial = payload["item"]
+        self.assertEqual(partial["id"], item["id"])
+        self.assertEqual(
+            {key: value["state"] for key, value in partial["suggestions"].items()},
+            {"playa": "accepted", "viaje": "pending", "cumpleanos": "pending"},
+        )
+        _, payload = self.request("GET", f"/album-review?after={partial['id']}")
+        self.assertEqual(payload["item"]["path"], AMBIGUOUS_PATH)
+        self.assertEqual(self.review(), partial)
+        self.assertEqual(self.save(partial, decisions={"viaje": "viaje", "cumpleanos": None})[0], 200)
+        _, payload = self.request("GET", "/album-review")
+        self.assertEqual(payload["item"]["path"], AMBIGUOUS_PATH)
+        self.image_fetcher.assert_not_called()
+
     def test_batch_accepts_and_rejects_shared_suggestion_offline_and_survives_reindex(self):
         accepted_paths = [ALBUM_PATH, "2024/2024-05-01_beach_picnic"]
         rejected_path = "2024/2024-06-01_playa_dudosa"

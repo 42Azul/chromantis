@@ -44,6 +44,15 @@
     <string name="thumbnail_unavailable">Miniatura no disponible</string>
     <string name="review_album">Etiquetar este álbum</string>
     <string name="review_albums">Etiquetar álbumes</string>
+    <string name="quick_review">Volver a la tarjeta</string>
+    <string name="no_tag_suggestion">Sin etiquetas sugeridas.</string>
+    <string name="swipe_album_help">Izquierda para dejar pendiente, derecha para aceptar esta etiqueta.</string>
+    <string name="swipe_skip_album">Desliza a la izquierda para dejar pendiente.</string>
+    <string name="release_to_skip">Suelta para dejar pendiente.</string>
+    <string name="release_to_accept">Suelta para aceptar la etiqueta.</string>
+    <string name="leave_pending">Dejar pendiente</string>
+    <string name="accept_named_tag">Aceptar «%s»</string>
+    <string name="edit_review_details">Personas, fotos y etiquetas</string>
     <string name="people_in_album">Personas que aparecen</string>
     <string name="album_people_explanation">Vincula personas al álbum. Puedes corregir un vínculo desmarcándolo y guardando.</string>
     <string name="people_filter">Buscar persona por nombre o alias</string>
@@ -62,6 +71,7 @@
     <string name="skip_album">Saltar</string>
     <string name="saving">Guardando…</string>
     <string name="album_saved">Álbum guardado</string>
+    <string name="tag_saved">Etiqueta guardada</string>
     <string name="review_conflict">El álbum cambió mientras lo revisabas. Vuelve a cargarlo para ver los cambios.</string>
     <string name="reload_review">Recargar álbum</string>
     <string name="review_invalid">No se pudo guardar. Comprueba el nombre y la selección.</string>

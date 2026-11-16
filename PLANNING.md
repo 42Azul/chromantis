@@ -526,6 +526,8 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Interaction design:** Use three equally visible entry points: **Carpetas**, **Clasificar**, and **Buscar**. Keep layouts quiet with neutral surfaces, one accent and clear text labels. **Ajustes** remembers the system, light or dark appearance. Each entry point keeps its own saved screen state. Take the predictable navigation and selection patterns from file managers. Test other controls only when they shorten a family task.
 
+**Quick album review:** **Clasificar** shows a pending album and one folder-name suggestion with its evidence. Right accepts the displayed suggestion, left skips for this pass, and buttons offer both actions. The detailed editor remains available for people, optional photo previews, and corrections. Verify short and cancelled drags, a folder with several suggestions, and a skipped folder that reappears when the curator restarts the queue.
+
 **Next explorer increment:** Add a compact trail with tappable year and album steps, and test a single local “resume album” shortcut. Use the existing album paths and list positions. Verify that an interrupted browse can return to the same album, and that opening a different year takes one tap from a gallery.
 
 ## Planned Later
@@ -541,6 +543,8 @@ The trial confirmed that the authorization boundary can stay in the application 
 **Acceptance:** Link Ana to the album and tag only two of three synthetic photos with Ana. The photo-level filter returns exactly those two while album search still finds the album. Correct one link, reindex and verify the remaining decision and its origin. A non-curator cannot edit. No metadata is written to image files.
 
 **Progress:** The application service and local HTTP API support curator-only photo edits, SQLite provenance, and paged search by confirmed person. Full and incremental scans preserve decisions for unchanged indexed photos. The gallery still needs selection, editing, and confirmed-search controls.
+
+**Photo review trial:** Let a curator choose a person or tag before starting a one-photo-at-a-time pass in an open gallery. Show the chosen label on each card, apply it only to the visible photo on acceptance, leave skipped photos available, and let the curator undo the last edit. Reuse the photo-edit API and existing thumbnail limits. Compare this with selection and batch apply on the same small synthetic album and keep the gesture mode if it makes mixed albums quicker to tag.
 
 **Interaction test:** Provide an explicit **Seleccionar** action and a long-press shortcut. Keep the number selected and the **Etiquetar** action visible while browsing a page. Preview proposed people or tags before saving only to the selected photos. After validating the gallery flow, test opening a search result directly in this mode with its album context. Verify that Back cancels selection without writing and that the normal tap still opens a photo.
 

@@ -10,7 +10,7 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 ## What you can do
 
 - **Folders** (*Carpetas*) lists years and albums and opens a paged gallery. Visible tiles use thumbnails when enabled on the server. Tap a tile to open the original.
-- **Organize** (*Clasificar*) opens the pending album queue. Search people by name or alias, decide on folder-name suggestions, or skip an uncertain album. Preview photos on request. Open **Tag this album** (*Etiquetar este álbum*) from a gallery to correct a reviewed album.
+- **Organize** (*Clasificar*) shows one album card at a time. Swipe right to accept the visible tag or left to leave the album pending. Both actions have buttons. Open **People, photos and tags** (*Personas, fotos y etiquetas*) to review people by name or alias, see a few photos on demand, or edit tag decisions. Open **Tag this album** (*Etiquetar este álbum*) from a gallery to correct a reviewed album.
 - **Search** (*Buscar*) starts with album keywords or a person's name. Send a follow-up such as `antes de 2020` or `con Ana` to narrow the current results. If several albums match a requested name, choose one. The follow-up uses the existing local search rules.
 
 Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appearance. The choice is stored on the device.
@@ -56,4 +56,6 @@ PYTHONPATH=src python tests/android_fixture.py \
 
 Install the temporary certificate as a trusted user CA on the disposable emulator. Set the address to `https://10.0.2.2:8443` and use the fixture's printed one-time code. Open 2024, browse the second gallery page, open a photo, and rotate the device. Check that the same photo remains open and that going back returns to the second page. Relaunch the app to check the retained session.
 
-From **Organize**, filter people with `Anita`, select Ana, and save. Open **Search**, search `Ana` and refine with `solo 2024` to find the album. Open its gallery and use **Tag this album** to remove the link or check which suggestion decisions were saved. Repeat with `--index-only` on a fresh fixture to check that navigation, filenames, and album editing still work with the synthetic archive disconnected. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and synthetic photos.
+From **Organize**, swipe left on the first card, then use **Start again** (*Volver al principio*) at the end of the queue to revisit it. Use **People, photos and tags**, filter people with `Anita`, select Ana, and save. Open **Search**, search `Ana` and refine with `solo 2024` to find the album.
+
+On a fresh fixture with `--index-only`, swipe right on a suggested tag. The app shows the next suggestion for that album, or advances when all suggestions are decided. Open the tagged album from **Folders** and check the decision in **Tag this album**. Try the buttons and the swipes with the synthetic archive disconnected. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and photos.

@@ -47,48 +47,66 @@ internal fun AlbumReview(
 ) {
     var after by rememberSaveable { mutableLongStateOf(0) }
     var reload by remember { mutableIntStateOf(0) }
-    var saved by rememberSaveable { mutableStateOf(false) }
-    if (saved) Text(stringResource(R.string.album_saved), color = MaterialTheme.colorScheme.primary)
+    var saveNotice by rememberSaveable { mutableIntStateOf(0) }
+    var editingAlbum by rememberSaveable { mutableLongStateOf(0) }
+    if (saveNotice != 0) Text(stringResource(saveNotice), color = MaterialTheme.colorScheme.primary)
     key(after, reload) {
-        LoadContent(
-            onExpired,
-            load = {
-                val album = api.review(path, after)
-                album to if (album == null) emptyList() else api.people()
-            },
-        ) { (album, people) ->
+        LoadContent(onExpired, load = { api.review(path, after) }) { album ->
             if (album == null) {
                 Text(stringResource(R.string.no_pending_albums))
                 if (after > 0)
                     TextButton(
                         onClick = {
                             after = 0
-                            saved = false
+                            saveNotice = 0
                         }
                     ) {
                         Text(stringResource(R.string.restart_review))
                     }
             } else {
-                ReviewForm(
-                    api,
-                    album,
-                    people,
-                    onExpired,
-                    onReload = { reload++ },
-                    onSkip = {
-                        saved = false
-                        if (path == null) after = album.id else onClose()
-                    },
-                    onSaved = {
-                        if (path == null) {
-                            saved = true
-                            after = album.id
-                        } else {
-                            onClose()
-                        }
-                    },
-                    pendingQueue = path == null,
-                )
+                val skip = {
+                    saveNotice = 0
+                    editingAlbum = 0
+                    if (path == null) after = album.id else onClose()
+                }
+                if (path == null && editingAlbum != album.id) {
+                    QuickAlbumReview(
+                        api,
+                        album,
+                        onExpired,
+                        onReload = {
+                            saveNotice = 0
+                            reload++
+                        },
+                        onSkip = skip,
+                        onEdit = { editingAlbum = album.id },
+                        onAccepted = {
+                            saveNotice = R.string.tag_saved
+                            reload++
+                        },
+                    )
+                } else {
+                    LoadContent(onExpired, load = { api.people() }) { people ->
+                        ReviewForm(
+                            api,
+                            album,
+                            people,
+                            onExpired,
+                            onReload = { reload++ },
+                            onSkip = skip,
+                            onSaved = {
+                                if (path == null) {
+                                    saveNotice = R.string.album_saved
+                                    editingAlbum = 0
+                                    after = album.id
+                                } else {
+                                    onClose()
+                                }
+                            },
+                            onQuickReview = if (path == null) ({ editingAlbum = 0 }) else null,
+                        )
+                    }
+                }
             }
         }
     }
@@ -103,7 +121,7 @@ private fun ReviewForm(
     onReload: () -> Unit,
     onSkip: () -> Unit,
     onSaved: () -> Unit,
-    pendingQueue: Boolean,
+    onQuickReview: (() -> Unit)?,
 ) {
     var chosen by remember { mutableStateOf(album.people) }
     var filter by remember { mutableStateOf("") }
@@ -121,6 +139,15 @@ private fun ReviewForm(
     ) {
         Text(album.title, style = MaterialTheme.typography.titleLarge)
         album.date?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        if (
+            onQuickReview != null &&
+                !busy &&
+                chosen == album.people &&
+                name.isBlank() &&
+                decisions.isEmpty()
+        ) {
+            TextButton(onClick = onQuickReview) { Text(stringResource(R.string.quick_review)) }
+        }
         if (!showPhotos)
             TextButton(onClick = { showPhotos = true }) {
                 Text(stringResource(R.string.show_review_photos))
@@ -274,7 +301,7 @@ private fun ReviewForm(
                     stringResource(
                         when {
                             busy -> R.string.saving
-                            pendingQueue -> R.string.save_and_next
+                            onQuickReview != null -> R.string.save_and_next
                             else -> R.string.save_album
                         }
                     )
