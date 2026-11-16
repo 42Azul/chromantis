@@ -30,9 +30,9 @@ To check the album before saving, choose **View up to three photos**. Tap a prev
 
 ![Album review showing three sample thumbnails after View up to three photos was pressed.](../../../assets/screenshots/web-gallery.webp)
 
-An album link records that someone appears somewhere in the album. The local API has a [separate confirmed-photo search](../reference/api.md#manual-photo-tagging-api) for explicit photo-level links.
+An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use [individual photo tagging in Android](android.md#tag-individual-photos) or the [manual photo tagging API](../reference/api.md#manual-photo-tagging-api).
 
-Use **Skip** to leave a doubtful album pending. Reopen a reviewed album from **Already reviewed** or use **Tag this album** from the gallery to clear a person and save the correction.
+Use **Saltar** to leave a doubtful album pending. To correct a link in a family session, find the album by its title in **Buscar álbumes** and open the result. Tap **Ana ×** under the selected people, then choose **Guardar y siguiente**. You can also open reviewed albums from **Ya revisados**.
 
 ## Review suggestions in batches
 

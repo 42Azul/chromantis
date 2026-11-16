@@ -30,9 +30,9 @@ Para comprobar el álbum antes de guardar, pulsa **Ver hasta 3 fotos**. Toca una
 
 ![Tres miniaturas del archivo de ejemplo tras pulsar Ver hasta 3 fotos en la revisión del álbum.](../../../../assets/screenshots/web-gallery.webp)
 
-El vínculo indica que la persona aparece en alguna foto del álbum. La API ofrece una [búsqueda independiente por foto confirmada](../reference/api.md#etiquetado-manual-por-foto) basada en vínculos explícitos a fotos concretas.
+El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa el [etiquetado por foto en Android](android.md#etiqueta-fotos-individuales) o la [API de etiquetado por foto](../reference/api.md#etiquetado-manual-por-foto).
 
-Pulsa **Saltar** si tienes dudas. Para corregir a quién vinculaste, abre **Ya revisados** o pulsa **Etiquetar este álbum** desde la galería, desmarca a la persona y guarda.
+Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Ana ×** entre las personas seleccionadas y después **Guardar y siguiente**. También puedes abrir álbumes ya revisados desde **Ya revisados**.
 
 ## Revisa sugerencias por lotes
 
