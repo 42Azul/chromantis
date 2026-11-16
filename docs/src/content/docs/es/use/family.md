@@ -5,20 +5,30 @@ description: Encuentra fotos familiares, revisa álbumes y guarda correcciones d
 
 Abre la dirección local de Chromantis e [inicia sesión](../start/private-access.md). Puedes usar un móvil o un ordenador.
 
+Las capturas muestran la web en una pantalla de tamaño móvil con un archivo de ejemplo.
+
 ## Encuentra un álbum
 
-Abre **Archivo** (*Archive*) para navegar por año o buscar por palabras de la carpeta, título, alias, lugar o persona. Prueba `playa 2024` o `Ana`. Abre un álbum para ver sus fotos y usa el visor para abrir o descargar un original. La [caché opcional de miniaturas](../operate/maintenance.md#carga-miniaturas-solo-cuando-hagan-falta) aligera la galería en el móvil.
+En una sesión familiar, abre **Buscar álbumes** para navegar por año o buscar por palabras de la carpeta, título, alias, lugar o persona. Prueba `playa 2024` o `Ana`. Abre un álbum para ver sus fotos y usa el visor para abrir o descargar un original. La [caché opcional de miniaturas](../operate/maintenance.md#carga-miniaturas-solo-cuando-hagan-falta) aligera la galería en el móvil.
 
 Usa la cronología para buscar por lugar o fecha. La fecha puede venir de la carpeta indexada o de una corrección guardada. Si están disponibles, el visor indica por separado la fecha de captura y la de modificación del archivo.
 
 Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coinciden varios álbumes, elige uno. Escribe una consulta nueva para empezar de cero.
+
+![Búsqueda familiar en el móvil. Al buscar Ana aparece el álbum Un día en la playa.](../../../../assets/screenshots/web-search.webp)
 
 ## Etiqueta tu primer álbum
 
 1. Abre **Etiquetar álbumes** y elige uno de los pendientes. Verás su título y la fecha, si se conoce.
 2. Busca a **Ana** por nombre o alias y selecciónala. Puedes elegir a más personas o añadir una nueva. Si necesitas recordar quién aparecía, pulsa **Ver hasta 3 fotos**.
 3. Acepta, rechaza o corrige las sugerencias del nombre de la carpeta. También puedes añadir etiquetas de una sola palabra.
-4. Pulsa **Guardar y siguiente**. Abre **Archivo** y busca `Ana` para encontrar el álbum.
+4. Pulsa **Guardar y siguiente**. Abre **Buscar álbumes** y busca `Ana` para encontrar el álbum.
+
+![Revisión de un álbum con Ana seleccionada, la sugerencia playa marcada como Aceptar y el botón Guardar y siguiente al pie.](../../../../assets/screenshots/web-tag.webp)
+
+Para comprobar el álbum antes de guardar, pulsa **Ver hasta 3 fotos**. Toca una miniatura para abrir el original.
+
+![Tres miniaturas del archivo de ejemplo tras pulsar Ver hasta 3 fotos en la revisión del álbum.](../../../../assets/screenshots/web-gallery.webp)
 
 El vínculo indica que la persona aparece en alguna foto del álbum. La API ofrece una [búsqueda independiente por foto confirmada](../reference/api.md#etiquetado-manual-por-foto) basada en vínculos explícitos a fotos concretas.
 
