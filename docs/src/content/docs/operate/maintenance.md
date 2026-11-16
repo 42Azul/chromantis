@@ -5,13 +5,15 @@ description: Update the catalogue, control thumbnail costs, and recover SQLite s
 
 ## Pick up new folders
 
+In the browser, sign in with an owner token and open **Admin → Recent indexing runs**. Click **Find new folders** to start an incremental scan and **Refresh status** to check the run number, outcome and counts. The scan uses the configured archive and runs in the background. Family and admin credentials without the owner role cannot start it.
+
 After adding photos to the archive, run from the checkout:
 
 ```bash
 .venv/bin/python scripts/reindex_source.py --incremental --progress-every 500
 ```
 
-Incremental mode lists the configured subtree, applies changes, and removes missing items only after a successful listing. A late scan cannot overwrite a newer completed index. Run without `--incremental` after changing parsing rules to refresh derived metadata.
+Incremental mode lists the configured subtree, applies changes, and removes missing items only after a successful listing. The API and CLI share a lock file beside the local SQLite index, both for incremental and full scans. If a scan is already active, the next request exits without starting another. Keep the lock file in place. When a scan starts after an abrupt shutdown, it marks the interrupted run as failed. Run without `--incremental` after changing parsing rules to refresh derived metadata.
 
 The browser shows the latest successful index. `GET /api/v1/sync/runs?limit=10` reports started and finished runs, counts, and errors. For a daily scan at 03:20 in the NAS timezone, adapt the checkout and log paths in this cron entry:
 

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
+from pathlib import Path
+from threading import Thread
 
 from chromantis.db.repository import Repository, ScanSummary
 from chromantis.parsing.path_parser import PathParseError, PathParser
@@ -18,6 +22,10 @@ class ScanResult:
     status: str = "succeeded"
 
 
+class ScanBusy(RuntimeError):
+    """An index scan already holds the database's scan lock."""
+
+
 class ArchiveScanner:
     def __init__(self, source: ArchiveSource, repository: Repository, parser: PathParser):
         self.source = source
@@ -25,7 +33,49 @@ class ArchiveScanner:
         self.parser = parser
 
     def scan(self, progress_every: int = 100, *, incremental: bool = False) -> ScanResult:
-        scan_id, started_at = self.repository.begin_scan(incremental)
+        with closing(self._acquire_scan_lock()):
+            scan_id, started_at = self.repository.begin_scan(incremental)
+            return self._scan(scan_id, started_at, progress_every, incremental)
+
+    def start_incremental(self) -> int:
+        lock = self._acquire_scan_lock()
+        try:
+            scan_id, started_at = self.repository.begin_scan(incremental=True)
+
+            def run() -> None:
+                with closing(lock):
+                    try:
+                        self._scan(scan_id, started_at, 500, incremental=True)
+                    except Exception as exc:
+                        logger.error("Scan %d failed (%s)", scan_id, type(exc).__name__)
+
+            try:
+                Thread(target=run, name=f"chromantis-scan-{scan_id}", daemon=True).start()
+            except RuntimeError as exc:
+                self.repository.finish_scan(scan_id, "failed", error=type(exc).__name__)
+                raise
+        except BaseException:
+            lock.close()
+            raise
+        return scan_id
+
+    def _acquire_scan_lock(self) -> sqlite3.Connection:
+        # The empty sidecar coordinates processes without locking the live index during listing.
+        database = Path(self.repository.sqlite_path).resolve()
+        lock = sqlite3.connect(database.with_name(database.name + ".scan.lock"), timeout=0,
+                               check_same_thread=False)
+        try:
+            lock.execute("BEGIN IMMEDIATE")
+        except BaseException as exc:
+            lock.close()
+            if isinstance(exc, sqlite3.OperationalError) and str(exc) == "database is locked":
+                raise ScanBusy("An index scan is already running.") from exc
+            raise
+        return lock
+
+    def _scan(
+        self, scan_id: int, started_at: str, progress_every: int, incremental: bool
+    ) -> ScanResult:
         logger.info("Starting %s scan %d", "incremental" if incremental else "full", scan_id)
         try:
             entries = self._list_images(progress_every)

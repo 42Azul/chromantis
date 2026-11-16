@@ -558,6 +558,8 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Acceptance:** Add a synthetic folder, start an incremental scan from the owner UI and confirm only one run starts under concurrent requests. See its status and find the folder without opening any image. A family curator can tag albums, while the same credential is denied an index trigger. A failed scan preserves the last complete index and reports the failure.
 
+**Progress:** The existing browser admin panel can request a background incremental scan and refresh its run history. The API checks the owner role and accepts no scan options. Scheduled and manual runs share the same lock beside SQLite. Synthetic HTTP tests cover role denial, contention with a separate process, successful discovery and failure with the previous index intact. Android owner tools and the physical phone interaction test remain pending.
+
 ### MVP 19D — Chat Search and Local Model Comparison
 
 **Case:** A family member can ask «fotos de la playa con Ana antes de 2020» from the **Buscar** tab, inspect the filters and open the result in its folder.

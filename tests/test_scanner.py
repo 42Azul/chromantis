@@ -135,10 +135,22 @@ class FTPScannerTests(unittest.TestCase):
 
                 def iter_entries(self):
                     scanner.source = original
-                    scanner.scan(incremental=True)
+                    # Simulate an older process that pre-dates the shared scan lock.
+                    scan_id, started_at = repository.begin_scan(incremental=True)
+                    scanner._scan(scan_id, started_at, 0, incremental=True)
                     return iter(())
 
             scanner.source = DelayedSource()
             result = scanner.scan(incremental=True)
             self.assertEqual(result.status, "superseded")
             self.assertEqual(repository.get_index_stats().images, 5)
+
+    def test_next_scan_marks_interrupted_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository, scanner = self._build_scanner(str(Path(temp_dir) / "index.db"), PHOTOS_ROOT)
+            repository.begin_scan(incremental=False)
+            scanner.scan()
+            current, interrupted = repository.list_sync_runs(2)
+
+            self.assertEqual(current["status"], "succeeded")
+            self.assertEqual((interrupted["status"], interrupted["error"]), ("failed", "InterruptedScan"))

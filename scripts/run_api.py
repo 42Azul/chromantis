@@ -12,7 +12,8 @@ from chromantis.app import ApplicationService, CommandQueryInterpreter
 from chromantis.config import AppConfig
 from chromantis.db.repository import Repository
 from chromantis.logging_utils import configure_logging
-from chromantis.source import build_archive_source
+from chromantis.parsing.path_parser import PathParser
+from chromantis.source import ArchiveScanner, build_archive_source
 
 
 def main() -> None:
@@ -34,14 +35,17 @@ def main() -> None:
         curator_chat_ids=config.api_curator_chat_ids,
     )
     source = build_archive_source(config)
+    scanner = ArchiveScanner(source, repository, PathParser())
     handler = make_api_handler(
         app_service, api_token=config.api_token, api_chat_tokens=config.api_chat_tokens,
         image_fetcher=source.read_bytes,
         thumbnails=build_thumbnail_cache(config.sqlite_path, config.thumbnail_cache_mib, source),
+        start_index_scan=scanner.start_incremental,
         deployment_info={
             "source_type": config.source_type,
             "enrichment_search": config.enrichment_search,
             "query_interpreter": "local command" if interpreter else "rules",
+            "incremental_index": True,
         },
     )
     server = ApiServer((config.api_bind_host, config.api_port), handler)

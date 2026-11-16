@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from ftplib import Error as FtpError
@@ -18,6 +19,7 @@ from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
 from chromantis.app.recall import RefinementError
 from chromantis.db.family_access import FamilySession, SESSION_SECONDS
+from chromantis.source.scanner import ScanBusy
 
 FAMILY_COOKIE = "chromantis_family"
 FAMILY_SESSION_PATH = "/api/v1/family/session"
@@ -25,6 +27,7 @@ ALBUM_REVIEW_PATH = "/api/v1/album-review"
 ALBUM_IMAGES_PATH = "/api/v1/album-images"
 CONFIRMED_IMAGES_PATH = "/api/v1/confirmed-images"
 PHOTO_TAGS_PATH = "/api/v1/photo-tags"
+SYNC_RUNS_PATH = "/api/v1/sync/runs"
 ALBUM_SHARES_PATH = "/api/v1/album-shares"
 SHARED_ALBUM_PATH = "/api/v1/shared"
 
@@ -67,6 +70,7 @@ def _dispatch(
     deployment_info: dict[str, object] | None = None,
     family_secret: str | None = None,
     thumbnails: ThumbnailCache | None = None,
+    start_index_scan: Callable[[], int] | None = None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
     try:
         parsed = urlparse(url)
@@ -134,6 +138,20 @@ def _dispatch(
             if actor is None:
                 return 401, {"error": "A chat token or family session is required"}
             return _photo_tags_route(method, app_service, actor, body or {}, params)
+        if method == "POST" and path == SYNC_RUNS_PATH:
+            if chat_id is None or app_service.resolve_principal(chat_id).role != "owner":
+                return 403, {"error": "An owner credential is required to start an index scan."}
+            if body or parsed.query:
+                raise ValueError("This endpoint accepts no scan options.")
+            if start_index_scan is None:
+                return 503, {"error": "Manual indexing is unavailable."}
+            try:
+                scan_id = start_index_scan()
+            except ScanBusy as exc:
+                return 409, {"error": str(exc)}
+            except (OSError, RuntimeError, sqlite3.Error):
+                return 503, {"error": "Could not start the index scan."}
+            return 202, {"item": {"id": scan_id, "status": "running"}}
         if session is not None:
             if path == "/api/v1/auth/me" and method == "GET":
                 return 200, {"item": {"first_name": session.label, "role": "viewer", "auth_mode": "family"},
@@ -615,7 +633,7 @@ def _role(body: dict[str, object], roles: set[str], default: str | None = None) 
 def _query_route(
     path: str, params: dict[str, list[str]], app_service: ApplicationService
 ) -> tuple[int, dict[str, object]]:
-    if path == "/api/v1/sync/runs":
+    if path == SYNC_RUNS_PATH:
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
         return 200, {"items": app_service.repository.list_sync_runs(limit)}
     if path == "/api/v1/stats":
@@ -693,6 +711,7 @@ def make_api_handler(
     image_fetcher: Callable[[str], bytes] | None = None,
     deployment_info: dict[str, object] | None = None,
     thumbnails: ThumbnailCache | None = None,
+    start_index_scan: Callable[[], int] | None = None,
 ):
     class ChromantisApiHandler(BaseHTTPRequestHandler):
         server_version = "ChromantisAPI/0.1"
@@ -754,6 +773,7 @@ def make_api_handler(
                 deployment_info,
                 family_secret,
                 thumbnails,
+                start_index_scan,
             )
             if isinstance(payload, PhotoPayload):
                 self._write(status, payload.content, payload.content_type)

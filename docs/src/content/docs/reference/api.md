@@ -108,8 +108,11 @@ Run the synthetic regression suite with `python -m unittest tests.test_photo_tag
 | `DELETE /api/v1/album-shares/{id}` | Revoke a grant as owner |
 | `GET /api/v1/shared/{secret}` | View the granted album; its `/image` and `/thumbnail` routes are scoped to it |
 | `GET /api/v1/sync/runs?limit=10` | Recent index runs and item counts |
+| `POST /api/v1/sync/runs` | Start a background incremental scan as owner |
 | `GET /api/v1/archive-status` | Latest successful index and thumbnail status |
 | `GET /api/v1/image-dates?path=<indexed-image-path>` | Distinct album, camera, and file dates |
+
+Start a scan with an empty request body or `{}` and an owner token. A `202` response returns the new run ID in `item.id`. Read its status in the run history. An active scan returns `409`. The source and index location come from the server configuration.
 
 `GET /api/v1/folders` accepts `sort=timeline`, `place`, `date_from`, and `date_to` alongside the usual `q`, `offset`, and `limit`. Date bounds are inclusive. `POST /api/v1/refine` takes `{"q":"beach","text":"before 2020"}` and returns a refined query or choices when the request is ambiguous.
 

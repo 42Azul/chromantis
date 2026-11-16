@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import sys
 import tempfile
 from http.client import HTTPConnection
-from threading import Thread
+from threading import Event, Thread
+from time import monotonic, sleep
 from urllib.parse import urlencode
 import unittest
 from pathlib import Path
@@ -13,6 +17,7 @@ from chromantis.app import ApplicationService
 from chromantis.db.repository import Repository
 from chromantis.parsing.path_parser import PathParser
 from chromantis.source import ArchiveScanner, LocalArchiveSource
+from chromantis.source.scanner import ScanBusy
 
 
 PHOTOS_ROOT = Path(__file__).parent / "fixtures" / "ftp_tree" / "server_root" / "photos" / "archive"
@@ -66,7 +71,7 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(years, [2019, 2021])
 
 
-    def start_api(self, thumbnails=None) -> None:
+    def start_api(self, thumbnails=None, start_index_scan=None) -> None:
         self.repository.authorize_chat(102, role="admin")
         self.repository.authorize_chat(103, role="viewer")
         self.repository.authorize_chat(104, role="viewer")
@@ -76,6 +81,7 @@ class ApiServerTests(unittest.TestCase):
             image_fetcher=LocalArchiveSource(str(PHOTOS_ROOT)).read_bytes,
             deployment_info={"source_type": "local", "enrichment_search": False, "query_interpreter": "rules"},
             thumbnails=thumbnails,
+            start_index_scan=start_index_scan,
         ))
         thread = Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         thread.start()
@@ -84,10 +90,18 @@ class ApiServerTests(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
 
     def request(
-        self, method: str, path: str, token: str | None = None, body: object = None
+        self, method: str, path: str, token: str | None = None, body: object = None,
+        *, family_secret: str | None = None,
     ) -> tuple[int, dict]:
         connection = HTTPConnection(*self.server.server_address, timeout=2)
         headers = {"Authorization": f"Bearer {token}"} if token else {}
+        if family_secret:
+            host, port = self.server.server_address
+            headers.update({
+                "Cookie": f"chromantis_family={family_secret}",
+                "Origin": f"http://{host}:{port}",
+                "Content-Type": "application/json",
+            })
         try:
             connection.request(
                 method, "/api/v1" + path, None if body is None else json.dumps(body), headers
@@ -97,6 +111,95 @@ class ApiServerTests(unittest.TestCase):
             return response.status, json.loads(response.read())
         finally:
             connection.close()
+
+    def test_owner_starts_one_incremental_scan_and_can_see_the_result(self) -> None:
+        root = Path(self.temp_dir.name) / "archive"
+        shutil.copytree(PHOTOS_ROOT, root)
+        album = root / "2024" / "garden"
+        album.mkdir(exist_ok=True, parents=True)
+        (album / "flower.jpg").write_bytes(b"fixture")
+        entered, release = Event(), Event()
+
+        class SlowListing(LocalArchiveSource):
+            def iter_entries(self):
+                entered.set()
+                if not release.wait(5):
+                    raise OSError("Test did not release listing")
+                yield from super().iter_entries()
+
+            def read_bytes(self, *args, **kwargs):
+                raise AssertionError("Indexing must not open photos")
+
+        scanner = ArchiveScanner(SlowListing(str(root)), self.repository, PathParser())
+        self.start_api(start_index_scan=scanner.start_incremental)
+        self.addCleanup(release.set)
+        for token, denied in ((None, 401), ("read-token", 403), ("viewer-token", 403), ("admin-token", 403)):
+            self.assertEqual(self.request("POST", "/sync/runs", token)[0], denied)
+        _, code = self.app_service.family_access.invite("Synthetic curator")
+        secret = self.app_service.family_access.redeem(code)
+        self.assertIsNotNone(secret)
+        self.assertEqual(self.request("POST", "/sync/runs", family_secret=secret)[0], 403)
+        self.assertEqual(self.request("POST", "/sync/runs", "owner-token", {"path": "/tmp"})[0], 400)
+        self.assertFalse(entered.is_set())
+
+        status, reply = self.request("POST", "/sync/runs", "owner-token")
+        self.assertEqual(status, 202)
+        self.assertTrue(entered.wait(2))
+        run_id = reply["item"]["id"]
+        try:
+            self.assertEqual(self.request("POST", "/sync/runs", "owner-token")[0], 409)
+            cli = ArchiveScanner(LocalArchiveSource(str(root)), self.repository, PathParser())
+            with self.assertRaises(ScanBusy):
+                cli.scan(incremental=True)
+            separate_process = subprocess.run(
+                [sys.executable, "-c", """
+import sys
+from chromantis.db.repository import Repository
+from chromantis.parsing.path_parser import PathParser
+from chromantis.source import ArchiveScanner, LocalArchiveSource
+from chromantis.source.scanner import ScanBusy
+
+scanner = ArchiveScanner(LocalArchiveSource(sys.argv[1]), Repository(sys.argv[2]), PathParser())
+try:
+    scanner.scan(incremental=True)
+except ScanBusy:
+    sys.exit(17)
+""", str(root), self.repository.sqlite_path],
+                capture_output=True, text=True, timeout=3,
+            )
+            self.assertEqual(separate_process.returncode, 17, separate_process.stderr)
+            latest = self.request("GET", "/sync/runs?limit=1", "owner-token")[1]["items"][0]
+            self.assertEqual((latest["id"], latest["status"]), (run_id, "running"))
+        finally:
+            release.set()
+        latest = self.wait_for_scan(run_id)
+        self.assertEqual((latest["mode"], latest["status"]), ("incremental", "succeeded"))
+        albums = self.request("GET", "/folders?q=garden", "read-token")[1]["items"]
+        self.assertEqual([item["path"] for item in albums], ["2024/garden"])
+
+    def test_background_scan_reports_failure_and_keeps_previous_index(self) -> None:
+        source = LocalArchiveSource(str(Path(self.temp_dir.name) / "disconnected"))
+        scanner = ArchiveScanner(source, self.repository, PathParser())
+        self.start_api(start_index_scan=scanner.start_incremental)
+        before = self.repository.archive_index_status()["indexed_at"]
+        status, reply = self.request("POST", "/sync/runs", "owner-token")
+        self.assertEqual(status, 202)
+        failed = self.wait_for_scan(reply["item"]["id"])
+        self.assertEqual(failed["status"], "failed")
+        self.assertEqual(self.repository.archive_index_status()["indexed_at"], before)
+        self.assertEqual(self.repository.get_index_stats().images, 5)
+
+    def wait_for_scan(self, run_id: int) -> dict:
+        deadline = monotonic() + 3
+        while monotonic() < deadline:
+            status, reply = self.request("GET", "/sync/runs?limit=1", "owner-token")
+            self.assertEqual(status, 200)
+            latest = reply["items"][0]
+            self.assertEqual(latest["id"], run_id)
+            if latest["status"] != "running":
+                return latest
+            sleep(0.01)
+        self.fail(f"Index scan {run_id} did not finish")
 
     def test_chat_identity_is_bound_to_credential_and_role_is_live(self) -> None:
         self.start_api()

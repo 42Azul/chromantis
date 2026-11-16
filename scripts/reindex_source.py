@@ -12,6 +12,7 @@ from chromantis.db.repository import Repository
 from chromantis.logging_utils import configure_logging
 from chromantis.parsing.path_parser import PathParser
 from chromantis.source import MAX_SCAN_DEPTH, ArchiveScanner, build_archive_source
+from chromantis.source.scanner import ScanBusy
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,7 +63,10 @@ def main() -> None:
         f"{MAX_SCAN_DEPTH} directories below root "
         "(root/year/folder/image only)"
     )
-    result = scanner.scan(progress_every=args.progress_every, incremental=args.incremental)
+    try:
+        result = scanner.scan(progress_every=args.progress_every, incremental=args.incremental)
+    except ScanBusy as exc:
+        raise SystemExit(str(exc)) from None
     print(f"Scan status: {result.status}")
     print(result.summary)
     if args.show_skipped and result.skipped_paths:

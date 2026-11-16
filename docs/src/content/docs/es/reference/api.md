@@ -108,8 +108,11 @@ Ejecuta las pruebas sintéticas con `python -m unittest tests.test_photo_tags -v
 | `DELETE /api/v1/album-shares/{id}` | Revoca un permiso como propietario |
 | `GET /api/v1/shared/{secret}` | Abre el álbum concedido. Sus rutas `/image` y `/thumbnail` se limitan a ese álbum. |
 | `GET /api/v1/sync/runs?limit=10` | Escaneos recientes y recuentos |
+| `POST /api/v1/sync/runs` | Inicia un escaneo incremental en segundo plano como propietario |
 | `GET /api/v1/archive-status` | Último índice correcto y estado de miniaturas |
 | `GET /api/v1/image-dates?path=<indexed-image-path>` | Fechas de álbum, cámara y archivo por separado |
+
+Para iniciar un escaneo, envía una solicitud sin cuerpo o con `{}` y un token de propietario. La respuesta `202` devuelve el identificador en `item.id`. Consulta su estado en el historial. Si hay un escaneo en curso, la API devuelve `409`. El origen y la ubicación del índice se toman de la configuración del servidor.
 
 `GET /api/v1/folders` admite `sort=timeline`, `place`, `date_from` y `date_to`, además de `q`, `offset` y `limit`. El intervalo incluye ambas fechas. `POST /api/v1/refine` acepta `{"q":"playa","text":"antes de 2020"}` y devuelve una consulta acotada u opciones si hay ambigüedad.
 

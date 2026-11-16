@@ -5,13 +5,15 @@ description: Actualiza el catálogo, limita el coste de las miniaturas y recuper
 
 ## Incorpora las carpetas nuevas
 
+En la web, entra con un token de propietario y abre **Admin → Recent indexing runs**. Pulsa **Find new folders** para iniciar un escaneo incremental y **Refresh status** para consultar su número, resultado y recuentos. El escaneo usa el archivo configurado y se ejecuta en segundo plano. Solo el propietario puede iniciarlo.
+
 Después de añadir fotos al archivo, ejecuta desde el repositorio:
 
 ```bash
 .venv/bin/python scripts/reindex_source.py --incremental --progress-every 500
 ```
 
-El modo incremental lista el subárbol configurado, aplica los cambios y retira entradas ausentes solo si pudo completar el listado. Un escaneo tardío no puede sobrescribir un índice más reciente ya completado. Ejecuta sin `--incremental` si cambias las reglas de interpretación y quieres actualizar los metadatos derivados.
+El modo incremental lista el subárbol configurado, aplica los cambios y retira entradas ausentes solo si pudo completar el listado. La API y la línea de comandos comparten un archivo de bloqueo junto al índice SQLite local para los escaneos completos e incrementales. Si hay un escaneo en curso, la siguiente solicitud termina sin iniciar otro. Conserva el archivo de bloqueo. Tras un cierre inesperado, el siguiente escaneo marca la ejecución interrumpida como fallida. Ejecuta sin `--incremental` si cambias las reglas de interpretación y quieres actualizar los metadatos derivados.
 
 La web muestra la fecha del último índice correcto. `GET /api/v1/sync/runs?limit=10` incluye el inicio y el fin de cada ejecución, los recuentos y los errores. Para escanear cada día a las 03:20, en la zona horaria del NAS, adapta las rutas del repositorio y del registro en esta entrada de cron:
 

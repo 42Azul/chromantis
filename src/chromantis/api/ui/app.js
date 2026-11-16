@@ -1235,10 +1235,27 @@ async function loadAdmin() {
     const counts = run.summary;
     const time = new Date(run.started_at).toLocaleString();
     syncList.append(element("div", { class: "list-row" }, element("div", {},
-      element("strong", {}, `${run.mode} · ${run.status}`), element("p", {}, time),
+      element("strong", {}, `#${run.id} · ${run.mode} · ${run.status}`), element("p", {}, time),
       element("p", {}, counts ? `${counts.images_indexed} indexed · ${counts.unchanged_images} unchanged · ${counts.deleted_images} removed` : run.error || ""))));
   }
   if (!sync.items.length) syncList.append(element("p", {}, "No indexing runs have been recorded."));
+  const syncActions = element("div", { class: "actions" },
+    button("Refresh status", adminAction(async () => {}, "Index status refreshed.")));
+  if (owner && info.incremental_index) {
+    syncActions.prepend(button("Find new folders", async event => {
+      const start = event.currentTarget;
+      start.disabled = true;
+      try {
+        const { item } = await api("/sync/runs", { method: "POST" });
+        await loadAdmin();
+        message("admin-status", `Index scan #${item.id} started. Refresh status to check it.`);
+      } catch (error) {
+        message("admin-status", error.message);
+      } finally {
+        start.disabled = false;
+      }
+    }, "primary"));
+  }
   $("admin-content").replaceChildren(
     panel("Authorized chats", chatList), panel("Invitations", inviteList, createInvite),
     panel("Configuration", definitionList({
@@ -1246,7 +1263,7 @@ async function loadAdmin() {
       "Query interpreter": info.query_interpreter || "rules",
       "Enrichment search": info.enrichment_search ? "Enabled" : "Disabled",
     }), preference),
-    panel("Recent indexing runs", syncList),
+    panel("Recent indexing runs", syncActions, syncList),
   );
 }
 

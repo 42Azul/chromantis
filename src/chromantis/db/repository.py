@@ -153,6 +153,11 @@ class Repository:
     def begin_scan(self, incremental: bool) -> tuple[int, str]:
         now = datetime.now(timezone.utc).isoformat()
         with self.session() as connection:
+            connection.execute(
+                """UPDATE sync_runs SET status = 'failed', finished_at = ?, error = 'InterruptedScan'
+                   WHERE status = 'running'""",
+                (now,),
+            )
             cursor = connection.execute(
                 "INSERT INTO sync_runs (mode, status, started_at) VALUES (?, 'running', ?)",
                 ("incremental" if incremental else "full", now),
