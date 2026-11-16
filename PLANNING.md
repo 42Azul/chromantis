@@ -528,7 +528,7 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Quick album review:** **Clasificar** shows a pending album and one folder-name suggestion with its evidence. Right accepts the displayed suggestion, left skips for this pass, and buttons offer both actions. The detailed editor remains available for people, optional photo previews, and corrections. Verify short and cancelled drags, a folder with several suggestions, and a skipped folder that reappears when the curator restarts the queue.
 
-**Next explorer increment:** Add a compact trail with tappable year and album steps, and test a single local “resume album” shortcut. Use the existing album paths and list positions. Verify that an interrupted browse can return to the same album, and that opening a different year takes one tap from a gallery.
+**Explorer shortcuts:** The folder trail links to the year list, the current year and, from an original photo, its gallery. **Continuar en…** on the home tab reopens the last gallery browsed through folders at its last loaded page. The shortcut is stored locally and cleared when the family session ends. Verify on a phone that the shortcut survives a cold start and that the year and album steps return to their existing positions.
 
 ## Planned Later
 

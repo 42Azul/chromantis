@@ -9,7 +9,7 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 ## What you can do
 
-- **Folders** (*Carpetas*) lists years and albums and opens a paged gallery. Visible tiles use thumbnails when enabled on the server. Tap a tile to open the original.
+- **Folders** (*Carpetas*) lists years and albums and opens a paged gallery. Visible tiles use thumbnails when enabled on the server. Tap a tile to open the original. Tap **Folders**, the year or the album in the trail to return to that level. **Continue in…** (*Continuar en…*) opens the last gallery visited through Folders at its last loaded page. The shortcut is stored on the device and clears when the family session ends.
 - **Organize** (*Clasificar*) shows one album card at a time. Swipe right to accept the visible tag or left to leave the album pending. Both actions have buttons. Open **People, photos and tags** (*Personas, fotos y etiquetas*) to review people by name or alias, see a few photos on demand, or edit tag decisions. Open **Tag this album** (*Etiquetar este álbum*) from a gallery to correct a reviewed album.
 - **Search** (*Buscar*) starts with album keywords or a person's name. Send a follow-up such as `antes de 2020` or `con Ana` to narrow the current results. If several albums match a requested name, choose one. The follow-up uses the existing local search rules.
 
@@ -73,3 +73,5 @@ On a fresh fixture with `--index-only`, swipe right on a suggested tag. The app 
 To check individual tagging, select photos 1 and 3 in the 2024 album and add Ana. Search for `Anita` under **Photos by person** and check that exactly those two appear. Remove Ana from photo 1 and search again. Photo 3 should be the only result. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and photos.
 
 To try reviewing by gesture, run a fresh fixture with the synthetic archive connected. In **Review photo by photo**, choose Ana, mark photo 1, skip photo 2, mark photo 3, undo and skip photo 3. Save and check that the confirmed search returns just photo 1. Repeat with the batch editor and compare time and missed or incorrect selections.
+
+To check the folder trail, open the second gallery page in 2024 and open a photo. Tap the album in the trail to go back to page two, then tap **Folders** to reach the year list in one step. Close and reopen the app and tap **Continue in…** to return to page two. If a reindex removed that page, the shortcut opens the first available page instead.

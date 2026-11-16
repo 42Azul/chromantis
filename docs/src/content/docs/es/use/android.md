@@ -9,7 +9,7 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 ## Qué puedes hacer
 
-- **Carpetas** muestra años, álbumes y una galería paginada. Si el servidor tiene miniaturas activadas, la app carga las visibles. Toca una foto para abrir el original.
+- **Carpetas** muestra años, álbumes y una galería paginada. Si el servidor tiene miniaturas activadas, la app carga las visibles. Toca una foto para abrir el original. Toca **Carpetas**, el año o el álbum en la ruta para volver a ese nivel. **Continuar en…** abre la última galería visitada desde Carpetas en la última página que se cargó. El acceso directo se guarda en el dispositivo y se borra cuando termina la sesión familiar.
 - **Clasificar** muestra una tarjeta por álbum. Desliza a la derecha para aceptar la etiqueta que ves o a la izquierda para dejar el álbum pendiente. También puedes pulsar los botones. En **Personas, fotos y etiquetas** puedes buscar personas por nombre o alias, ver algunas fotos bajo demanda o corregir decisiones. Para editar un álbum ya revisado, abre **Etiquetar este álbum** en la galería.
 - **Buscar** empieza con palabras del álbum o el nombre de una persona. Escribe después `antes de 2020` o `con Ana` para acotar esos resultados. Si el nombre del álbum es ambiguo, elige uno de los candidatos. Se usan las reglas de búsqueda locales.
 
@@ -73,3 +73,5 @@ Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre u
 Para comprobar el etiquetado individual, selecciona las fotos 1 y 3 del álbum de 2024 y añade a Ana. Busca `Anita` en **Fotos por persona** y comprueba que salen exactamente esas dos. Quita a Ana de la primera y repite la búsqueda. Solo debería aparecer la tercera. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
 
 Para probar los gestos, arranca un ejemplo nuevo con el archivo sintético conectado. En **Revisar foto a foto**, elige a Ana, marca la foto 1, salta la 2, marca la 3, deshaz la última decisión y salta la 3. Guarda y comprueba que la búsqueda confirmada devuelve solo la foto 1. Repite con el editor por lotes y compara el tiempo y los errores de selección.
+
+Para comprobar la ruta de carpetas, abre la segunda página de la galería de 2024 y entra en una foto. Toca el álbum en la ruta para volver a la segunda página y luego **Carpetas** para llegar a la lista de años en un toque. Cierra y vuelve a abrir la app y usa **Continuar en…** para regresar a la segunda página. Si al reindexar se eliminó esa página, el acceso directo abre la primera disponible.

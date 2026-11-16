@@ -61,6 +61,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.core.view.WindowCompat
@@ -91,6 +92,12 @@ class ExplorerActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var api by remember { mutableStateOf(savedSession) }
                     var expired by remember { mutableStateOf(false) }
+                    var resumeAlbum by remember {
+                        mutableStateOf(
+                            if (savedSession == null) null
+                            else AlbumResume.decode(settings.getString("resume_album", null))
+                        )
+                    }
                     Column(Modifier.systemBarsPadding().imePadding().padding(horizontal = 16.dp)) {
                         val active = api
                         if (active == null) {
@@ -98,6 +105,7 @@ class ExplorerActivity : ComponentActivity() {
                                 settings.edit {
                                     putString("origin", it.origin)
                                     putString("session", it.secret)
+                                    remove("resume_album")
                                 }
                                 api = it
                             }
@@ -110,8 +118,21 @@ class ExplorerActivity : ComponentActivity() {
                                         appearance = mode
                                         settings.edit { putString("appearance", mode.name) }
                                     },
+                                    resumeAlbum = resumeAlbum,
+                                    onAlbumVisited = { resume ->
+                                        if (resume != resumeAlbum) {
+                                            resumeAlbum = resume
+                                            settings.edit {
+                                                putString("resume_album", resume.encode())
+                                            }
+                                        }
+                                    },
                                 ) { sessionExpired ->
-                                    settings.edit { remove("session") }
+                                    settings.edit {
+                                        remove("session")
+                                        remove("resume_album")
+                                    }
+                                    resumeAlbum = null
                                     expired = sessionExpired
                                     api = null
                                 }
@@ -152,6 +173,8 @@ private fun Explorer(
     api: ChromantisApi,
     appearance: Appearance,
     onAppearance: (Appearance) -> Unit,
+    resumeAlbum: AlbumResume?,
+    onAlbumVisited: (AlbumResume) -> Unit,
     endSession: (Boolean) -> Unit,
 ) {
     val folders = stringResource(R.string.folders)
@@ -166,6 +189,7 @@ private fun Explorer(
             mutableStateOf(listOf(Page(Level.YEARS, folders)))
         }
     val savedScreens = rememberSaveableStateHolder()
+    var galleryStartOffset by rememberSaveable { mutableIntStateOf(0) }
     val page = pages.last()
     val depth = pages.lastIndex
     val workspace = pages.first()
@@ -175,13 +199,14 @@ private fun Explorer(
     var signingOut by remember { mutableStateOf(false) }
     var signOutError by remember { mutableStateOf<Throwable?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
-    fun goBack() {
-        if (depth > 0) {
-            savedScreens.removeState(screenKey)
-            pages = pages.dropLast(1)
-        } else {
-            pages = listOf(workspaces.first())
+    fun goToAncestor(index: Int) {
+        for (removed in depth downTo index + 1) {
+            savedScreens.removeState("${workspace.level.name}:$removed")
         }
+        pages = pages.take(index + 1)
+    }
+    fun goBack() {
+        if (depth > 0) goToAncestor(depth - 1) else pages = listOf(workspaces.first())
     }
     val expire = { endSession(true) }
     BackHandler(enabled = depth > 0 || workspace.level != Level.YEARS) { goBack() }
@@ -211,7 +236,22 @@ private fun Explorer(
         if (signingOut) Text(stringResource(R.string.closing_session))
         signOutError?.let { Text(stringResource(errorLabel(it))) }
     } else {
-        Heading(page.title, ::goBack)
+        val ancestors = folderAncestors(pages)
+        if (ancestors.isEmpty()) {
+            Heading(page.title, ::goBack)
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                ancestors.forEachIndexed { index, ancestor ->
+                    TextButton(
+                        onClick = { goToAncestor(index) },
+                        modifier = Modifier.weight(1f, fill = false),
+                    ) {
+                        Text(ancestor.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+            Heading(page.title)
+        }
     }
     if (showSettings) {
         SettingsDialog(
@@ -246,7 +286,10 @@ private fun Explorer(
                 ) {
                     Text(confirmedTitle)
                 }
-                AlbumSearch(api, expire) { pages = pages + Page(Level.PHOTOS, it.title, it.path) }
+                AlbumSearch(api, expire) {
+                    galleryStartOffset = 0
+                    pages = pages + Page(Level.PHOTOS, it.title, it.path)
+                }
             }
             Level.CONFIRMED ->
                 ConfirmedPhotoSearch(api, expire) {
@@ -254,7 +297,21 @@ private fun Explorer(
                 }
             Level.YEARS,
             Level.ALBUMS,
-            Level.SEARCH ->
+            Level.SEARCH -> {
+                if (page.level == Level.YEARS && resumeAlbum != null) {
+                    TextButton(
+                        onClick = {
+                            galleryStartOffset = resumeAlbum.offset
+                            pages = listOf(workspaces.first(), resumeAlbum.year, resumeAlbum.album)
+                        }
+                    ) {
+                        Text(
+                            stringResource(R.string.resume_album, resumeAlbum.album.title),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
                 EntryScreen(
                     load = { offset ->
                         if (page.level == Level.YEARS) api.years()
@@ -263,9 +320,11 @@ private fun Explorer(
                     onExpired = expire,
                     onOpen = { entry ->
                         val level = if (page.level == Level.YEARS) Level.ALBUMS else Level.PHOTOS
+                        galleryStartOffset = 0
                         pages = pages + Page(level, entry.title, entry.path)
                     },
                 )
+            }
             Level.PHOTOS -> {
                 Text(page.path.orEmpty(), style = MaterialTheme.typography.bodySmall)
                 TextButton(
@@ -279,6 +338,8 @@ private fun Explorer(
                     onOpen = { pages = pages + Page(Level.ORIGINAL, it.title, it.path) },
                     photoApi = api,
                     allowPhotoEdits = true,
+                    initialOffset = galleryStartOffset,
+                    onPageLoaded = { offset -> albumResume(pages, offset)?.let(onAlbumVisited) },
                 )
             }
             Level.ORIGINAL -> OriginalPhoto(api, requireNotNull(page.path), page.title, expire)
@@ -369,11 +430,19 @@ internal fun EntryScreen(
     onOpen: (Entry) -> Unit,
     photoApi: ChromantisApi? = null,
     allowPhotoEdits: Boolean = false,
+    initialOffset: Int = 0,
+    onPageLoaded: ((Int) -> Unit)? = null,
 ) {
-    var offset by rememberSaveable { mutableIntStateOf(0) }
+    var offset by rememberSaveable { mutableIntStateOf(initialOffset) }
     var reload by remember { mutableIntStateOf(0) }
     key(offset, reload) {
         LoadContent(onExpired, load = { load(offset) }) { page ->
+            if (onPageLoaded != null) {
+                LaunchedEffect(page) {
+                    if (page.entries.isEmpty() && offset > 0) offset = 0
+                    else if (page.entries.isNotEmpty()) onPageLoaded(offset)
+                }
+            }
             var selected by rememberSaveable { mutableStateOf<List<String>?>(null) }
             var edit by remember { mutableStateOf(false) }
             var review by remember { mutableStateOf(false) }

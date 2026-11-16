@@ -12,6 +12,7 @@
     <string name="invalid_code">El código es incorrecto, ya se usó o ha caducado.</string>
     <string name="connecting">Conectando…</string>
     <string name="folders">Carpetas</string>
+    <string name="resume_album">Continuar en %s</string>
     <string name="organize">Clasificar</string>
     <string name="settings">Ajustes</string>
     <string name="appearance">Apariencia</string>
