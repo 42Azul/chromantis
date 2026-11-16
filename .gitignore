@@ -8,3 +8,6 @@ data/
 build/
 *.egg-info/
 .venv/
+android/keystore.properties
+*.jks
+*.keystore

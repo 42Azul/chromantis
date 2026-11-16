@@ -1,8 +1,38 @@
+import java.util.Properties
+
 plugins {
     id 'com.android.application' version '8.13.2'
     id 'org.jetbrains.kotlin.android' version '2.2.21'
     id 'org.jetbrains.kotlin.plugin.compose' version '2.2.21'
     id 'com.diffplug.spotless' version '7.2.1'
+}
+
+def releaseSigning = new Properties()
+def releaseSigningFile = file('keystore.properties')
+if (releaseSigningFile.isFile()) {
+    releaseSigningFile.withInputStream { releaseSigning.load(it) }
+}
+def signingValue = { String propertyName, String environmentName ->
+    releaseSigning.getProperty(propertyName) ?: System.getenv(environmentName)
+}
+def releaseStoreFile = signingValue('storeFile', 'CHROMANTIS_KEYSTORE_PATH')
+def releaseStorePassword = signingValue('storePassword', 'CHROMANTIS_KEYSTORE_PASSWORD')
+def releaseKeyAlias = signingValue('keyAlias', 'CHROMANTIS_KEY_ALIAS')
+def releaseKeyPassword = signingValue('keyPassword', 'CHROMANTIS_KEY_PASSWORD')
+def releaseSigningReady = [
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+].every { it != null && !it.isBlank() }
+def releaseRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase(Locale.ROOT).contains('release')
+}
+if (releaseRequested && !releaseSigningReady) {
+    throw new GradleException(
+        'Release signing is required. Copy keystore.properties.example to keystore.properties ' +
+            'or set the CHROMANTIS_KEYSTORE_* environment variables.'
+    )
 }
 
 android {
@@ -25,6 +55,23 @@ android {
 
     buildFeatures {
         compose true
+    }
+
+    signingConfigs {
+        if (releaseSigningReady) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (releaseSigningReady) signingConfig signingConfigs.release
+        }
     }
 }
 

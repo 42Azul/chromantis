@@ -586,6 +586,17 @@ adb install -r android/build/outputs/apk/debug/Chromantis-debug.apk
 
 The debug APK is signed by the local debug key. Open it with a private HTTPS origin reachable by the device and a family code. If HTTPS is terminated by a local reverse proxy, preserve the original `Host` header for family session writes. Plain HTTP is disabled. The debug build also trusts certificates installed by the Android user for local fixtures. Release builds use the platform trust store. Run `gradle -p android spotlessApply` to format Kotlin with the pinned ktfmt version.
 
+For a private release APK, create a signing key once and keep it outside the repository. Copy `android/keystore.properties.example` to `android/keystore.properties`, use the absolute path to that key, and replace every placeholder. The local properties file, `.jks` files, and `.keystore` files are ignored by Git. Build and verify the signed artifact:
+
+```bash
+keytool -genkeypair -v -keystore /private/path/to/chromantis-release.jks \
+  -alias chromantis -keyalg RSA -keysize 3072 -validity 10000
+gradle -p android spotlessCheck testDebugUnitTest assembleRelease lintRelease
+apksigner verify --verbose android/build/outputs/apk/release/Chromantis-release.apk
+```
+
+Back up the keystore and its passwords privately. Android updates must be signed with the same key. For CI or another trusted build host, leave `keystore.properties` absent and provide `CHROMANTIS_KEYSTORE_PATH`, `CHROMANTIS_KEYSTORE_PASSWORD`, `CHROMANTIS_KEY_ALIAS`, and `CHROMANTIS_KEY_PASSWORD` instead. A release task fails early when no complete signing configuration is available.
+
 For a local emulator smoke test, install the existing thumbnails extra for Pillow. Generate a temporary certificate for the emulator's host alias and run the fixture without the NAS:
 
 ```bash
