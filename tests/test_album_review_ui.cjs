@@ -1,6 +1,6 @@
 const { readFileSync } = require("node:fs");
 
-async function verifyBatchReview(source, checkConcurrentSubmit = true) {
+async function verifyBatchReview(source, failedReloads = 0) {
   function assert(condition, message) {
     if (!condition) throw new Error(message);
   }
@@ -35,6 +35,10 @@ async function verifyBatchReview(source, checkConcurrentSubmit = true) {
   const api = async (path, request) => {
     if (!request) {
       assert(path === "/album-review/batch?limit=50", "Unexpected batch read");
+      if (posts.length === 1 && failedReloads > 0) {
+        failedReloads--;
+        throw new Error("Simulated loss of connection");
+      }
       return { groups };
     }
     assert(path === "/album-review/batch" && request.method === "POST", "Unexpected batch write");
@@ -50,12 +54,17 @@ async function verifyBatchReview(source, checkConcurrentSubmit = true) {
      ${source.slice(start, end)}
      return loadAlbumReviewBatch;`)(
     () => content, (id, value) => { messages[id] = value; },
-    element, title => element("button", {}, title), api,
+    element, (title, action) => {
+      const control = element("button", {}, title);
+      control.addEventListener("click", action);
+      return control;
+    }, api,
   );
 
   const selectValues = form => form.querySelectorAll().filter(control => control.tag === "select");
   const submit = form => form.listeners.submit({ preventDefault() {} });
 
+  const reloadAttempts = failedReloads;
   await load();
   const [beach, family] = content.children;
   const beachChoices = selectValues(beach);
@@ -67,11 +76,21 @@ async function verifyBatchReview(source, checkConcurrentSubmit = true) {
   familyChoices[2].value = "accepted";
 
   const firstSave = submit(beach);
-  if (checkConcurrentSubmit) await submit(family);
+  await submit(family);
   await firstSave;
   assert(posts.length === 1 && posts[0].length === 2, "The submitted group alone should be written once");
   assert(posts[0].map(item => item.decision).join() === "accepted,rejected", "Mixed batch decisions must be kept");
   assert(posts[0].every(item => item.label === "playa"), "A different group was submitted prematurely");
+
+  for (let attempt = 0; attempt < reloadAttempts; attempt++) {
+    const retry = content.children.find(control =>
+      control.tag === "button" && control.children[0] === "Reintentar la carga");
+    assert(retry, "A failed refresh must offer a retry");
+    assert(messages["album-review-status"] === "Decisiones guardadas. No se pudo recargar la cola.",
+      "A failed refresh must distinguish the successful save");
+    await retry.listeners.click();
+    assert(posts.length === 1, "Retrying a refresh must not send the save again");
+  }
 
   const [restoredFamily] = content.children;
   const restored = selectValues(restoredFamily);
@@ -88,7 +107,8 @@ async function verifyBatchReview(source, checkConcurrentSubmit = true) {
   assert(!restoredFamily.querySelectorAll().some(control => control.disabled), "A failed save must restore controls");
 }
 
-verifyBatchReview(readFileSync("src/chromantis/api/ui/app.js", "utf8")).then(() => {
+const source = readFileSync("src/chromantis/api/ui/app.js", "utf8");
+verifyBatchReview(source).then(() => verifyBatchReview(source, 2)).then(() => {
   console.log("Album review batch regression checks passed.");
 }).catch(error => {
   console.error(error);

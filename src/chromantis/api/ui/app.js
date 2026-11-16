@@ -717,7 +717,11 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
       message("album-review-status", "Decisiones guardadas. Revisa las selecciones que ya no están disponibles o han cambiado.");
     }
   } catch (error) {
-    if (request === albumRequest) message("album-review-status", error.message);
+    if (request !== albumRequest) return;
+    message("album-review-status", saved ? "Decisiones guardadas. No se pudo recargar la cola." : error.message);
+    $("album-review-content").append(button("Reintentar la carga", () => {
+      if (request === albumRequest) return loadAlbumReviewBatch(saved, drafts);
+    }));
   }
 }
 
