@@ -173,7 +173,7 @@ class SearchService:
         with self.repository.connect() as connection:
             rows = connection.execute(
                 f"""
-                {self._image_search_sql(self.include_enrichment, where)}
+                {self._image_search_sql(self.include_enrichment, where, include_photo_tags=True)}
                 ORDER BY f.year DESC, i.file_path ASC
                 """,
                 (album,) if album else (),
@@ -186,6 +186,25 @@ class SearchService:
         ][:limit]
         logger.info("Image search query=%r returned %d results", raw_query, len(results))
         return results
+
+    def search_confirmed_images(
+        self, identifier: str | int, *, limit: int = 10, offset: int = 0,
+    ) -> list[SearchResult]:
+        with self.repository.session() as connection:
+            connection.execute("BEGIN")
+            person = self.repository.resolve_person(connection, identifier)
+            if person is None:
+                return []
+            rows = connection.execute(
+                """SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date
+                   FROM photo_people pp
+                   JOIN images i ON i.id = pp.image_id
+                   JOIN album_metadata f ON f.id = i.folder_id
+                   WHERE pp.person_id = ? AND pp.origin = 'manual'
+                   ORDER BY f.year DESC, i.file_path ASC LIMIT ? OFFSET ?""",
+                (person.id, limit, offset),
+            )
+            return [self._row_to_image_result(row, f'confirmed_person="{person.display_name}"') for row in rows]
 
     def random_image(self, raw_query: str, limit: int = 10) -> SearchResult | None:
         matches = self.search_images(raw_query, limit=limit)
@@ -353,6 +372,7 @@ class SearchService:
         reasons = self._match_reasons(
             query, row, tokens, filename=row["filename"],
             enrichment_text=row["enrichment_text"] if self.include_enrichment else "",
+            photo_tags=set((row["photo_tags"] or "").split(",")),
         )
         if not reasons:
             return None
@@ -371,7 +391,9 @@ class SearchService:
         )
 
     @staticmethod
-    def _image_search_sql(include_enrichment: bool = False, where: str = "") -> str:
+    def _image_search_sql(
+        include_enrichment: bool = False, where: str = "", *, include_photo_tags: bool = False,
+    ) -> str:
         enriched_column = """
             , COALESCE((
                 SELECT GROUP_CONCAT(e.searchable_text, ' ')
@@ -380,6 +402,9 @@ class SearchService:
                   AND e.source_modified_at IS i.ftp_modified_at AND e.source_size IS i.file_size
             ), '') AS enrichment_text
         """ if include_enrichment else ""
+        photo_tags_column = """
+            , (SELECT GROUP_CONCAT(pt.tag) FROM photo_manual_tags pt WHERE pt.image_id = i.id) AS photo_tags
+        """ if include_photo_tags else ""
         return f"""
             SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date,
                    f.indexed_title, f.indexed_year, f.aliases_json,
@@ -387,6 +412,7 @@ class SearchService:
                    GROUP_CONCAT(DISTINCT p.id) AS person_ids,
                    GROUP_CONCAT(DISTINCT p.display_name) AS people_names
                    {enriched_column}
+                   {photo_tags_column}
             FROM images i
             JOIN album_metadata f ON f.id = i.folder_id
             LEFT JOIN folder_people fp ON fp.folder_id = f.id
@@ -407,6 +433,7 @@ class SearchService:
         enrichment_text: str = "",
         album_place: str | None = None,
         place_phrase: str = "",
+        photo_tags: set[str] | None = None,
     ) -> list[str]:
         year = row["year"]
         recall = query.recall
@@ -469,6 +496,8 @@ class SearchService:
                 reasons.append(f'album_alias="{alias}"')
             elif keyword in tags:
                 reasons.append(f'tag="{keyword}"')
+            elif photo_tags and keyword in photo_tags:
+                reasons.append(f'photo_tag="{keyword}"')
             elif keyword in place_phrase.split():
                 reasons.append(f'place="{album_place}"')
             elif keyword in enrichment_text:

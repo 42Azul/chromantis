@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS images (
     extension TEXT NOT NULL,
     ftp_modified_at TEXT NULL,
     file_size INTEGER NULL,
-    scan_seen_at TEXT NOT NULL
+    scan_seen_at TEXT NOT NULL,
+    photo_identity TEXT NOT NULL DEFAULT (lower(hex(randomblob(16))))
 );
 
 CREATE TABLE IF NOT EXISTS sync_runs (
@@ -195,6 +196,20 @@ CREATE TABLE IF NOT EXISTS folder_people (
     UNIQUE (folder_id, person_id)
 );
 
+CREATE TABLE IF NOT EXISTS photo_people (
+    image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+    person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    origin TEXT NOT NULL CHECK (origin = 'manual'),
+    PRIMARY KEY (image_id, person_id)
+);
+
+CREATE TABLE IF NOT EXISTS photo_manual_tags (
+    image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL,
+    origin TEXT NOT NULL CHECK (origin = 'manual'),
+    PRIMARY KEY (image_id, tag)
+);
+
 CREATE TABLE IF NOT EXISTS invite_codes (
     code TEXT PRIMARY KEY,
     role TEXT NOT NULL,
@@ -231,12 +246,23 @@ CREATE INDEX IF NOT EXISTS idx_people_normalized_name ON people(normalized_name)
 CREATE INDEX IF NOT EXISTS idx_person_aliases_person_id ON person_aliases(person_id);
 CREATE INDEX IF NOT EXISTS idx_person_aliases_normalized ON person_aliases(alias_normalized);
 CREATE INDEX IF NOT EXISTS idx_folder_people_person_id ON folder_people(person_id);
+CREATE INDEX IF NOT EXISTS idx_photo_people_person_id ON photo_people(person_id, image_id);
 CREATE INDEX IF NOT EXISTS idx_invite_codes_role ON invite_codes(role);
 CREATE INDEX IF NOT EXISTS idx_invite_codes_expires_at ON invite_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action);
 CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_album_shares_owner ON album_shares(owner_chat_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_album_shares_expiry ON album_shares(expires_at);
+"""
+
+RESET_PHOTO_ANNOTATIONS_SQL = """
+CREATE TRIGGER IF NOT EXISTS reset_photo_annotations
+AFTER UPDATE OF photo_identity ON images
+WHEN OLD.photo_identity IS NOT NEW.photo_identity
+BEGIN
+    DELETE FROM photo_people WHERE image_id = NEW.id;
+    DELETE FROM photo_manual_tags WHERE image_id = NEW.id;
+END
 """
 
 ALBUM_METADATA_VIEW_SQL = """
