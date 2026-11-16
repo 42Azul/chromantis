@@ -326,7 +326,7 @@ private fun ReviewForm(
 
 private val combiningMarks = Regex("\\p{M}+")
 
-private fun searchableName(value: String): String =
+internal fun searchableName(value: String): String =
     Normalizer.normalize(value, Normalizer.Form.NFD)
         .replace(combiningMarks, "")
         .lowercase(Locale.ROOT)

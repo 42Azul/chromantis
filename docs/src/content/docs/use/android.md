@@ -15,6 +15,14 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appearance. The choice is stored on the device.
 
+## Tag individual photos
+
+1. Open a gallery and tap **Select photos** (*Seleccionar fotos*) or press and hold a photo. Select the photos on the current page.
+2. Tap **Tag photos** (*Etiquetar fotos*). Choose **Add** (*Añadir*) or **Remove** (*Quitar*), then choose an existing person by name or alias, enter a one-word tag, or do both. Confirm to apply the change to the selection. Back exits selection before any change is saved.
+3. Open **Search → Photos by person** (*Buscar → Fotos por persona*) and enter a name or alias. These results use confirmations recorded on individual photos. The album search still includes people linked to an album.
+
+Photo edits require curation permission. If an indexed photo changes during editing, refresh the gallery and select the photos again.
+
 The full flow on a current physical phone is pending. The native client in `android/` uses Kotlin and Jetpack Compose with Material 3. Archive access, permissions, indexing, and curation remain in the shared service.
 
 ## Build and install
@@ -58,4 +66,6 @@ Install the temporary certificate as a trusted user CA on the disposable emulato
 
 From **Organize**, swipe left on the first card, then use **Start again** (*Volver al principio*) at the end of the queue to revisit it. Use **People, photos and tags**, filter people with `Anita`, select Ana, and save. Open **Search**, search `Ana` and refine with `solo 2024` to find the album.
 
-On a fresh fixture with `--index-only`, swipe right on a suggested tag. The app shows the next suggestion for that album, or advances when all suggestions are decided. Open the tagged album from **Folders** and check the decision in **Tag this album**. Try the buttons and the swipes with the synthetic archive disconnected. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and photos.
+On a fresh fixture with `--index-only`, swipe right on a suggested tag. The app shows the next suggestion for that album, or advances when all suggestions are decided. Open the tagged album from **Folders** and check the decision in **Tag this album**. Try the buttons and the swipes with the synthetic archive disconnected.
+
+To check individual tagging, select photos 1 and 3 in the 2024 album and add Ana. Search for `Anita` under **Photos by person** and check that exactly those two appear. Remove Ana from photo 1 and search again. Photo 3 should be the only result. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and photos.

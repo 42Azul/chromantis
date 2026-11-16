@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,9 +25,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +58,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -125,6 +129,7 @@ internal enum class Level {
     ASK,
     ALBUMS,
     SEARCH,
+    CONFIRMED,
     PHOTOS,
     ORIGINAL,
     REVIEW,
@@ -152,6 +157,7 @@ private fun Explorer(
     val folders = stringResource(R.string.folders)
     val organize = stringResource(R.string.organize)
     val search = stringResource(R.string.search)
+    val confirmedTitle = stringResource(R.string.confirmed_photo_search)
     val reviewTitle = stringResource(R.string.review_albums)
     val workspaces =
         listOf(Page(Level.YEARS, folders), Page(Level.REVIEW, organize), Page(Level.ASK, search))
@@ -231,8 +237,21 @@ private fun Explorer(
     }
     savedScreens.SaveableStateProvider(screenKey) {
         when (page.level) {
-            Level.ASK ->
+            Level.ASK -> {
+                TextButton(
+                    onClick = {
+                        focus.clearFocus()
+                        pages = pages + Page(Level.CONFIRMED, confirmedTitle)
+                    }
+                ) {
+                    Text(confirmedTitle)
+                }
                 AlbumSearch(api, expire) { pages = pages + Page(Level.PHOTOS, it.title, it.path) }
+            }
+            Level.CONFIRMED ->
+                ConfirmedPhotoSearch(api, expire) {
+                    pages = pages + Page(Level.ORIGINAL, it.title, it.path)
+                }
             Level.YEARS,
             Level.ALBUMS,
             Level.SEARCH ->
@@ -259,6 +278,7 @@ private fun Explorer(
                     onExpired = expire,
                     onOpen = { pages = pages + Page(Level.ORIGINAL, it.title, it.path) },
                     photoApi = api,
+                    allowPhotoEdits = true,
                 )
             }
             Level.ORIGINAL -> OriginalPhoto(api, requireNotNull(page.path), page.title, expire)
@@ -348,12 +368,50 @@ internal fun EntryScreen(
     onExpired: () -> Unit,
     onOpen: (Entry) -> Unit,
     photoApi: ChromantisApi? = null,
+    allowPhotoEdits: Boolean = false,
 ) {
     var offset by rememberSaveable { mutableIntStateOf(0) }
-    key(offset) {
+    var reload by remember { mutableIntStateOf(0) }
+    key(offset, reload) {
         LoadContent(onExpired, load = { load(offset) }) { page ->
+            var selected by rememberSaveable { mutableStateOf<List<String>?>(null) }
+            var edit by remember { mutableStateOf(false) }
+            var saved by rememberSaveable { mutableStateOf(false) }
+            val selection = selected
+            BackHandler(selection != null && !edit) { selected = null }
             Column {
                 if (page.entries.isEmpty()) Text(stringResource(R.string.no_results))
+                if (saved) {
+                    Text(stringResource(R.string.photo_tags_saved))
+                }
+                if (allowPhotoEdits && page.entries.isNotEmpty()) {
+                    if (selection == null) {
+                        TextButton(
+                            onClick = {
+                                saved = false
+                                selected = arrayListOf()
+                            }
+                        ) {
+                            Text(stringResource(R.string.select_photos))
+                        }
+                    } else {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.selected_photo_count,
+                                selection.size,
+                                selection.size,
+                            )
+                        )
+                        Row {
+                            Button(onClick = { edit = true }, enabled = selection.isNotEmpty()) {
+                                Text(stringResource(R.string.tag_photos))
+                            }
+                            TextButton(onClick = { selected = null }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
+                    }
+                }
                 if (photoApi != null) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(110.dp),
@@ -362,7 +420,30 @@ internal fun EntryScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(page.entries, key = { it.path }) { entry ->
-                            Column(Modifier.clickable { onOpen(entry) }.padding(4.dp)) {
+                            val checked = selection?.contains(entry.path) == true
+                            val tile =
+                                if (selection != null) {
+                                    Modifier.toggleable(checked, role = Role.Checkbox) { select ->
+                                        val current = selected.orEmpty()
+                                        selected =
+                                            if (select && entry.path !in current)
+                                                current + entry.path
+                                            else if (!select) current - entry.path else current
+                                    }
+                                } else if (allowPhotoEdits) {
+                                    Modifier.combinedClickable(
+                                        onClick = { onOpen(entry) },
+                                        onLongClickLabel = stringResource(R.string.select_photos),
+                                        onLongClick = {
+                                            saved = false
+                                            selected = arrayListOf(entry.path)
+                                        },
+                                    )
+                                } else {
+                                    Modifier.clickable { onOpen(entry) }
+                                }
+                            Column(tile.padding(4.dp)) {
+                                if (selection != null) Checkbox(checked, onCheckedChange = null)
                                 if (page.hasThumbnails) Thumbnail(photoApi, entry, onExpired)
                                 Text(entry.title, style = MaterialTheme.typography.bodyMedium)
                             }
@@ -391,7 +472,7 @@ internal fun EntryScreen(
                         }
                     }
                 }
-                if (offset > 0 || page.nextOffset != null) {
+                if (selection == null && (offset > 0 || page.nextOffset != null)) {
                     Row {
                         if (offset > 0)
                             TextButton(onClick = { offset -= ChromantisApi.pageSize }) {
@@ -404,6 +485,24 @@ internal fun EntryScreen(
                         }
                     }
                 }
+            }
+            if (edit && !selection.isNullOrEmpty() && photoApi != null) {
+                PhotoTagDialog(
+                    photoApi,
+                    selection,
+                    onExpired,
+                    onClose = { edit = false },
+                    onReselect = {
+                        edit = false
+                        selected = null
+                        reload++
+                    },
+                    onSaved = {
+                        edit = false
+                        selected = null
+                        saved = true
+                    },
+                )
             }
         }
     }

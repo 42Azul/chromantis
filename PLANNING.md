@@ -542,7 +542,7 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Acceptance:** Link Ana to the album and tag only two of three synthetic photos with Ana. The photo-level filter returns exactly those two while album search still finds the album. Correct one link, reindex and verify the remaining decision and its origin. A non-curator cannot edit. No metadata is written to image files.
 
-**Progress:** The application service and local HTTP API support curator-only photo edits, SQLite provenance, and paged search by confirmed person. Full and incremental scans preserve decisions for unchanged indexed photos. The gallery still needs selection, editing, and confirmed-search controls.
+**Progress:** The application service and local HTTP API support curator-only photo edits, SQLite provenance, and paged search by confirmed person. Full and incremental scans preserve decisions for unchanged indexed photos. The Android gallery now supports explicit selection and long press, with one atomic batch of additions or removals per page. **Buscar → Fotos por persona** uses the confirmed-photo endpoint. The phone interaction test and the one-photo review trial are still pending.
 
 **Photo review trial:** Let a curator choose a person or tag before starting a one-photo-at-a-time pass in an open gallery. Show the chosen label on each card, apply it only to the visible photo on acceptance, leave skipped photos available, and let the curator undo the last edit. Reuse the photo-edit API and existing thumbnail limits. Compare this with selection and batch apply on the same small synthetic album and keep the gesture mode if it makes mixed albums quicker to tag.
 

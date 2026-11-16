@@ -15,6 +15,14 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elección se guarda en el dispositivo.
 
+## Etiqueta fotos individuales
+
+1. Abre una galería y pulsa **Seleccionar fotos** o mantén pulsada una foto. Marca las fotos de la página actual.
+2. Pulsa **Etiquetar fotos**. Elige **Añadir** o **Quitar** y selecciona una persona existente por su nombre o alias, escribe una etiqueta de una sola palabra o haz ambas cosas. Confirma para aplicar el cambio a la selección. Puedes salir con Atrás antes de guardar.
+3. En **Buscar → Fotos por persona**, escribe un nombre o alias. Aparecerán las fotos en las que se haya confirmado esa persona. La búsqueda de álbumes sigue incluyendo los vínculos al álbum.
+
+Para editar necesitas permiso de etiquetado. Si una foto indexada cambia durante la edición, actualiza la galería y vuelve a seleccionar las fotos.
+
 Falta probar el recorrido completo en un teléfono físico actual. El cliente nativo de `android/` usa Kotlin y Jetpack Compose con Material 3. El servicio compartido gestiona el acceso al archivo, los permisos, la indexación y el etiquetado.
 
 ## Compila e instala
@@ -58,4 +66,6 @@ Instala el certificado temporal como CA de usuario de confianza en un emulador d
 
 En **Clasificar**, desliza la primera tarjeta a la izquierda y usa **Volver al principio** al final de la cola para recuperarla. Abre **Personas, fotos y etiquetas**, filtra por `Anita`, selecciona a Ana y guarda. En **Buscar**, busca `Ana` y afina con `solo 2024` para encontrar el álbum.
 
-Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre una etiqueta sugerida. La app muestra la siguiente sugerencia del mismo álbum o pasa al siguiente cuando terminas. Abre el álbum desde **Carpetas** y comprueba la decisión en **Etiquetar este álbum**. Prueba los botones y los gestos con el archivo sintético desconectado. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
+Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre una etiqueta sugerida. La app muestra la siguiente sugerencia del mismo álbum o pasa al siguiente cuando terminas. Abre el álbum desde **Carpetas** y comprueba la decisión en **Etiquetar este álbum**. Prueba los botones y los gestos con el archivo sintético desconectado.
+
+Para comprobar el etiquetado individual, selecciona las fotos 1 y 3 del álbum de 2024 y añade a Ana. Busca `Anita` en **Fotos por persona** y comprueba que salen exactamente esas dos. Quita a Ana de la primera y repite la búsqueda. Solo debería aparecer la tercera. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.

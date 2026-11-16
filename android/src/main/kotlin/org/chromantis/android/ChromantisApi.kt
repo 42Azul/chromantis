@@ -25,6 +25,13 @@ internal data class EntryPage(
 
 internal data class Person(val id: Long, val name: String, val aliases: List<String>)
 
+internal data class TaggedPhoto(
+    val path: String,
+    val identity: String,
+    val people: Set<Long>,
+    val tags: Set<String>,
+)
+
 internal data class AlbumRefinement(val query: String?, val choices: List<Entry>)
 
 internal data class Suggestion(
@@ -91,7 +98,14 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
     }
 
     suspend fun photos(path: String, offset: Int): EntryPage {
-        val response = json("/album-images?path=${encode(path)}&limit=$pageSize&offset=$offset")
+        return imagePage("/album-images?path=${encode(path)}", offset)
+    }
+
+    suspend fun confirmedPhotos(person: String, offset: Int): EntryPage =
+        imagePage("/confirmed-images?person=${encode(person)}", offset)
+
+    private suspend fun imagePage(route: String, offset: Int): EntryPage {
+        val response = json("$route&limit=$pageSize&offset=$offset")
         return EntryPage(
             response.getJSONArray("items").mapObjects(::photoEntry),
             if (response.isNull("next_offset")) null else response.getInt("next_offset"),
@@ -148,6 +162,21 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
                 .mapObjects(::photoEntry),
             hasThumbnails = thumbnailsEnabled(),
         )
+
+    suspend fun photoTags(paths: List<String>): List<TaggedPhoto> {
+        val query = paths.joinToString("&") { "path=${encode(it)}" }
+        return json("/photo-tags?$query").getJSONArray("items").mapObjects(::taggedPhoto)
+    }
+
+    suspend fun savePhotoTags(
+        photos: List<TaggedPhoto>,
+        person: Long?,
+        tag: String,
+        remove: Boolean,
+    ) =
+        withContext(Dispatchers.IO) {
+            request("PATCH", "/photo-tags", photoTagEdit(photos, person, tag, remove)) { Unit }
+        }
 
     suspend fun saveReview(
         album: ReviewAlbum,
@@ -305,4 +334,33 @@ internal fun albumDate(item: JSONObject): String? =
 private fun photoEntry(item: JSONObject): Entry {
     val path = item.getString("path")
     return Entry(path.substringAfterLast('/'), path)
+}
+
+internal fun taggedPhoto(item: JSONObject) =
+    TaggedPhoto(
+        item.getString("path"),
+        item.getString("identity"),
+        item.getJSONArray("people").mapObjects { it.getLong("person_id") }.toSet(),
+        item.getJSONArray("manual_tags").mapObjects { it.getString("tag") }.toSet(),
+    )
+
+internal fun photoTagEdit(
+    photos: List<TaggedPhoto>,
+    person: Long?,
+    tag: String,
+    remove: Boolean,
+): JSONObject {
+    val payload =
+        JSONObject()
+            .put(
+                "photos",
+                JSONArray(
+                    photos.map { JSONObject().put("path", it.path).put("identity", it.identity) }
+                ),
+            )
+    if (person != null)
+        payload.put(if (remove) "remove_people" else "add_people", JSONArray(listOf(person)))
+    if (tag.isNotBlank())
+        payload.put(if (remove) "manual_remove" else "manual_add", JSONArray(listOf(tag.trim())))
+    return payload
 }

@@ -75,6 +75,30 @@
     <string name="review_conflict">El álbum cambió mientras lo revisabas. Vuelve a cargarlo para ver los cambios.</string>
     <string name="reload_review">Recargar álbum</string>
     <string name="review_invalid">No se pudo guardar. Comprueba el nombre y la selección.</string>
+    <string name="cancel">Cancelar</string>
+    <string name="select_photos">Seleccionar fotos</string>
+    <string name="tag_photos">Etiquetar fotos</string>
+    <string name="photo_tags_saved">Cambios guardados en las fotos seleccionadas.</string>
+    <string name="photo_tags_explanation">Elige una persona, escribe una etiqueta o haz ambas cosas. El cambio se aplica a las fotos seleccionadas.</string>
+    <string name="add_photo_tag">Añadir</string>
+    <string name="remove_photo_tag">Quitar</string>
+    <string name="manual_photo_tag">Etiqueta de una palabra</string>
+    <string name="existing_photo_tags">Etiquetas en la selección: %s</string>
+    <string name="photo_tags_conflict">Una foto cambió. Vuelve a seleccionarla después de actualizar la galería.</string>
+    <string name="photo_tags_batch_too_large">Selecciona menos fotos y vuelve a intentarlo.</string>
+    <string name="photo_tags_invalid">Comprueba que la persona siga en el directorio y que la etiqueta tenga solo letras.</string>
+    <string name="reselect_photos">Actualizar galería</string>
+    <string name="confirmed_photo_search">Fotos por persona</string>
+    <string name="confirmed_photo_explanation">Busca por nombre o alias. Verás las fotos en las que se ha confirmado la persona.</string>
+    <string name="confirmed_photo_results">Fotos confirmadas de %s</string>
+    <plurals name="tagged_photo_person">
+        <item quantity="one">%1$s · aparece en %2$d de %3$d foto</item>
+        <item quantity="other">%1$s · aparece en %2$d de %3$d fotos</item>
+    </plurals>
+    <plurals name="selected_photo_count">
+        <item quantity="one">%d foto seleccionada</item>
+        <item quantity="other">%d fotos seleccionadas</item>
+    </plurals>
     <plurals name="album_count">
         <item quantity="one">%d álbum</item>
         <item quantity="other">%d álbumes</item>
