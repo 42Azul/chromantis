@@ -29,7 +29,7 @@ class SearchEvaluationTests(unittest.TestCase):
         self.assertEqual(report["lexical"]["recall_at_5_by_category"]["written_text"], 0)
         self.assertEqual(report["lexical"]["recall_at_5_by_category"]["visual"], 0)
         self.assertIsNone(report["lexical"]["recall_at_5_by_category"]["negative"])
-        self.assertTrue(any(case["matches"] and "person=" in case["matches"][0]["reason"]
+        self.assertTrue(any(case["matches"] and "album_person=" in case["matches"][0]["reason"]
                             for case in report["lexical"]["cases"] if case["id"] == "person_alias"))
 
 

@@ -341,6 +341,7 @@ Current architecture map:
 **Status:** `Done`
 
 - Review albums in the Spanish browser interface, choose people by name or alias, and add or remove album-level links.
+- Explain image matches from those links as album-level evidence, never as per-photo identification.
 - Accept or reject suggestions in a batch, correct individual suggestions, and add manual tags. The rules use only the indexed folder name and expose the evidence.
 - Persist decisions in SQLite across rescans of the same path. Leave unsaved albums and unresolved suggestions pending.
 - View up to three originals on demand. The remaining review flow works fully from the index, including with the archive offline.

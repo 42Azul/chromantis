@@ -44,7 +44,10 @@ class SearchServiceTests(unittest.TestCase):
         results = self.service.search_images("pablito 2020-2021")
 
         self.assertEqual(len(results), 2)
-        self.assertTrue(all('person="Pablo"' in result.reason for result in results))
+        self.assertTrue(all('album_person="Pablo"' in result.reason for result in results))
+        self.assertTrue(all(
+            'person="Pablo"' not in result.reason.split(", ") for result in results
+        ))
         self.assertTrue(all("year_range=2020-2021" in result.reason for result in results))
 
     def test_search_images_by_person_text_without_folder_link(self) -> None:

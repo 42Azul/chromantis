@@ -452,7 +452,8 @@ class SearchService:
         normalized_text = f"{original_title} / {filename.lower()}" if filename else original_title
         for person in query.people:
             if person.id in available_person_ids:
-                reasons.append(f'person="{person.display_name}"')
+                scope = "album_person" if filename else "person"
+                reasons.append(f'{scope}="{person.display_name}"')
                 continue
             if _person_term_matches(person.search_terms, normalized_text, tags):
                 reasons.append(f'person_text="{person.display_name}"')

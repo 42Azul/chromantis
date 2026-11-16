@@ -333,7 +333,7 @@ class TelegramBotServiceTests(unittest.TestCase):
         reply = self.service.handle_command("/images 2 pablito 2020-2021", chat_id=VIEWER_CHAT_ID)
 
         self.assertEqual(len(reply.image_paths), 2)
-        self.assertIn('person="Pablo"', reply.text)
+        self.assertIn('album_person="Pablo"', reply.text)
         self.assertIn("year_range=2020-2021", reply.text)
 
     def test_more_returns_additional_images_from_same_scope(self) -> None:
