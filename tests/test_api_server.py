@@ -240,6 +240,11 @@ class ApiServerTests(unittest.TestCase):
         album = "2021/2021-08-15_city_trip"
         photo = album + "/IMG_001.jpg"
         other = "2019/2019-07-10_beach_day/IMG_0001.jpg"
+        review = self.app_service.get_album_review(101, path=album)
+        self.app_service.edit_album_context(
+            101, album, review["id"], review["context_revision"],
+            {"title": "Viaje a la ciudad", "place": "Madrid", "note": "Fin de semana familiar."},
+        )
         self.assertEqual(self.request("POST", "/album-shares", "viewer-token",
                                       {"path": album})[0], 403)
         status, created = self.request(
@@ -256,7 +261,10 @@ class ApiServerTests(unittest.TestCase):
             self.assertNotEqual(row["secret_hash"], secret)
 
         status, album_payload = self.request("GET", f"/shared/{secret}")
-        self.assertEqual((status, album_payload["item"]["title"]), (200, "2021 08 15 city trip"))
+        self.assertEqual((status, album_payload["item"]["title"]), (200, "Viaje a la ciudad"))
+        self.assertEqual(album_payload["item"]["event_date"], "2021-08-15")
+        self.assertEqual(album_payload["item"]["place"], "Madrid")
+        self.assertEqual(album_payload["item"]["note"], "Fin de semana familiar.")
         self.assertTrue(album_payload["items"])
         self.assertNotIn("path", album_payload["item"])
         self.assertEqual(self.request("GET", "/folders?q=city")[0], 401)
@@ -299,6 +307,9 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(self.request("GET", f"/shared/{secret}")[0], 404)
         self.assertEqual(self.request(
             "GET", f"/shared/{secret}/image?" + urlencode({"path": photo})
+        )[0], 404)
+        self.assertEqual(self.request(
+            "GET", f"/shared/{secret}/thumbnail?" + urlencode({"path": photo})
         )[0], 404)
 
     def test_album_share_expiry_is_checked_on_every_request(self) -> None:
@@ -347,8 +358,8 @@ class ApiServerTests(unittest.TestCase):
         self.start_api()
         for path, media_type, marker in (
             ("/", "text/html", b'id="login-form"'),
-            ("/ui/app.js", "text/javascript", b'function signIn'),
-            ("/ui/style.css", "text/css", b'.photo-grid'),
+            ("/ui/app.js", "text/javascript", "Vista previa no generada".encode()),
+            ("/ui/style.css", "text/css", b'@media (max-width: 420px)'),
         ):
             connection = HTTPConnection(*self.server.server_address, timeout=2)
             try:

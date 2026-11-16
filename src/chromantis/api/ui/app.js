@@ -124,6 +124,7 @@ async function showAlbumShares(path, title) {
 }
 
 async function loadSharedAlbum(offset = 0) {
+  document.body.classList.add("shared-view");
   $("sign-in").hidden = true;
   $("shared-album").hidden = false;
   message("shared-status", "Cargando álbum…");
@@ -133,17 +134,34 @@ async function loadSharedAlbum(offset = 0) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "No se pudo abrir el álbum.");
     message("shared-title", payload.item.title);
-    message("shared-date", payload.item.event_date || String(payload.item.year));
+    const meta = [];
+    if (payload.item.event_date) {
+      const date = new Date(`${payload.item.event_date}T12:00:00`);
+      meta.push(new Intl.DateTimeFormat("es", { dateStyle: "long" }).format(date));
+    } else if (payload.item.year) meta.push(String(payload.item.year));
+    if (payload.item.place) meta.push(payload.item.place);
+    meta.push(`Disponible hasta ${new Date(payload.item.expires_at).toLocaleDateString("es")}`);
+    $("shared-meta").replaceChildren(...meta.map(value => element("span", {}, value)));
+    message("shared-note", payload.item.note || "");
+    $("shared-note").hidden = !payload.item.note;
     message("shared-status", payload.items.length ? "" : "Este álbum no contiene fotos indexadas.");
-    $("shared-photos").replaceChildren(...payload.items.map(item => {
+    $("shared-photos").replaceChildren(...payload.items.map((item, index) => {
       const filename = item.filename;
       const base = `/api/v1/shared/${sharedSecret}`;
       const original = base + "/image" + queryParams({ path: item.path });
-      const preview = base + (payload.thumbnails ? "/thumbnail" : "/image") + queryParams({ path: item.path });
-      return element("article", { class: "photo-card" },
-        element("a", { href: original, target: "_blank", rel: "noreferrer" },
-          element("img", { src: preview, alt: filename, loading: "lazy", decoding: "async" })),
-        element("div", { class: "card-caption" }, element("h3", {}, filename)));
+      const cover = offset === 0 && index === 0;
+      const preview = payload.thumbnails
+        ? element("img", {
+          src: base + "/thumbnail" + queryParams({ path: item.path }), alt: filename,
+          loading: cover ? "eager" : "lazy", decoding: "async",
+        })
+        : element("div", { class: "shared-placeholder", role: "img", "aria-label": filename },
+          "Vista previa no generada");
+      return element("article", { class: `photo-card shared-photo${cover ? " shared-cover" : ""}` },
+        element("div", { class: "shared-preview" }, preview),
+        element("div", { class: "card-caption" }, element("h3", {}, filename),
+          element("a", { class: "shared-original", href: original, target: "_blank", rel: "noreferrer" },
+            "Abrir original")));
     }));
     const actions = [];
     if (offset) actions.push(button("Página anterior", () => loadSharedAlbum(Math.max(0, offset - 30))));

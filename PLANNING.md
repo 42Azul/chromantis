@@ -458,11 +458,9 @@ Current architecture map:
 
 **Acceptance:** A restore onto a fresh instance preserves collections and corrections.
 
-## Ready Next
-
 ### MVP 17A — Mobile Album Presentation
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Case:** A family guest should understand and browse a shared album comfortably on a phone, without gaining broader archive access or downloading every original.
 
@@ -473,6 +471,22 @@ Current architecture map:
 **Dependencies:** Existing album context, local thumbnail cache and MVP 16A grants only.
 
 **Acceptance:** At a 360 px viewport, a guest can understand the album, browse previews and open one original; revocation still blocks the next metadata, preview and original request.
+
+## Ready Next
+
+### MVP 17B — Batch Album Review
+
+**Status:** `Ready Next`
+
+**Case:** After an index adds many albums, a curator should resolve repeated name-based suggestions without opening every album or loading photos.
+
+- Add a compact pending-album queue that can select several albums and accept or reject one shared suggested tag across the selection.
+- Reuse the existing suggestion evidence and decision tables. Keep corrections and ambiguous albums in the current single-album review flow.
+- Operate only on indexed names and SQLite; do not request thumbnails or originals during the batch action.
+
+**Dependencies:** Existing deterministic vocabulary, album review permissions and decision persistence only.
+
+**Acceptance:** Select three pending albums, accept a shared suggestion for two and reject it for one, then reindex and verify that all three decisions persist without any archive byte reads.
 
 ## Planned Later
 

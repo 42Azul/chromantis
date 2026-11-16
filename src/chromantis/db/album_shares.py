@@ -86,7 +86,7 @@ class AlbumShareStore:
             return None
         row = self.connection.execute(
             """SELECT s.id, f.folder_path AS path, album.title, album.event_date,
-                      album.year, s.expires_at
+                      album.year, album.place, album.note, s.expires_at
                FROM album_shares s JOIN folders f ON f.id = s.folder_id
                JOIN album_metadata album ON album.id = f.id
                WHERE s.secret_hash = ? AND s.expires_at > ?""",

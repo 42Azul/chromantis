@@ -89,6 +89,19 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .folder-card span { color: var(--muted); margin-top: .2rem; }
 .collection-card { display: grid; gap: .4rem; min-width: 0; align-content: start; }
 .photo-card > .collection-save { margin: 0 10px 10px; }
+.shared-header { max-width: 48rem; margin-bottom: 26px; }
+.shared-kicker { color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+.shared-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.shared-meta span { padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .82rem; }
+.shared-note { max-width: 42rem; margin-top: 14px; color: #ded8cb; white-space: pre-wrap; }
+.shared-photo { display: grid; grid-template-rows: auto 1fr; }
+.shared-preview { aspect-ratio: 4 / 3; background: #272620; overflow: hidden; }
+.shared-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shared-placeholder { display: grid; place-items: center; width: 100%; height: 100%; min-height: 120px; padding: 16px; color: var(--muted); text-align: center; }
+.shared-original { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; margin-top: 7px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; text-decoration: none; }
+.shared-original:hover { border-color: #8f8176; background: #292622; }
+.shared-cover { grid-column: span 2; grid-row: span 2; }
+.shared-cover .shared-preview { aspect-ratio: 16 / 10; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
 .actions button[aria-pressed="true"] { color: var(--accent); border-color: #8b6452; }
 
@@ -141,6 +154,17 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
   .split { grid-template-columns: minmax(0, 1fr); }
   .photo-grid { gap: 8px; }
   .list-row { flex-wrap: wrap; }
+  .shared-view .sidebar { padding-block: 12px; }
+  .shared-header { margin-bottom: 20px; }
+  .shared-cover { grid-column: 1 / -1; grid-row: auto; }
+  .shared-original { width: 100%; }
+}
+
+@media (max-width: 420px) {
+  #shared-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #shared-photos .card-caption { padding: 9px; }
+  #shared-photos h3 { font-size: .86rem; }
+  .shared-meta { gap: 5px; }
 }
 
 .album-heading { margin: 12px 0; overflow-wrap: anywhere; }

@@ -330,7 +330,10 @@ def _shared_album_route(
                 raise ValueError("Invalid offset.")
             items = shares.images(share, limit, offset)
             return 200, {
-                "item": {key: share[key] for key in ("title", "event_date", "year", "expires_at")},
+                "item": {
+                    key: share[key]
+                    for key in ("title", "event_date", "year", "place", "note", "expires_at")
+                },
                 "items": items,
                 "offset": offset,
                 "has_more": len(items) == limit,

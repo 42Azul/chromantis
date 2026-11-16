@@ -435,7 +435,9 @@ La API local admite `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collecti
 
 Con una sesión de propietario, busca un álbum en **Archivo** y pulsa **Compartir álbum**. La web muestra los enlaces activos de ese álbum y permite crear otro válido durante siete días. El enlace completo se enseña una sola vez: cópialo y envíalo en privado. Cualquier persona que lo tenga podrá ver ese álbum hasta que caduque o lo revoques.
 
-El invitado abre una galería en español sin iniciar sesión. Puede ver únicamente el título, la fecha y las fotos indexadas del álbum concedido; no obtiene búsquedas, colecciones ni funciones de curación. Chromantis comprueba la concesión de nuevo al cargar el álbum, cada original y cada miniatura, por lo que **Revocar** corta la siguiente petición. Si las miniaturas locales están activadas se usan bajo demanda; en caso contrario la galería sigue funcionando con los originales.
+El invitado abre una galería en español sin iniciar sesión. La cabecera muestra el título, la fecha, el lugar y la nota que se hayan guardado para el álbum. En móvil, la primera foto sirve de portada y el resto forma una cuadrícula compacta. Puede ver únicamente el contexto y las fotos indexadas del álbum concedido; no obtiene búsquedas, colecciones ni funciones de curación.
+
+Chromantis comprueba la concesión de nuevo al cargar el álbum, cada original y cada miniatura, por lo que **Revocar** corta la siguiente petición. Si las miniaturas locales están activadas se cargan de forma diferida. Si están desactivadas, la galería muestra marcadores ligeros y no descarga originales automáticamente: el invitado debe pulsar **Abrir original** en la foto concreta.
 
 SQLite guarda el hash del secreto, no el enlace reutilizable. La API ofrece `GET/POST /api/v1/album-shares` y `DELETE /api/v1/album-shares/<id>` solo a propietarios. La galería usa `GET /api/v1/shared/<secret>` y sus rutas `/image` y `/thumbnail`; esas tres rutas están limitadas por la misma concesión de álbum. Esta función no publica el NAS ni configura acceso externo: el enlace solo es alcanzable desde la red o túnel donde ya esté disponible Chromantis.
 
