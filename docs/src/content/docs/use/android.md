@@ -50,6 +50,6 @@ PYTHONPATH=src python tests/android_fixture.py \
   --cert "$fixture_dir/cert.pem" --key "$fixture_dir/key.pem"
 ```
 
-Install the temporary certificate as a trusted user CA on the disposable emulator. Set the address to `https://10.0.2.2:8443` and use the fixture's printed one-time code. Open 2024, browse the second gallery page, open a photo, go back, and relaunch the app to check the retained session.
+Install the temporary certificate as a trusted user CA on the disposable emulator. Set the address to `https://10.0.2.2:8443` and use the fixture's printed one-time code. Open 2024, browse the second gallery page, open a photo, and rotate the device. Check that the same photo remains open and that going back returns to the second page. Relaunch the app to check the retained session.
 
 From **Folders**, open **Tag albums**, filter people with `Anita`, select Ana, and save. Return to **Folders** and search `Ana` to find the album. Open its gallery and use **Tag this album** to remove the link or check which suggestion decisions were saved. Repeat with `--index-only` on a fresh fixture to check that navigation, filenames, and album editing still work with the synthetic archive disconnected. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and synthetic photos.

@@ -40,10 +40,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -90,7 +90,7 @@ class ExplorerActivity : ComponentActivity() {
                                 api = it
                             }
                         } else {
-                            key(active) {
+                            key(active.origin) {
                                 Explorer(active) { sessionExpired ->
                                     settings.edit { remove("session") }
                                     expired = sessionExpired
@@ -105,7 +105,7 @@ class ExplorerActivity : ComponentActivity() {
     }
 }
 
-private enum class Level {
+internal enum class Level {
     YEARS,
     ALBUMS,
     SEARCH,
@@ -114,14 +114,27 @@ private enum class Level {
     REVIEW,
 }
 
-private data class Page(val level: Level, val title: String, val path: String? = null)
+internal data class Page(val level: Level, val title: String, val path: String? = null)
+
+internal val explorerPagesSaver =
+    listSaver<List<Page>, String>(
+        save = { pages -> pages.flatMap { listOf(it.level.name, it.title, it.path.orEmpty()) } },
+        restore = { fields ->
+            fields.chunked(3).map { (level, title, path) ->
+                Page(Level.valueOf(level), title, path.ifEmpty { null })
+            }
+        },
+    )
 
 @Composable
 private fun Explorer(api: ChromantisApi, endSession: (Boolean) -> Unit) {
     val folders = stringResource(R.string.folders)
     val results = stringResource(R.string.results)
     val reviewTitle = stringResource(R.string.review_albums)
-    val pages = remember { mutableStateListOf(Page(Level.YEARS, folders)) }
+    var pages by
+        rememberSaveable(stateSaver = explorerPagesSaver) {
+            mutableStateOf(listOf(Page(Level.YEARS, folders)))
+        }
     val savedScreens = rememberSaveableStateHolder()
     val page = pages.last()
     val depth = pages.lastIndex
@@ -132,7 +145,7 @@ private fun Explorer(api: ChromantisApi, endSession: (Boolean) -> Unit) {
     fun goBack() {
         if (depth > 0) {
             savedScreens.removeState(depth)
-            pages.removeAt(depth)
+            pages = pages.dropLast(1)
         }
     }
     val expire = { endSession(true) }
@@ -152,7 +165,7 @@ private fun Explorer(api: ChromantisApi, endSession: (Boolean) -> Unit) {
                 TextButton(
                     onClick = {
                         focus.clearFocus()
-                        pages.add(Page(Level.SEARCH, results, query.trim()))
+                        pages = pages + Page(Level.SEARCH, results, query.trim())
                     },
                     enabled = query.isNotBlank() && !signingOut,
                 ) {
@@ -163,7 +176,7 @@ private fun Explorer(api: ChromantisApi, endSession: (Boolean) -> Unit) {
                 TextButton(
                     onClick = {
                         focus.clearFocus()
-                        pages.add(Page(Level.REVIEW, reviewTitle))
+                        pages = pages + Page(Level.REVIEW, reviewTitle)
                     },
                     enabled = !signingOut,
                 ) {
@@ -204,18 +217,20 @@ private fun Explorer(api: ChromantisApi, endSession: (Boolean) -> Unit) {
                     onExpired = expire,
                     onOpen = { entry ->
                         val level = if (page.level == Level.YEARS) Level.ALBUMS else Level.PHOTOS
-                        pages.add(Page(level, entry.title, entry.path))
+                        pages = pages + Page(level, entry.title, entry.path)
                     },
                 )
             Level.PHOTOS -> {
                 Text(page.path.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { pages.add(Page(Level.REVIEW, reviewTitle, page.path)) }) {
+                TextButton(
+                    onClick = { pages = pages + Page(Level.REVIEW, reviewTitle, page.path) }
+                ) {
                     Text(stringResource(R.string.review_album))
                 }
                 EntryScreen(
                     load = { api.photos(requireNotNull(page.path), it) },
                     onExpired = expire,
-                    onOpen = { pages.add(Page(Level.ORIGINAL, it.title, it.path)) },
+                    onOpen = { pages = pages + Page(Level.ORIGINAL, it.title, it.path) },
                     photoApi = api,
                 )
             }

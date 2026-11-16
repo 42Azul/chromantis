@@ -52,6 +52,6 @@ PYTHONPATH=src python tests/android_fixture.py \
   --cert "$fixture_dir/cert.pem" --key "$fixture_dir/key.pem"
 ```
 
-Instala el certificado temporal como CA de usuario de confianza en un emulador de pruebas. Usa la dirección `https://10.0.2.2:8443` y el código de un solo uso que imprime el ejemplo. Abre 2024, pasa a la segunda página de la galería, abre una foto, vuelve atrás y relanza la app para comprobar que conserva la sesión.
+Instala el certificado temporal como CA de usuario de confianza en un emulador de pruebas. Usa la dirección `https://10.0.2.2:8443` y el código de un solo uso que imprime el ejemplo. Abre 2024, pasa a la segunda página de la galería, abre una foto y gira el dispositivo. Comprueba que sigue abierta la misma foto y que al volver atrás aparece la segunda página. Relanza la app para comprobar que conserva la sesión.
 
 En **Carpetas**, abre **Etiquetar álbumes**, filtra por `Anita`, selecciona a Ana y guarda. Vuelve a **Carpetas** y busca `Ana`. Abre la galería y pulsa **Etiquetar este álbum** para retirar el vínculo o comprobar las decisiones guardadas. Repite la prueba con `--index-only` para comprobar que la navegación, los nombres y la edición de álbumes siguen funcionando con el archivo sintético desconectado. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
