@@ -37,7 +37,7 @@ gradle -p android spotlessCheck testDebugUnitTest assembleRelease lintRelease
 apksigner verify --verbose android/build/outputs/apk/release/Chromantis-release.apk
 ```
 
-Guarda una copia privada del almacén de claves y de las contraseñas. Para instalar una actualización en Android necesitas firmarla con la misma clave. En CI u otro equipo de confianza puedes prescindir de `keystore.properties` y definir `CHROMANTIS_KEYSTORE_PATH`, `CHROMANTIS_KEYSTORE_PASSWORD`, `CHROMANTIS_KEY_ALIAS` y `CHROMANTIS_KEY_PASSWORD`. La compilación de distribución se detiene si falta parte de la configuración de firma.
+Guarda una copia privada del almacén de claves y de las contraseñas. Para instalar una actualización en Android necesitas firmarla con la misma clave. En CI u otro equipo de confianza puedes prescindir de `keystore.properties` y definir `CHROMANTIS_KEYSTORE_PATH`, `CHROMANTIS_KEYSTORE_PASSWORD`, `CHROMANTIS_KEY_ALIAS` y `CHROMANTIS_KEY_PASSWORD`. Si Gradle no encuentra `assembleRelease`, comprueba que los cuatro valores estén configurados. Sin ellos se desactiva la variante de distribución y el comando general `assemble` solo genera el APK de depuración.
 
 ## Prueba con un archivo sintético
 
