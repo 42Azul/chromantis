@@ -508,7 +508,19 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 ## Ready Next
 
-No further implementation target is promoted yet. The optional remote MCP step below needs a concrete household use case and a separate transport, account-availability and privacy decision; routine browser, Telegram and indexing work remains independent of it.
+### MVP 19A — Android Family App (APK)
+
+**Status:** `Ready Next`
+
+**Case:** A family member can open Chromantis from an Android home-screen icon, sign in with a one-time family code and find or review an album over the home Wi-Fi without a Telegram account.
+
+**Scope:** Build a small native Android client in Spanish with a configurable NAS address, a persistent revocable family session, album search, and the existing person and tag review flow. Show previews on request. Reuse the existing HTTP API, SQLite index, and server-side permissions. Keep the photo archive read-only and the web and Telegram available independently. Build on a development computer and produce an installable, signed APK for private testing. Album invite handling, collections, and broader browsing can follow the first validated flow.
+
+**Dependencies:** Android SDK and build tools on the development computer, the existing family-session and album-review APIs, and a reachable HTTPS endpoint on the private test network with certificate validation. Check Android local-network permission behaviour for the chosen target SDK and private installation rules for the test device. The NAS continues to run the existing service.
+
+**Acceptance:** Build and install the APK on an emulator or test phone with synthetic albums. Enter the NAS address and a one-time code, then reopen the app without re-entering the code. Open a pending album, link the fixture person Ana, save it, and find it by searching for Ana. Verify that revocation blocks the next protected request and that a revoked session, inaccessible NAS, or denied network permission where applicable shows a clear recovery message. The tagging flow works from the index with the photo source disconnected, and previews are requested only after a tap.
+
+**References:** [Android app publishing](https://developer.android.com/studio/publish), [developer verification rollout](https://developer.android.com/developer-verification), [network security configuration](https://developer.android.com/privacy-and-security/security-config), and [local network permissions](https://developer.android.com/privacy-and-security/local-network-permission).
 
 ## Planned Later
 
