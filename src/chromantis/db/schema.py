@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS images (
     ftp_modified_at TEXT NULL,
     file_size INTEGER NULL,
     scan_seen_at TEXT NOT NULL,
-    photo_identity TEXT NOT NULL DEFAULT (lower(hex(randomblob(16))))
+    photo_identity TEXT NOT NULL DEFAULT (lower(hex(randomblob(16)))),
+    photo_known_modified_at TEXT,
+    photo_known_size INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS sync_runs (

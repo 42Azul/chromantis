@@ -4,6 +4,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from dataclasses import replace
 from http.client import HTTPConnection
 from pathlib import Path
 from threading import Thread
@@ -170,6 +171,44 @@ class PhotoTagTests(unittest.TestCase):
         ArchiveScanner(LocalArchiveSource(str(replacement_root)), self.repository, PathParser()).scan()
         self.assertEqual(self.find("confirmed-images", person="Ana"), [])
         self.assertNotEqual(self.tags(PHOTO_PATH)[0]["identity"], first["identity"])
+
+    def test_missing_source_metadata_preserves_last_known_photo_identity(self):
+        photo = self.tags(PHOTO_PATH)[0]
+        self.assertEqual(self.edit([photo], add_people=[self.ana.id])[0], 200)
+        entries = list(self.scanner.source.iter_entries())
+        incomplete_entries = [
+            replace(entry, modified_at=None, size=None) if entry.path == PHOTO_PATH else entry
+            for entry in entries
+        ]
+        self.scanner.source.iter_entries = Mock(return_value=incomplete_entries)
+        self.scanner.scan(incremental=True)
+        self.assertEqual(self.repository.indexed_image_fingerprint(PHOTO_PATH)[1:], (None, None))
+        self.assertEqual(self.tags(PHOTO_PATH)[0]["identity"], photo["identity"])
+        self.assertEqual(self.find("confirmed-images", person="Ana"), [PHOTO_PATH])
+
+        self.scanner.source.iter_entries.return_value = entries
+        self.scanner.scan()
+        self.assertEqual(self.tags(PHOTO_PATH)[0]["identity"], photo["identity"])
+
+        self.scanner.source.iter_entries.return_value = incomplete_entries
+        self.scanner.scan(incremental=True)
+        self.scanner.source.iter_entries.return_value = [
+            replace(entry, modified_at=None, size=entry.size + 1) if entry.path == PHOTO_PATH else entry
+            for entry in entries
+        ]
+        self.scanner.scan(incremental=True)
+        replacement = self.tags(PHOTO_PATH)[0]
+        self.assertNotEqual(replacement["identity"], photo["identity"])
+        self.assertEqual(self.find("confirmed-images", person="Ana"), [])
+        self.assertEqual(self.edit([replacement], add_people=[self.ana.id])[0], 200)
+
+        self.scanner.source.iter_entries.return_value = [
+            replace(entry, modified_at="2024-03-17T00:00:00+00:00", size=entry.size + 1)
+            if entry.path == PHOTO_PATH else entry for entry in entries
+        ]
+        self.scanner.scan(incremental=True)
+        self.assertEqual(self.tags(PHOTO_PATH)[0]["identity"], replacement["identity"])
+        self.assertEqual(self.find("confirmed-images", person="Ana"), [PHOTO_PATH])
 
     def test_family_session_reuses_curation_permission_and_revocation(self):
         _, code = self.app.family_access.invite("Family curator")

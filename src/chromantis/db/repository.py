@@ -1190,7 +1190,9 @@ class Repository:
         if existing:
             if existing["ftp_root_path"] != record.source_root:
                 connection.execute(
-                    "UPDATE images SET photo_identity = lower(hex(randomblob(16))) WHERE folder_id = ?",
+                    """UPDATE images SET photo_identity = lower(hex(randomblob(16))),
+                              photo_known_modified_at = NULL, photo_known_size = NULL
+                       WHERE folder_id = ?""",
                     (existing["id"],),
                 )
             connection.execute(
@@ -1242,31 +1244,32 @@ class Repository:
         scan_seen_at: str,
     ) -> int:
         existing = connection.execute(
-            "SELECT id, ftp_modified_at, file_size FROM images WHERE file_path = ?",
+            "SELECT id, photo_known_modified_at, photo_known_size FROM images WHERE file_path = ?",
             (record.file_path,),
         ).fetchone()
         if existing:
-            replaced = (existing["ftp_modified_at"], existing["file_size"]) != (
-                record.source_modified_at, record.file_size,
+            # FTP listings can omit metadata temporarily. Keep the last comparable values for curation.
+            known = (existing["photo_known_modified_at"], existing["photo_known_size"])
+            observed = (record.source_modified_at, record.file_size)
+            replaced = any(
+                prior is not None and current is not None and prior != current
+                for prior, current in zip(known, observed)
             )
             connection.execute(
                 """
                 UPDATE images
-                SET folder_id = ?, filename = ?, extension = ?,
-                    ftp_modified_at = ?, file_size = ?, scan_seen_at = ?,
-                    photo_identity = CASE WHEN ? THEN lower(hex(randomblob(16))) ELSE photo_identity END
-                WHERE id = ?
+                SET folder_id = :folder_id, filename = :filename, extension = :extension,
+                    ftp_modified_at = :modified_at, file_size = :file_size, scan_seen_at = :seen_at,
+                    photo_identity = CASE WHEN :replaced THEN lower(hex(randomblob(16))) ELSE photo_identity END,
+                    photo_known_modified_at = CASE WHEN :replaced THEN :modified_at
+                        ELSE COALESCE(:modified_at, photo_known_modified_at) END,
+                    photo_known_size = CASE WHEN :replaced THEN :file_size
+                        ELSE COALESCE(:file_size, photo_known_size) END
+                WHERE id = :id
                 """,
-                (
-                    folder_id,
-                    record.filename,
-                    record.extension,
-                    record.source_modified_at,
-                    record.file_size,
-                    scan_seen_at,
-                    replaced,
-                    existing["id"],
-                ),
+                {"folder_id": folder_id, "filename": record.filename, "extension": record.extension,
+                 "modified_at": record.source_modified_at, "file_size": record.file_size, "seen_at": scan_seen_at,
+                 "replaced": replaced, "id": existing["id"]},
             )
             return int(existing["id"])
 
@@ -1274,19 +1277,14 @@ class Repository:
             """
             INSERT INTO images (
                 folder_id, file_path, filename, extension,
-                ftp_modified_at, file_size, scan_seen_at, photo_identity
+                ftp_modified_at, file_size, scan_seen_at, photo_identity, photo_known_modified_at, photo_known_size
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, lower(hex(randomblob(16))))
+            VALUES (:folder_id, :path, :filename, :extension, :modified_at, :file_size, :seen_at,
+                    lower(hex(randomblob(16))), :modified_at, :file_size)
             """,
-            (
-                folder_id,
-                record.file_path,
-                record.filename,
-                record.extension,
-                record.source_modified_at,
-                record.file_size,
-                scan_seen_at,
-            ),
+            {"folder_id": folder_id, "path": record.file_path, "filename": record.filename,
+             "extension": record.extension, "modified_at": record.source_modified_at,
+             "file_size": record.file_size, "seen_at": scan_seen_at},
         )
         return int(cursor.lastrowid)
 
@@ -1514,7 +1512,13 @@ class Repository:
     def _migrate_schema(self, connection: sqlite3.Connection) -> None:
         if not self._has_column(connection, "images", "photo_identity"):
             connection.execute("ALTER TABLE images ADD COLUMN photo_identity TEXT")
-            connection.execute("UPDATE images SET photo_identity = lower(hex(randomblob(16)))")
+        if not self._has_column(connection, "images", "photo_known_modified_at"):
+            connection.execute("ALTER TABLE images ADD COLUMN photo_known_modified_at TEXT")
+            connection.execute("ALTER TABLE images ADD COLUMN photo_known_size INTEGER")
+            connection.execute(
+                """UPDATE images SET photo_identity = COALESCE(photo_identity, lower(hex(randomblob(16)))),
+                          photo_known_modified_at = ftp_modified_at, photo_known_size = file_size"""
+            )
         connection.execute(RESET_PHOTO_ANNOTATIONS_SQL)
         if not self._has_column(connection, "album_context", "place"):
             connection.execute("ALTER TABLE album_context ADD COLUMN place TEXT")

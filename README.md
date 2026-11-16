@@ -333,11 +333,11 @@ The tagging routes return `{"items": [...]}` in selection order. Each item has `
 }
 ```
 
-Edits apply atomically to the selection and can be retried. A missing or changed photo during a save returns 409 so the client can reload the selection. Tags follow the album tagging rule of one word up to 40 letters. Actual additions and removals use the existing audit log with manual origin and the acting chat or family session. Ordinary readers can search. Reading or editing the tagging selection requires curation permission. Family-session writes use the same-origin JSON request used by album curation.
+Edits apply atomically to the selection and can be retried. The existing 16 KiB request body limit returns 413 for larger payloads. Clients can split long selections into smaller requests, each saved atomically. A missing or changed photo during a save returns 409 so the client can reload the selection. Tags follow the album tagging rule of one word up to 40 letters. Actual additions and removals use the existing audit log with manual origin and the acting chat or family session. Ordinary readers can search. Reading or editing the tagging selection requires curation permission. Family-session writes use the same-origin JSON request used by album curation.
 
 Confirmed image search returns `{"items": [...], "next_offset": ...}` for explicit photo links, with a default page size of 30 and a maximum of 50. A missing person in the directory gives an empty result. Existing person searches in `/api/v1/folders` and `/api/v1/images` still use album links and their existing text matching. Manual photo tags can match image keywords in `/api/v1/images` and apply only to the edited photos.
 
-An indexed photo keeps its identity and decisions across scans while its path, configured root, indexed size and modification time stay the same. Removal or a change to those metadata values clears its active decisions. A replacement with identical observed metadata shares the previous identity. Curation and search use SQLite metadata, and indexing opens no originals for this feature.
+An indexed photo keeps its identity and decisions across scans while its path, configured root, size and modification time stay the same. If the archive listing omits size or modification time, the index retains the last known values for identity checks. A conflicting comparable value, removal, or a root change clears its active decisions. A replacement with identical observed metadata shares the previous identity. Curation and search use SQLite metadata, and indexing opens no originals for this feature.
 
 Run the synthetic regression suite with `python -m unittest tests.test_photo_tags -v`.
 
