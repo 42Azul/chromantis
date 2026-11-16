@@ -520,7 +520,7 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Acceptance:** Build and install the APK on an emulator or test phone with synthetic albums. Sign in once, reopen the app and navigate year → folder → photo, then go back to the same folder position. Link the fixture person Ana to an album, save it, and find the album by searching for Ana. Verify revocation on the next protected request. With the photo source disconnected, folder navigation, filename listing and album tagging still work. Preview errors, an unreachable NAS and a denied local-network permission where applicable show how to recover.
 
-**Progress:** Family sessions can list indexed years and page through the photos in one exact album path. These requests read index metadata only, so the Android client controls when it loads thumbnails.
+**Progress:** The native explorer builds as a signed debug APK with HTTPS family sign-in, session persistence, year and album navigation, album search, and a paged photo grid. The app uses index metadata for listings and requests thumbnails for visible tiles. The temporary HTTPS fixture exercises the gallery without the NAS. The next increment is the existing album-review flow on Android, followed by the signed private release and full device acceptance.
 
 **References:** [Cx File Explorer](https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer), [Android lazy grids](https://developer.android.com/develop/ui/compose/lists), [APK distribution](https://developer.android.com/studio/publish), [network security](https://developer.android.com/privacy-and-security/security-config), and [local network permissions](https://developer.android.com/privacy-and-security/local-network-permission).
 

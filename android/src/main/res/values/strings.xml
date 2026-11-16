@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Chromantis</string>
+    <string name="connect_title">Conecta con tu archivo familiar</string>
+    <string name="address_label">Dirección HTTPS del NAS</string>
+    <string name="address_hint">https://nas.example</string>
+    <string name="code_label">Código familiar</string>
+    <string name="code_hint">Código de un solo uso</string>
+    <string name="sign_in">Entrar</string>
+    <string name="sign_out">Cerrar sesión</string>
+    <string name="invalid_address">Escribe una dirección HTTPS válida del NAS.</string>
+    <string name="missing_code">Introduce un código familiar.</string>
+    <string name="invalid_code">El código es incorrecto, ya se usó o ha caducado.</string>
+    <string name="connecting">Conectando…</string>
+    <string name="folders">Carpetas</string>
+    <string name="loading">Cargando…</string>
+    <string name="no_results">No hay resultados.</string>
+    <string name="previous">Anterior</string>
+    <string name="next">Siguiente</string>
+    <string name="search_hint">Buscar álbumes</string>
+    <string name="search">Buscar</string>
+    <string name="results">Resultados</string>
+    <string name="open_photo_hint">Toca una foto para abrirla.</string>
+    <string name="opening_photo">Abriendo foto…</string>
+    <string name="closing_session">Cerrando sesión…</string>
+    <string name="expired_session">La sesión ha caducado o se ha revocado. Pide otro código.</string>
+    <string name="untrusted_certificate">No se pudo verificar el certificado del NAS.</string>
+    <string name="content_unavailable">Este contenido no está disponible.</string>
+    <string name="operation_forbidden">El servidor no permite esta operación.</string>
+    <string name="request_failed">No se pudo completar la petición. Comprueba la dirección y el Wi-Fi.</string>
+    <string name="retry">Reintentar</string>
+    <string name="back_to_folders">Volver a Carpetas</string>
+    <string name="back">Volver</string>
+    <string name="thumbnail_unavailable">Miniatura no disponible</string>
+    <plurals name="album_count">
+        <item quantity="one">%d álbum</item>
+        <item quantity="other">%d álbumes</item>
+    </plurals>
+</resources>
