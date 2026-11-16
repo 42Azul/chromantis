@@ -58,12 +58,16 @@ def review_folder(
 
 def review_batch(connection: Connection, limit: int = 50) -> list[dict]:
     folders = connection.execute(
-        REVIEW_SELECT
-        + "WHERE r.reviewed_name IS NOT f.folder_name_raw ORDER BY f.id LIMIT 200"
+        """SELECT f.id, f.folder_name_raw
+           FROM folders f LEFT JOIN album_reviews r ON r.folder_id = f.id
+           WHERE r.reviewed_name IS NOT f.folder_name_raw ORDER BY f.id"""
     )
     groups: dict[str, dict] = {}
     count = 0
     for folder in folders:
+        if not name_suggestions(folder["folder_name_raw"]):
+            continue
+        folder = connection.execute(REVIEW_SELECT + "WHERE f.id = ?", (folder["id"],)).fetchone()
         item = review_item(connection, folder)
         for key, suggestion in item["suggestions"].items():
             if suggestion["state"] != "pending":

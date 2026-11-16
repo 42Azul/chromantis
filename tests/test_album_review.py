@@ -165,6 +165,23 @@ class AlbumReviewTests(unittest.TestCase):
             self.assertEqual(self.review(path)["suggestions"]["playa"]["state"], "accepted")
         self.assertEqual(self.review(rejected_path)["suggestions"]["playa"]["state"], "rejected")
 
+    def test_ambiguous_albums_do_not_hide_later_batch_suggestions(self):
+        item = self.review()
+        self.assertEqual(self.save(
+            item, decisions={label: label for label in item["suggestions"]}
+        )[0], 200)
+        for number in range(199):
+            self.add_photo(f"2024/archivo_{number:03d}")
+        target = "2024/2024-07-01_playa"
+        self.add_photo(target)
+        self.scanner.scan(incremental=True)
+
+        status, payload = self.request("GET", "/album-review/batch?limit=50")
+        self.assertEqual(status, 200)
+        playa = next(group for group in payload["groups"] if group["key"] == "playa")
+        self.assertEqual([album["path"] for album in playa["albums"]], [target])
+        self.image_fetcher.assert_not_called()
+
     def test_curator_cannot_administer_and_revocation_is_live(self):
         self.assertEqual(self.request("GET", "/auth/me")[1]["can_curate_albums"], True)
         self.assertEqual(self.request("GET", "/admin/config")[0], 403)
