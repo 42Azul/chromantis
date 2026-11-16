@@ -91,6 +91,23 @@
     <string name="confirmed_photo_search">Fotos por persona</string>
     <string name="confirmed_photo_explanation">Busca por nombre o alias. Verás las fotos en las que se ha confirmado la persona.</string>
     <string name="confirmed_photo_results">Fotos confirmadas de %s</string>
+    <string name="review_photos">Revisar foto a foto</string>
+    <string name="review_choose_person">Elige a quién quieres buscar en las fotos de esta página.</string>
+    <string name="review_question">¿Aparece %s?</string>
+    <string name="photo_review_progress">Foto %1$d de %2$d</string>
+    <string name="photo_already_tagged">Esta persona ya está confirmada en la foto.</string>
+    <string name="photo_review_preview_required">Puedes saltar la foto. Para marcarla, tiene que verse la miniatura.</string>
+    <string name="swipe_photo_help">Izquierda para saltar, derecha para marcar.</string>
+    <string name="release_to_mark_photo">Suelta para marcar esta foto.</string>
+    <string name="release_to_skip_photo">Suelta para saltar esta foto.</string>
+    <string name="skip_photo">Saltar</string>
+    <string name="mark_photo">Marcar</string>
+    <string name="photo_review_finished">Has llegado al final de esta página.</string>
+    <string name="undo_photo_decision">Deshacer última decisión</string>
+    <plurals name="save_reviewed_photos">
+        <item quantity="one">Guardar %d foto</item>
+        <item quantity="other">Guardar %d fotos</item>
+    </plurals>
     <plurals name="tagged_photo_person">
         <item quantity="one">%1$s · aparece en %2$d de %3$d foto</item>
         <item quantity="other">%1$s · aparece en %2$d de %3$d fotos</item>

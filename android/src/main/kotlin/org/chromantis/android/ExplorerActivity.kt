@@ -376,6 +376,7 @@ internal fun EntryScreen(
         LoadContent(onExpired, load = { load(offset) }) { page ->
             var selected by rememberSaveable { mutableStateOf<List<String>?>(null) }
             var edit by remember { mutableStateOf(false) }
+            var review by remember { mutableStateOf(false) }
             var saved by rememberSaveable { mutableStateOf(false) }
             val selection = selected
             BackHandler(selection != null && !edit) { selected = null }
@@ -393,6 +394,11 @@ internal fun EntryScreen(
                             }
                         ) {
                             Text(stringResource(R.string.select_photos))
+                        }
+                        if (page.hasThumbnails) {
+                            TextButton(onClick = { review = true }) {
+                                Text(stringResource(R.string.review_photos))
+                            }
                         }
                     } else {
                         Text(
@@ -504,24 +510,46 @@ internal fun EntryScreen(
                     },
                 )
             }
+            if (review && photoApi != null) {
+                PhotoSwipeReview(
+                    api = photoApi,
+                    entries = page.entries,
+                    onExpired = onExpired,
+                    onClose = { review = false },
+                    onReload = { reload++ },
+                    onSaved = {
+                        review = false
+                        saved = true
+                    },
+                )
+            }
         }
     }
 }
 
 @Composable
-internal fun Thumbnail(api: ChromantisApi, entry: Entry, onExpired: () -> Unit) {
+internal fun Thumbnail(
+    api: ChromantisApi,
+    entry: Entry,
+    onExpired: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth().height(100.dp),
+    contentScale: ContentScale = ContentScale.Crop,
+    identity: String? = null,
+    onReady: () -> Unit = {},
+) {
     var result by
-        remember(api, entry.path) { mutableStateOf<Result<android.graphics.Bitmap>?>(null) }
-    LaunchedEffect(api, entry.path) {
-        result = attempt { api.thumbnail(entry.path) }
-        if (result?.exceptionOrNull()?.hasStatus(401) == true) onExpired()
+        remember(api, entry.path, identity) {
+            mutableStateOf<Result<android.graphics.Bitmap>?>(null)
+        }
+    LaunchedEffect(api, entry.path, identity) {
+        val loaded = attempt { api.thumbnail(entry.path, identity) }
+        result = loaded
+        if (loaded.isSuccess) onReady()
+        else if (loaded.exceptionOrNull()?.hasStatus(401) == true) onExpired()
     }
-    Surface(
-        modifier = Modifier.fillMaxWidth().height(100.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant) {
         val bitmap = result?.getOrNull()
-        if (bitmap != null) Image(bitmap.asImageBitmap(), null, contentScale = ContentScale.Crop)
+        if (bitmap != null) Image(bitmap.asImageBitmap(), null, contentScale = contentScale)
         else if (result?.isFailure == true) {
             Box(contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.thumbnail_unavailable), Modifier.padding(4.dp))

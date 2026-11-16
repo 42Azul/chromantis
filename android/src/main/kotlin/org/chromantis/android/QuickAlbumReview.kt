@@ -1,8 +1,6 @@
 package org.chromantis.android
 
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,23 +8,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -78,83 +71,36 @@ internal fun QuickAlbumReview(
                 )
         }
     }
-    val finishDrag by
-        rememberUpdatedState<(ReviewGesture?) -> Unit> { gesture ->
-            if (!busy) {
-                when (gesture) {
-                    ReviewGesture.SKIP -> onSkip()
-                    ReviewGesture.ACCEPT -> accept()
-                    null -> Unit
-                }
-            }
-        }
-    var drag by remember { mutableFloatStateOf(0f) }
-    var armed by remember { mutableStateOf<ReviewGesture?>(null) }
-    fun resetDrag() {
-        drag = 0f
-        armed = null
-    }
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(
-            Modifier.fillMaxWidth().pointerInput(busy, conflict, suggestion?.key) {
-                if (busy || conflict) return@pointerInput
-                val threshold = minOf(72.dp.toPx(), size.width * 0.3f)
-                try {
-                    detectHorizontalDragGestures(
-                        onDragCancel = ::resetDrag,
-                        onDragEnd = {
-                            val decision = armed
-                            resetDrag()
-                            finishDrag(decision)
-                        },
-                    ) { _, amount ->
-                        drag += amount
-                        armed = reviewGesture(drag, threshold, suggestion != null)
-                    }
-                } finally {
-                    resetDrag()
-                }
-            }
+        SwipeReviewCard(
+            enabled = !busy && !conflict,
+            canAccept = suggestion != null,
+            onSkip = { if (!busy) onSkip() },
+            onAccept = ::accept,
+            hint = if (suggestion == null) R.string.swipe_skip_album else R.string.swipe_album_help,
+            acceptHint = R.string.release_to_accept,
+            skipHint = R.string.release_to_skip,
         ) {
-            Card(
-                Modifier.fillMaxWidth().graphicsLayer {
-                    val maxRight = if (suggestion == null) 0f else 36.dp.toPx()
-                    translationX = (drag * 0.45f).coerceIn(-36.dp.toPx(), maxRight)
-                }
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(album.title, style = MaterialTheme.typography.titleLarge)
-                    album.date?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-                    if (suggestion == null) {
-                        Text(stringResource(R.string.no_tag_suggestion))
-                    } else {
-                        Text(
-                            stringResource(
-                                R.string.suggestion_evidence,
-                                suggestion.label,
-                                suggestion.evidence,
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(album.title, style = MaterialTheme.typography.titleLarge)
+                album.date?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                if (suggestion == null) {
+                    Text(stringResource(R.string.no_tag_suggestion))
+                } else {
+                    Text(
+                        stringResource(
+                            R.string.suggestion_evidence,
+                            suggestion.label,
+                            suggestion.evidence,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
         }
-        Text(
-            stringResource(
-                when (armed) {
-                    ReviewGesture.SKIP -> R.string.release_to_skip
-                    ReviewGesture.ACCEPT -> R.string.release_to_accept
-                    null ->
-                        if (suggestion == null) R.string.swipe_skip_album
-                        else R.string.swipe_album_help
-                }
-            ),
-            style = MaterialTheme.typography.bodySmall,
-        )
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -23,6 +23,8 @@ Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appea
 
 Photo edits require curation permission. If an indexed photo changes during editing, refresh the gallery and select the photos again.
 
+With thumbnails enabled, **Review photo by photo** (*Revisar foto a foto*) lets you choose one person for a pass through the current gallery page. Swipe right to mark a photo or left to skip it. The buttons do the same. Use **Undo last decision** (*Deshacer última decisión*) to go back one photo. **Save** applies the new links in one batch. Closing the review discards its draft. If a preview is unavailable, you can skip the photo.
+
 The full flow on a current physical phone is pending. The native client in `android/` uses Kotlin and Jetpack Compose with Material 3. Archive access, permissions, indexing, and curation remain in the shared service.
 
 ## Build and install
@@ -69,3 +71,5 @@ From **Organize**, swipe left on the first card, then use **Start again** (*Volv
 On a fresh fixture with `--index-only`, swipe right on a suggested tag. The app shows the next suggestion for that album, or advances when all suggestions are decided. Open the tagged album from **Folders** and check the decision in **Tag this album**. Try the buttons and the swipes with the synthetic archive disconnected.
 
 To check individual tagging, select photos 1 and 3 in the 2024 album and add Ana. Search for `Anita` under **Photos by person** and check that exactly those two appear. Remove Ana from photo 1 and search again. Photo 3 should be the only result. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and photos.
+
+To try reviewing by gesture, run a fresh fixture with the synthetic archive connected. In **Review photo by photo**, choose Ana, mark photo 1, skip photo 2, mark photo 3, undo and skip photo 3. Save and check that the confirmed search returns just photo 1. Repeat with the batch editor and compare time and missed or incorrect selections.

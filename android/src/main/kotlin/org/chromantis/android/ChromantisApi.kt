@@ -56,8 +56,9 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
     val origin = parseOrigin(address)
     private val thumbnailRequests = Semaphore(2)
     private val thumbnails =
-        object : LruCache<String, Bitmap>(4 * 1024 * 1024) {
-            override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
+        object : LruCache<Pair<String, String?>, Bitmap>(4 * 1024 * 1024) {
+            override fun sizeOf(key: Pair<String, String?>, value: Bitmap) =
+                value.allocationByteCount
         }
 
     suspend fun signIn(code: String): ChromantisApi =
@@ -199,9 +200,10 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             request("POST", "/album-review", body) { Unit }
         }
 
-    suspend fun thumbnail(path: String): Bitmap =
+    suspend fun thumbnail(path: String, identity: String? = null): Bitmap =
         thumbnailRequests.withPermit {
-            thumbnails.get(path) ?: photo(path, preview = true).also { thumbnails.put(path, it) }
+            val key = path to identity
+            thumbnails.get(key) ?: photo(path, preview = true).also { thumbnails.put(key, it) }
         }
 
     suspend fun photo(path: String, preview: Boolean = false): Bitmap =

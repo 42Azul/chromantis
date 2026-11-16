@@ -23,6 +23,8 @@ En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elecc
 
 Para editar necesitas permiso de etiquetado. Si una foto indexada cambia durante la edición, actualiza la galería y vuelve a seleccionar las fotos.
 
+Con las miniaturas activadas, **Revisar foto a foto** te deja elegir a una persona y recorrer la página actual de la galería. Desliza a la derecha para marcar la foto o a la izquierda para saltarla. Los botones hacen lo mismo. **Deshacer última decisión** vuelve a la foto anterior. **Guardar** aplica los vínculos nuevos en un solo lote. Salir de la revisión descarta el borrador. Si una miniatura falla, puedes saltar la foto.
+
 Falta probar el recorrido completo en un teléfono físico actual. El cliente nativo de `android/` usa Kotlin y Jetpack Compose con Material 3. El servicio compartido gestiona el acceso al archivo, los permisos, la indexación y el etiquetado.
 
 ## Compila e instala
@@ -69,3 +71,5 @@ En **Clasificar**, desliza la primera tarjeta a la izquierda y usa **Volver al p
 Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre una etiqueta sugerida. La app muestra la siguiente sugerencia del mismo álbum o pasa al siguiente cuando terminas. Abre el álbum desde **Carpetas** y comprueba la decisión en **Etiquetar este álbum**. Prueba los botones y los gestos con el archivo sintético desconectado.
 
 Para comprobar el etiquetado individual, selecciona las fotos 1 y 3 del álbum de 2024 y añade a Ana. Busca `Anita` en **Fotos por persona** y comprueba que salen exactamente esas dos. Quita a Ana de la primera y repite la búsqueda. Solo debería aparecer la tercera. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
+
+Para probar los gestos, arranca un ejemplo nuevo con el archivo sintético conectado. En **Revisar foto a foto**, elige a Ana, marca la foto 1, salta la 2, marca la 3, deshaz la última decisión y salta la 3. Guarda y comprueba que la búsqueda confirmada devuelve solo la foto 1. Repite con el editor por lotes y compara el tiempo y los errores de selección.
