@@ -630,7 +630,7 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
   }
 }
 
-async function loadAlbumReviewBatch(saved = false) {
+async function loadAlbumReviewBatch(saved = false, drafts = []) {
   closeAlbumReview();
   const request = albumRequest;
   setAlbumReviewMode("batch");
@@ -642,9 +642,14 @@ async function loadAlbumReviewBatch(saved = false) {
     if (!groups.length) {
       $("album-review-content").append(element("p", {},
         "No hay sugerencias pendientes para revisar por lotes. Los álbumes ambiguos siguen en Pendientes."));
+      if (drafts.length) message("album-review-status", "Decisiones guardadas. Las demás selecciones ya no están pendientes.");
       return;
     }
-    $("album-review-content").replaceChildren(...groups.map(group => {
+    const renderedRows = [];
+    const content = $("album-review-content");
+    let saving = false;
+    let restored = 0;
+    content.replaceChildren(...groups.map(group => {
       const rows = group.albums.map(album => {
         const select = element("select", { "aria-label": `Decisión para ${album.title}` },
           element("option", { value: "" }, "Pendiente"),
@@ -654,7 +659,15 @@ async function loadAlbumReviewBatch(saved = false) {
           element("div", {}, element("strong", {}, album.title),
             element("p", {}, `${album.event_date || album.year} · encontró «${album.evidence}»`)),
           select, button("Revisar", () => loadAlbumReview({ path: album.path })));
-        return { album, select, row };
+        const draft = drafts.find(entry => entry.label === group.key && entry.id === album.id &&
+          entry.path === album.path && entry.revision === album.revision);
+        if (draft) {
+          select.value = draft.decision;
+          restored++;
+        }
+        const decisionRow = { album, select, row, label: group.key };
+        renderedRows.push(decisionRow);
+        return decisionRow;
       });
       const submit = element("button", { class: "primary", type: "submit" }, "Guardar decisiones");
       const status = element("p", { class: "message", "aria-live": "polite" });
@@ -664,27 +677,45 @@ async function loadAlbumReviewBatch(saved = false) {
         ...rows.map(row => row.row), element("div", { class: "actions" }, submit), status);
       form.addEventListener("submit", async event => {
         event.preventDefault();
-        const items = rows.filter(row => row.select.value).map(({ album, select }) => ({
+        if (saving) return;
+        const selected = ({ album, select, label }) => ({
           id: album.id, path: album.path, revision: album.revision,
-          label: group.key, decision: select.value,
-        }));
+          label, decision: select.value,
+        });
+        const items = rows.filter(row => row.select.value).map(selected);
         if (!items.length) {
           status.textContent = "Elige al menos una decisión.";
           return;
         }
-        submit.disabled = true;
+        saving = true;
+        const controls = content.querySelectorAll("button, select");
+        for (const control of controls) control.disabled = true;
         status.textContent = "";
         try {
           await api("/album-review/batch", { method: "POST", data: { items } });
-          if (request === albumRequest) await loadAlbumReviewBatch(true);
+          if (request === albumRequest) {
+            const savedIds = new Set(items.map(item => item.id));
+            const remaining = renderedRows.filter(row => row.label !== group.key && row.select.value)
+              .map(row => {
+                const entry = selected(row);
+                // The server increments the revision once for each album in this save.
+                if (savedIds.has(entry.id)) entry.revision++;
+                return entry;
+              });
+            await loadAlbumReviewBatch(true, remaining);
+          }
         } catch (error) {
           if (request === albumRequest) status.textContent = error.message;
         } finally {
-          submit.disabled = false;
+          saving = false;
+          for (const control of controls) control.disabled = false;
         }
       });
       return form;
     }));
+    if (restored < drafts.length) {
+      message("album-review-status", "Decisiones guardadas. Revisa las selecciones que ya no están disponibles o han cambiado.");
+    }
   } catch (error) {
     if (request === albumRequest) message("album-review-status", error.message);
   }

@@ -38,7 +38,7 @@ Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión famil
 
 Abre **Por lotes** para agrupar álbumes con la misma sugerencia. Cada sugerencia muestra la palabra del nombre de carpeta que la originó. Puedes aceptarla en unos álbumes, rechazarla en otros y dejar pendientes los dudosos. Pulsa **Revisar** para hacer correcciones individuales.
 
-El grupo se guarda de una vez. Si un álbum cambió mientras revisabas, recarga el grupo y vuelve a decidir. Este flujo solo usa los nombres guardados en SQLite. Las decisiones y las etiquetas manuales se conservan al reindexar si la ruta sigue siendo la misma. Una carpeta trasladada o renombrada se indexa como un álbum nuevo. Las palabras del nombre original siguen encontrando el álbum aunque rechaces una sugerencia.
+El grupo se guarda de una vez. Al guardar, las selecciones de otros grupos se conservan si la sugerencia sigue pendiente y la revisión del álbum coincide con la esperada. Si la cola avisa de que una selección ha cambiado, revísala antes de guardar. Este flujo solo usa los nombres guardados en SQLite. Las decisiones y las etiquetas manuales se conservan al reindexar si la ruta sigue siendo la misma. Una carpeta trasladada o renombrada se indexa como un álbum nuevo. Las palabras del nombre original siguen encontrando el álbum aunque rechaces una sugerencia.
 
 ## Edita los detalles del álbum
 

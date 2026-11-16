@@ -38,7 +38,7 @@ Use **Saltar** to leave a doubtful album pending. To correct a link in a family 
 
 Open **Batch review** (*Por lotes*) to group albums by a repeated suggestion. Every suggestion shows the matching word from the folder name. Accept it for some albums, reject it for others, and leave uncertain ones pending. Use **Review** for individual corrections.
 
-The group saves together. If one album changed in the meantime, reload and decide again. This workflow uses the folder names in SQLite and requests no photos. Decisions and manual tags survive reindexing when the album path stays the same. A move or rename creates a new indexed album, and the original folder words remain searchable after a suggestion is rejected.
+The group saves together. Selections in other groups stay selected after saving when the suggestion is still pending and the album has the expected revision. If the queue reports that a selection changed, review it again before saving. This workflow uses the folder names in SQLite and requests no photos. Decisions and manual tags survive reindexing when the album path stays the same. A move or rename creates a new indexed album, and the original folder words remain searchable after a suggestion is rejected.
 
 ## Edit album details
 
