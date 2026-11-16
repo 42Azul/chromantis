@@ -34,6 +34,7 @@ Chromantis currently provides:
 - opt-in JPEG capture dates with separate camera, album and file-time provenance
 - manually curated album places and a dated timeline shared by the browser, API and Telegram
 - revocable, expiring browser links that grant read-only access to one album
+- consistent, locally verifiable SQLite backup and fresh-path recovery
 
 Not implemented yet:
 
@@ -449,15 +450,29 @@ Current architecture map:
 
 **Acceptance:** A guest can open one shared album and its images. Revoking the grant removes access on the next request.
 
-## Ready Next
-
 ### MVP 16B — Backup and Recovery
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 - Add backup and restore for the database and user curation, plus a documented recovery drill.
 
 **Acceptance:** A restore onto a fresh instance preserves collections and corrections.
+
+## Ready Next
+
+### MVP 17A — Mobile Album Presentation
+
+**Status:** `Ready Next`
+
+**Case:** A family guest should understand and browse a shared album comfortably on a phone, without gaining broader archive access or downloading every original.
+
+- Reuse the existing album context and private invitation grant to show title, date, place and note in a compact shared-album header.
+- Add a responsive cover and thumbnail-first gallery with an explicit action for each original. Do not introduce a new image store, frontend framework or external service.
+- Keep every metadata, thumbnail and original request behind the existing per-album grant.
+
+**Dependencies:** Existing album context, local thumbnail cache and MVP 16A grants only.
+
+**Acceptance:** At a 360 px viewport, a guest can understand the album, browse previews and open one original; revocation still blocks the next metadata, preview and original request.
 
 ## Planned Later
 

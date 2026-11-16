@@ -21,6 +21,7 @@ src/chromantis/
   bot/                 # Telegram command service and adapter
 scripts/
   init_db.py           # create the SQLite schema
+  database_backup.py   # create, verify, and restore SQLite backups
   reindex_source.py    # scan the configured source and index photos
   reindex_ftp.py       # compatibility wrapper for reindex_source.py
   run_api.py           # start the local HTTP query API
@@ -498,6 +499,32 @@ To schedule an incremental scan on a NAS with cron, add an entry with paths adju
 ```
 
 Use `GET /api/v1/sync/runs?limit=10` to see start and finish times, run status, and counts of indexed, unchanged, skipped, and deleted items. It uses the same authentication as archive search. To process new or failed enrichment jobs, run or schedule `scripts/enrich_images.py` as a separate bounded batch.
+
+### Backup and recovery
+
+Back up the configured SQLite database to a new file. The command uses SQLite's online backup operation, so readers can remain connected and committed WAL changes are included.
+
+```bash
+mkdir -p backups
+python scripts/database_backup.py create backups/chromantis-2026-11-16.sqlite
+python scripts/database_backup.py verify backups/chromantis-2026-11-16.sqlite
+```
+
+Both commands print the byte size and SHA-256 digest. Store the backup somewhere separate from the NAS after copying it yourself. The backup contains the index and private curation, including people links, tags, album corrections, collections, access sessions and active album invitations. Treat it as private. It deliberately excludes `.env`, credentials, original photos and the regenerable thumbnail cache.
+
+Recovery never overwrites an existing database. Restore into a new path, verify the result, then point `SQLITE_PATH` at it and restart Chromantis:
+
+```bash
+python scripts/database_backup.py \
+  --database data/restored-chromantis.db \
+  restore backups/chromantis-2026-11-16.sqlite
+
+python scripts/database_backup.py \
+  --database data/restored-chromantis.db \
+  create backups/recovery-drill.sqlite
+```
+
+For a recovery drill, stop the bot and API only before switching `SQLITE_PATH`, keep the old database untouched, start against the restored path and check one corrected album and one private collection. The restore applies current schema migrations before publishing the new database file. Reindex afterward only if the archive root or its contents have changed. Creating, verifying and restoring a backup never opens the photo archive.
 
 ## Current v1 limits
 
