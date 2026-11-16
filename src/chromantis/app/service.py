@@ -6,6 +6,7 @@ from sqlite3 import Connection
 
 from chromantis.app.album_review import (
     apply_tag_decisions,
+    parse_tag,
     review_batch,
     review_folder,
     review_item,
@@ -17,6 +18,7 @@ from chromantis.app.recall import Refinement, refine
 from chromantis.db.album_shares import AlbumShareStore
 from chromantis.db.collections import CollectionStore
 from chromantis.db.family_access import FamilyAccess, FamilySession
+from chromantis.db.photo_tags import find_photos, photo_annotations, update_photo_annotations
 from chromantis.db.repository import (
     AuthorizedChat,
     ChatPreferences,
@@ -95,6 +97,11 @@ class ApplicationService:
     ) -> list[SearchResult]:
         return self.search.random_images(raw_query, count=count, exclude_paths=exclude_paths)
 
+    def search_confirmed_images(
+        self, person: str | int, *, limit: int = 10, offset: int = 0,
+    ) -> list[SearchResult]:
+        return self.search.search_confirmed_images(person, limit=limit, offset=offset)
+
     def images_in_folder(
         self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = (), *, offset: int = 0,
     ) -> list[SearchResult]:
@@ -172,6 +179,60 @@ class ApplicationService:
             self.require_album_curator(actor, connection)
             folder = review_folder(connection, after=after, reviewed=reviewed, path=path)
             return review_item(connection, folder) if folder is not None else None
+
+    def get_photo_tags(self, actor: int | FamilySession, paths: list[str]) -> list[dict]:
+        with self.repository.session() as connection:
+            connection.execute("BEGIN")
+            self.require_album_curator(actor, connection)
+            photos = find_photos(connection, paths)
+            if any(path not in photos for path in paths):
+                raise AuthOperationError("photo_not_found", "Indexed photo not found.", 404)
+            return [photo_annotations(connection, photos[path]) for path in paths]
+
+    def save_photo_tags(
+        self, actor: int | FamilySession, photos: dict[str, str], *,
+        add_people: set[int], remove_people: set[int], manual_add: set[str], manual_remove: set[str],
+    ) -> list[dict]:
+        with self.repository.write_transaction() as connection:
+            self.require_album_curator(actor, connection)
+            manual_add = {parse_tag(tag) for tag in manual_add}
+            manual_remove = {parse_tag(tag) for tag in manual_remove}
+            if add_people & remove_people or manual_add & manual_remove:
+                raise ValueError("The same person or tag cannot be added and removed together.")
+            if not photos or not (add_people or remove_people or manual_add or manual_remove):
+                raise ValueError("Select photos and at least one change.")
+            indexed = find_photos(connection, list(photos))
+            if any(path not in indexed or indexed[path]["photo_identity"] != identity
+                   for path, identity in photos.items()):
+                raise AuthOperationError("photo_changed", "An indexed photo changed. Reload the selection.", 409)
+            for person_id in add_people | remove_people:
+                if self.repository.resolve_person(connection, person_id) is None:
+                    raise ValueError("A selected person is missing from the directory.")
+            chat_id = actor if isinstance(actor, int) else None
+            family_audit = {"family_access_id": actor.id} if isinstance(actor, FamilySession) else {}
+            items = []
+            for path in photos:
+                photo = indexed[path]
+                item = photo_annotations(connection, photo)
+                present_people = {person["person_id"] for person in item["people"]}
+                present_tags = {tag["tag"] for tag in item["manual_tags"]}
+                changes = {
+                    "add_people": add_people - present_people,
+                    "remove_people": remove_people & present_people,
+                    "manual_add": manual_add - present_tags,
+                    "manual_remove": manual_remove & present_tags,
+                }
+                if any(changes.values()):
+                    update_photo_annotations(connection, photo["id"], **changes)
+                    self.repository.record_audit_event(
+                        "save_photo_tags", "image", path,
+                        {"origin": "manual", "identity": photo["photo_identity"], **family_audit,
+                         **{key: sorted(values) for key, values in changes.items()}},
+                        chat_id, connection=connection,
+                    )
+                    item = photo_annotations(connection, photo)
+                items.append(item)
+            return items
 
     def album_people_directory(self, actor: int | FamilySession) -> list[dict]:
         self.require_album_curator(actor)

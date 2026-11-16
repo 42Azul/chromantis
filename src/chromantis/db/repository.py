@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from chromantis.db.schema import ALBUM_METADATA_VIEW_SQL, SCHEMA_SQL
+from chromantis.db.schema import ALBUM_METADATA_VIEW_SQL, RESET_PHOTO_ANNOTATIONS_SQL, SCHEMA_SQL
 from chromantis.parsing.path_parser import ParsedImageRecord, normalize_text
 
 
@@ -1068,7 +1068,7 @@ class Repository:
     def rename_person(self, identifier: str | int, new_display_name: str) -> PersonDetail:
         normalized_name = self._normalize_person_value(new_display_name)
         with self.connect() as connection:
-            person = self._resolve_person(connection, identifier)
+            person = self.resolve_person(connection, identifier)
             if person is None:
                 raise ValueError(f"Unknown person: {identifier}")
             self._assert_person_name_available(connection, normalized_name, exclude_person_id=person.id)
@@ -1094,7 +1094,7 @@ class Repository:
     def add_person_alias(self, identifier: str | int, alias: str) -> PersonDetail:
         normalized_alias = self._normalize_person_value(alias)
         with self.connect() as connection:
-            person = self._resolve_person(connection, identifier)
+            person = self.resolve_person(connection, identifier)
             if person is None:
                 raise ValueError(f"Unknown person: {identifier}")
             self._assert_person_name_available(connection, normalized_alias, exclude_person_id=person.id)
@@ -1104,14 +1104,14 @@ class Repository:
 
     def get_person_detail(self, identifier: str | int) -> PersonDetail | None:
         with self.connect() as connection:
-            person = self._resolve_person(connection, identifier)
+            person = self.resolve_person(connection, identifier)
             if person is None:
                 return None
             return self._person_detail_by_id(connection, person.id)
 
     def link_person_to_folder(self, identifier: str | int, folder_path: str) -> PersonDetail:
         with self.connect() as connection:
-            person = self._resolve_person(connection, identifier)
+            person = self.resolve_person(connection, identifier)
             if person is None:
                 raise ValueError(f"Unknown person: {identifier}")
             folder_id = self._resolve_folder_id(connection, folder_path)
@@ -1129,7 +1129,7 @@ class Repository:
 
     def unlink_person_from_folder(self, identifier: str | int, folder_path: str) -> PersonDetail:
         with self.connect() as connection:
-            person = self._resolve_person(connection, identifier)
+            person = self.resolve_person(connection, identifier)
             if person is None:
                 raise ValueError(f"Unknown person: {identifier}")
             folder_id = self._resolve_folder_id(connection, folder_path)
@@ -1184,10 +1184,17 @@ class Repository:
         self, connection: sqlite3.Connection, record: ParsedImageRecord, scan_seen_at: str
     ) -> int:
         existing = connection.execute(
-            "SELECT id FROM folders WHERE folder_path = ?",
+            "SELECT id, ftp_root_path FROM folders WHERE folder_path = ?",
             (record.folder_path,),
         ).fetchone()
         if existing:
+            if existing["ftp_root_path"] != record.source_root:
+                connection.execute(
+                    """UPDATE images SET photo_identity = lower(hex(randomblob(16))),
+                              photo_known_modified_at = NULL, photo_known_size = NULL
+                       WHERE folder_id = ?""",
+                    (existing["id"],),
+                )
             connection.execute(
                 """
                 UPDATE folders
@@ -1237,26 +1244,32 @@ class Repository:
         scan_seen_at: str,
     ) -> int:
         existing = connection.execute(
-            "SELECT id FROM images WHERE file_path = ?",
+            "SELECT id, photo_known_modified_at, photo_known_size FROM images WHERE file_path = ?",
             (record.file_path,),
         ).fetchone()
         if existing:
+            # FTP listings can omit metadata temporarily. Keep the last comparable values for curation.
+            known = (existing["photo_known_modified_at"], existing["photo_known_size"])
+            observed = (record.source_modified_at, record.file_size)
+            replaced = any(
+                prior is not None and current is not None and prior != current
+                for prior, current in zip(known, observed)
+            )
             connection.execute(
                 """
                 UPDATE images
-                SET folder_id = ?, filename = ?, extension = ?,
-                    ftp_modified_at = ?, file_size = ?, scan_seen_at = ?
-                WHERE id = ?
+                SET folder_id = :folder_id, filename = :filename, extension = :extension,
+                    ftp_modified_at = :modified_at, file_size = :file_size, scan_seen_at = :seen_at,
+                    photo_identity = CASE WHEN :replaced THEN lower(hex(randomblob(16))) ELSE photo_identity END,
+                    photo_known_modified_at = CASE WHEN :replaced THEN :modified_at
+                        ELSE COALESCE(:modified_at, photo_known_modified_at) END,
+                    photo_known_size = CASE WHEN :replaced THEN :file_size
+                        ELSE COALESCE(:file_size, photo_known_size) END
+                WHERE id = :id
                 """,
-                (
-                    folder_id,
-                    record.filename,
-                    record.extension,
-                    record.source_modified_at,
-                    record.file_size,
-                    scan_seen_at,
-                    existing["id"],
-                ),
+                {"folder_id": folder_id, "filename": record.filename, "extension": record.extension,
+                 "modified_at": record.source_modified_at, "file_size": record.file_size, "seen_at": scan_seen_at,
+                 "replaced": replaced, "id": existing["id"]},
             )
             return int(existing["id"])
 
@@ -1264,19 +1277,14 @@ class Repository:
             """
             INSERT INTO images (
                 folder_id, file_path, filename, extension,
-                ftp_modified_at, file_size, scan_seen_at
+                ftp_modified_at, file_size, scan_seen_at, photo_identity, photo_known_modified_at, photo_known_size
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (:folder_id, :path, :filename, :extension, :modified_at, :file_size, :seen_at,
+                    lower(hex(randomblob(16))), :modified_at, :file_size)
             """,
-            (
-                folder_id,
-                record.file_path,
-                record.filename,
-                record.extension,
-                record.source_modified_at,
-                record.file_size,
-                scan_seen_at,
-            ),
+            {"folder_id": folder_id, "path": record.file_path, "filename": record.filename,
+             "extension": record.extension, "modified_at": record.source_modified_at,
+             "file_size": record.file_size, "seen_at": scan_seen_at},
         )
         return int(cursor.lastrowid)
 
@@ -1350,7 +1358,7 @@ class Repository:
         if alias_row and alias_row["person_id"] != exclude_person_id:
             raise ValueError(f'Alias "{normalized_value}" is already assigned to another person.')
 
-    def _resolve_person(
+    def resolve_person(
         self, connection: sqlite3.Connection, identifier: str | int
     ) -> ResolvedPerson | None:
         if isinstance(identifier, int):
@@ -1502,6 +1510,16 @@ class Repository:
         return any(row["name"] == column_name for row in rows)
 
     def _migrate_schema(self, connection: sqlite3.Connection) -> None:
+        if not self._has_column(connection, "images", "photo_identity"):
+            connection.execute("ALTER TABLE images ADD COLUMN photo_identity TEXT")
+        if not self._has_column(connection, "images", "photo_known_modified_at"):
+            connection.execute("ALTER TABLE images ADD COLUMN photo_known_modified_at TEXT")
+            connection.execute("ALTER TABLE images ADD COLUMN photo_known_size INTEGER")
+            connection.execute(
+                """UPDATE images SET photo_identity = COALESCE(photo_identity, lower(hex(randomblob(16)))),
+                          photo_known_modified_at = ftp_modified_at, photo_known_size = file_size"""
+            )
+        connection.execute(RESET_PHOTO_ANNOTATIONS_SQL)
         if not self._has_column(connection, "album_context", "place"):
             connection.execute("ALTER TABLE album_context ADD COLUMN place TEXT")
         if not self._has_column(connection, "album_metadata", "place"):

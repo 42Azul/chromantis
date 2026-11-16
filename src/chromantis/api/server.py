@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from ftplib import Error as FtpError
@@ -22,6 +23,8 @@ FAMILY_COOKIE = "chromantis_family"
 FAMILY_SESSION_PATH = "/api/v1/family/session"
 ALBUM_REVIEW_PATH = "/api/v1/album-review"
 ALBUM_IMAGES_PATH = "/api/v1/album-images"
+CONFIRMED_IMAGES_PATH = "/api/v1/confirmed-images"
+PHOTO_TAGS_PATH = "/api/v1/photo-tags"
 ALBUM_SHARES_PATH = "/api/v1/album-shares"
 SHARED_ALBUM_PATH = "/api/v1/shared"
 
@@ -98,7 +101,7 @@ def _dispatch(
         return 401, {"error": "Unauthorized"}
 
     try:
-        params = parse_qs(parsed.query)
+        params = parse_qs(parsed.query, keep_blank_values=path in {PHOTO_TAGS_PATH, CONFIRMED_IMAGES_PATH})
         session = None
         if family_secret is not None:
             session = app_service.family_access.resolve(family_secret) if api_token or api_chat_tokens else None
@@ -126,13 +129,20 @@ def _dispatch(
             except RefinementError as error:
                 return 400, {"error": str(error), "code": error.code}
             return 200, {"q": result.query, "choices": [asdict(item) for item in result.choices]}
+        if path == PHOTO_TAGS_PATH:
+            actor = session if session is not None else chat_id
+            if actor is None:
+                return 401, {"error": "A chat token or family session is required"}
+            return _photo_tags_route(method, app_service, actor, body or {}, params)
         if session is not None:
             if path == "/api/v1/auth/me" and method == "GET":
                 return 200, {"item": {"first_name": session.label, "role": "viewer", "auth_mode": "family"},
                              "can_curate_albums": True}
             if path == ALBUM_REVIEW_PATH or path.startswith(ALBUM_REVIEW_PATH + "/"):
                 return _album_review_route(method, path, app_service, session, body or {}, params)
-            if method == "GET" and path in {"/api/v1/folders", "/api/v1/years", ALBUM_IMAGES_PATH}:
+            if method == "GET" and path in {
+                "/api/v1/folders", "/api/v1/years", ALBUM_IMAGES_PATH, CONFIRMED_IMAGES_PATH,
+            }:
                 return _query_route(path, params, app_service)
             return 403, {"error": "El acceso familiar solo permite consultar y etiquetar álbumes."}
         if path.startswith(("/api/v1/auth/", "/api/v1/admin/")):
@@ -416,6 +426,47 @@ def _album_revision(body: dict[str, object]) -> tuple[int, int]:
     return folder_id, revision
 
 
+def _photo_tags_route(
+    method: str, app: ApplicationService, actor: int | FamilySession,
+    body: dict[str, object], params: dict[str, list[str]],
+) -> tuple[int, dict[str, object]]:
+    if method == "GET":
+        paths = params.get("path", [])
+        if not 1 <= len(paths) <= 50 or len(set(paths)) != len(paths):
+            raise ValueError("Select between 1 and 50 distinct indexed photo paths.")
+        return 200, {"items": app.get_photo_tags(actor, [_photo_path(path) for path in paths])}
+    if method == "PATCH":
+        if body.keys() - {"photos", "add_people", "remove_people", "manual_add", "manual_remove"}:
+            raise ValueError("Unexpected photo tag fields.")
+        selections = _review_values(body, "photos", limit=50)
+        photos = {}
+        for selection in selections:
+            if not isinstance(selection, dict) or selection.keys() != {"path", "identity"}:
+                raise ValueError("Each photo requires a path and identity.")
+            path = _photo_path(selection["path"])
+            identity = selection["identity"]
+            if path in photos or not isinstance(identity, str) or not re.fullmatch(r"[0-9a-f]{32}", identity):
+                raise ValueError("Each photo requires a distinct path and a valid identity.")
+            photos[path] = identity
+        manual_add = _review_values(body, "manual_add", limit=20)
+        manual_remove = _review_values(body, "manual_remove", limit=20)
+        if any(not isinstance(tag, str) for tag in manual_add + manual_remove):
+            raise ValueError("Manual tags must be strings.")
+        items = app.save_photo_tags(
+            actor, photos, add_people=_review_people(body, "add_people"),
+            remove_people=_review_people(body, "remove_people"),
+            manual_add=set(manual_add), manual_remove=set(manual_remove),
+        )
+        return 200, {"items": items}
+    return 404, {"error": "Not found"}
+
+
+def _photo_path(value: object) -> str:
+    if isinstance(value, str) and value.strip() and len(value) <= 4096:
+        return value
+    raise ValueError("A photo path must be a non-empty indexed path of at most 4096 characters.")
+
+
 def _review_values(body: dict[str, object], key: str, limit: int) -> list:
     values = body.get(key, [])
     if not isinstance(values, list) or len(values) > limit:
@@ -593,6 +644,20 @@ def _query_route(
         query = params.get("q", [""])[0]
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
         return 200, {"items": [asdict(item) for item in app_service.search_images(query, limit=limit)]}
+    if path == CONFIRMED_IMAGES_PATH:
+        identifiers = params.get("person", []) + params.get("person_id", [])
+        if len(identifiers) != 1 or not 1 <= len(identifiers[0].strip()) <= 100:
+            raise ValueError("Provide one person name or alias, or one person_id.")
+        person = _positive_id(identifiers[0]) if "person_id" in params else identifiers[0]
+        limit = _bounded_limit(params.get("limit", ["30"])[0], default=30)
+        offset = _optional_int(params.get("offset", [None])[0]) or 0
+        if not 0 <= offset < 2**63 - limit:
+            raise ValueError("Invalid offset.")
+        items = app_service.search_confirmed_images(person, limit=limit + 1, offset=offset)
+        return 200, {
+            "items": [asdict(item) for item in items[:limit]],
+            "next_offset": offset + limit if len(items) > limit else None,
+        }
     if path == ALBUM_IMAGES_PATH:
         album_path = params.get("path", [""])[0]
         if not album_path.strip() or len(album_path) > 4096:

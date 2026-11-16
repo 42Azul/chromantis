@@ -536,6 +536,8 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Acceptance:** Link Ana to the album and tag only two of three synthetic photos with Ana. The photo-level filter returns exactly those two while album search still finds the album. Correct one link, reindex and verify the remaining decision and its origin. A non-curator cannot edit. No metadata is written to image files.
 
+**Progress:** The application service and local HTTP API support curator-only photo edits, SQLite provenance, and paged search by confirmed person. Full and incremental scans preserve decisions for unchanged indexed photos. The gallery still needs selection, editing, and confirmed-search controls.
+
 ### MVP 19C — Index and People Tools
 
 **Case:** The owner has added folders to the NAS and wants to update the catalogue and check the result from the app.
