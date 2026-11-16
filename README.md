@@ -383,6 +383,12 @@ At the default similarity threshold of 0.28, the x86-64 trial produced these exa
 
 The three approaches also kept all four metadata cases correct. The model files total about 149 MiB. In the measured development run with ONNX Runtime 1.32, the experiment peaked at about 275 MiB RSS. Building each set of experimental data took about 0.45 seconds for nine drawings. Median query latency was roughly 0.65 ms with stored tags and 4.4 ms with the similarity fallback, which computes the text vector at query time. The tag payload was 208 bytes and the in-memory vectors used 18 KiB, excluding storage overheads. Disk growth for tags happened to fit existing SQLite pages in this tiny run. These measurements describe the synthetic workload on x86-64. The script remains an offline experiment and the normal application has no model dependencies.
 
+### Read-only MCP trial
+
+`chromantis.app.mcp_readonly.ReadOnlyAlbumMcp` exposes transport-neutral definitions and structured results for two read-only tools: list one granted album and search inside it. It reuses an existing expiring album-share capability, checks revocation on every call and returns only curated album metadata and indexed filenames. Tool arguments cannot select another album, and the trial exposes no mutations, thumbnails, original bytes or archive paths. It adds no runtime dependency or listener and works from SQLite with the archive offline.
+
+Run `python -m unittest tests.test_mcp_readonly -v` with synthetic data. See [the trial notes](docs/mcp-readonly-trial.md) for the privacy boundary and why connecting ChatGPT remains a separate HTTPS/tunnel and authentication decision.
+
 ### Browser interface
 
 Run `python scripts/run_api.py` and open `http://127.0.0.1:8787/`. The browser asks for the chat token configured in `API_CHAT_TOKENS` for an authorized Telegram chat.

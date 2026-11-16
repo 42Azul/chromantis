@@ -112,3 +112,19 @@ class AlbumShareStore:
             (share["path"], limit, offset),
         )
         return [dict(row) for row in rows]
+
+    def search_images(self, share: dict, tokens: tuple[str, ...], limit: int) -> list[dict]:
+        filename = "LOWER(REPLACE(REPLACE(i.filename, '_', ' '), '-', ' '))"
+        clauses = " AND ".join(f"{filename} LIKE ? ESCAPE '\\'" for _ in tokens)
+        escaped = tuple(
+            token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            for token in tokens
+        )
+        rows = self.connection.execute(
+            f"""SELECT i.filename
+                FROM images i JOIN folders f ON f.id = i.folder_id
+                WHERE f.folder_path = ? AND {clauses}
+                ORDER BY i.file_path LIMIT ?""",
+            (share["path"], *(f"%{token}%" for token in escaped), limit),
+        )
+        return [dict(row) for row in rows]

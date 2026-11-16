@@ -36,6 +36,7 @@ Chromantis currently provides:
 - manually curated album places and a dated timeline shared by the browser, API and Telegram
 - revocable, expiring browser links that grant read-only access to one album
 - consistent, locally verifiable SQLite backup and fresh-path recovery
+- a transport-neutral read-only MCP tool trial scoped by a revocable one-album grant
 
 Not implemented yet:
 
@@ -487,11 +488,9 @@ Current architecture map:
 
 **Acceptance:** Select three pending albums, accept a shared suggestion for two and reject it for one, then reindex and verify that all three decisions persist without any archive byte reads.
 
-## Ready Next
-
 ### MVP 18A — Scoped Read-only MCP Trial
 
-**Status:** `Ready Next`
+**Status:** `Done`
 
 **Case:** Fernando should be able to query selected family albums from an MCP-capable assistant without granting it access to the whole archive or making MCP necessary for normal use.
 
@@ -503,7 +502,23 @@ Current architecture map:
 
 **Acceptance:** A synthetic scoped identity can list and search one granted album but cannot inspect another album, mutate curation or retrieve unrestricted originals; disabling the adapter leaves the existing test suite unchanged.
 
+The trial confirmed that the authorization boundary can stay in the application layer without a transport or SDK. The tool core returns no archive paths or original URLs and checks expiry or revocation on every call. Current official documentation says ChatGPT needs public HTTPS or a Secure MCP Tunnel rather than a direct local process, so no endpoint or tunnel was enabled.
+
+## Ready Next
+
+No further implementation target is promoted yet. The optional remote MCP step below needs a concrete household use case and a separate transport, account-availability and privacy decision; routine browser, Telegram and indexing work remains independent of it.
+
 ## Planned Later
+
+### Optional remote MCP transport
+
+**Case:** Query one explicitly granted album from a supported MCP client when that is materially easier than the family web.
+
+**Scope:** Wrap the existing read-only tool core in an official, authenticated transport. Keep grants per album and revocable, expose no original-image tool by default, and leave the adapter disabled when unused.
+
+**Dependencies:** A supported ChatGPT plan or another MCP host, Python 3.11+ for the current official Python SDK, and an explicit choice between public HTTPS and a Secure MCP Tunnel. OAuth or person-bound authentication must be designed before sharing beyond a single owner-controlled trial.
+
+**Validation:** An official MCP client completes initialize, tool discovery, scoped list/search and live revocation against synthetic data; requests for another album, mutation and original bytes fail. Measure idle memory and request latency on representative NAS hardware before deployment.
 
 ### Optional visual curation
 
