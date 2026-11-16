@@ -25,6 +25,8 @@ internal data class EntryPage(
 
 internal data class Person(val id: Long, val name: String, val aliases: List<String>)
 
+internal data class AlbumRefinement(val query: String?, val choices: List<Entry>)
+
 internal data class Suggestion(
     val key: String,
     val label: String,
@@ -69,6 +71,13 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
         withContext(Dispatchers.IO) { request("DELETE", "/family/session") { Unit } }
 
     suspend fun years() = EntryPage(json("/years").getJSONArray("items").mapObjects(::yearEntry))
+
+    suspend fun refineAlbums(query: String, text: String): AlbumRefinement =
+        withContext(Dispatchers.IO) {
+            request("POST", "/refine", JSONObject().put("q", query).put("text", text)) {
+                albumRefinement(JSONObject(it.readBytes(1 shl 20).decodeToString()))
+            }
+        }
 
     suspend fun albums(query: String, offset: Int): EntryPage {
         val entries =
@@ -275,6 +284,14 @@ private inline fun <T> JSONArray.mapObjects(read: (JSONObject) -> T): List<T> =
 
 private fun JSONObject.optionalString(key: String): String? =
     if (isNull(key)) null else getString(key)
+
+internal fun albumRefinement(response: JSONObject) =
+    AlbumRefinement(
+        response.optionalString("q"),
+        response.getJSONArray("choices").mapObjects {
+            Entry(it.getString("title"), it.getString("path"))
+        },
+    )
 
 internal fun yearEntry(item: JSONObject): Entry {
     val year = item.getInt("year").toString()

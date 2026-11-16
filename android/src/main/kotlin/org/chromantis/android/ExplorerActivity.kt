@@ -30,13 +30,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,7 +50,6 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.core.view.WindowCompat
 import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -72,10 +73,17 @@ class ExplorerActivity : ComponentActivity() {
         val secret = settings.getString("session", null)
         val savedSession = secret?.let { runCatching { ChromantisApi(address, it) }.getOrNull() }
         setContent {
-            val colors =
-                if (isSystemInDarkTheme()) darkColorScheme(primary = Color(0xffa5d4bf))
-                else lightColorScheme(primary = Color(0xff285847))
-            MaterialTheme(colorScheme = colors) {
+            var appearance by remember {
+                mutableStateOf(Appearance.fromPreference(settings.getString("appearance", null)))
+            }
+            val dark = appearance.isDark(isSystemInDarkTheme())
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+            MaterialTheme(colorScheme = if (dark) darkPalette else lightPalette) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var api by remember { mutableStateOf(savedSession) }
                     var expired by remember { mutableStateOf(false) }
@@ -91,7 +99,14 @@ class ExplorerActivity : ComponentActivity() {
                             }
                         } else {
                             key(active.origin) {
-                                Explorer(active) { sessionExpired ->
+                                Explorer(
+                                    active,
+                                    appearance,
+                                    { mode ->
+                                        appearance = mode
+                                        settings.edit { putString("appearance", mode.name) }
+                                    },
+                                ) { sessionExpired ->
                                     settings.edit { remove("session") }
                                     expired = sessionExpired
                                     api = null
@@ -107,6 +122,7 @@ class ExplorerActivity : ComponentActivity() {
 
 internal enum class Level {
     YEARS,
+    ASK,
     ALBUMS,
     SEARCH,
     PHOTOS,
@@ -127,10 +143,18 @@ internal val explorerPagesSaver =
     )
 
 @Composable
-private fun Explorer(api: ChromantisApi, endSession: (Boolean) -> Unit) {
+private fun Explorer(
+    api: ChromantisApi,
+    appearance: Appearance,
+    onAppearance: (Appearance) -> Unit,
+    endSession: (Boolean) -> Unit,
+) {
     val folders = stringResource(R.string.folders)
-    val results = stringResource(R.string.results)
+    val organize = stringResource(R.string.organize)
+    val search = stringResource(R.string.search)
     val reviewTitle = stringResource(R.string.review_albums)
+    val workspaces =
+        listOf(Page(Level.YEARS, folders), Page(Level.REVIEW, organize), Page(Level.ASK, search))
     var pages by
         rememberSaveable(stateSaver = explorerPagesSaver) {
             mutableStateOf(listOf(Page(Level.YEARS, folders)))
@@ -138,74 +162,77 @@ private fun Explorer(api: ChromantisApi, endSession: (Boolean) -> Unit) {
     val savedScreens = rememberSaveableStateHolder()
     val page = pages.last()
     val depth = pages.lastIndex
+    val workspace = pages.first()
+    val screenKey = "${workspace.level.name}:$depth"
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     var signingOut by remember { mutableStateOf(false) }
     var signOutError by remember { mutableStateOf<Throwable?>(null) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
     fun goBack() {
         if (depth > 0) {
-            savedScreens.removeState(depth)
+            savedScreens.removeState(screenKey)
             pages = pages.dropLast(1)
+        } else {
+            pages = listOf(workspaces.first())
         }
     }
     val expire = { endSession(true) }
-    BackHandler(enabled = depth > 0) { goBack() }
-    Heading(page.title, if (depth > 0) ::goBack else null)
-    savedScreens.SaveableStateProvider(depth) {
-        if (page.level == Level.YEARS) {
-            var query by rememberSaveable { mutableStateOf("") }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    label = { Text(stringResource(R.string.search_hint)) },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(
-                    onClick = {
-                        focus.clearFocus()
-                        pages = pages + Page(Level.SEARCH, results, query.trim())
-                    },
-                    enabled = query.isNotBlank() && !signingOut,
-                ) {
-                    Text(stringResource(R.string.search))
-                }
+    BackHandler(enabled = depth > 0 || workspace.level != Level.YEARS) { goBack() }
+    if (depth == 0) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = { showSettings = true }, enabled = !signingOut) {
+                Text(stringResource(R.string.settings))
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(
-                    onClick = {
-                        focus.clearFocus()
-                        pages = pages + Page(Level.REVIEW, reviewTitle)
-                    },
-                    enabled = !signingOut,
-                ) {
-                    Text(reviewTitle)
-                }
-                TextButton(
-                    onClick = {
-                        signingOut = true
-                        signOutError = null
-                        scope.launch {
-                            attempt { api.signOut() }
-                                .fold(
-                                    onSuccess = { endSession(false) },
-                                    onFailure = {
-                                        signOutError = it
-                                        signingOut = false
-                                    },
-                                )
-                        }
-                    },
-                    enabled = !signingOut,
-                ) {
-                    Text(stringResource(R.string.sign_out))
-                }
-            }
-            if (signingOut) Text(stringResource(R.string.closing_session))
-            signOutError?.let { Text(stringResource(errorLabel(it))) }
         }
+        PrimaryTabRow(selectedTabIndex = workspaces.indexOfFirst { it.level == workspace.level }) {
+            workspaces.forEach { tab ->
+                Tab(
+                    selected = workspace.level == tab.level,
+                    onClick = {
+                        focus.clearFocus()
+                        pages = listOf(tab)
+                    },
+                    text = { Text(tab.title) },
+                )
+            }
+        }
+        if (signingOut) Text(stringResource(R.string.closing_session))
+        signOutError?.let { Text(stringResource(errorLabel(it))) }
+    } else {
+        Heading(page.title, ::goBack)
+    }
+    if (showSettings) {
+        SettingsDialog(
+            appearance,
+            onAppearance,
+            onClose = { showSettings = false },
+            onSignOut = {
+                showSettings = false
+                signingOut = true
+                signOutError = null
+                scope.launch {
+                    attempt { api.signOut() }
+                        .fold(
+                            onSuccess = { endSession(false) },
+                            onFailure = {
+                                signOutError = it
+                                signingOut = false
+                            },
+                        )
+                }
+            },
+        )
+    }
+    savedScreens.SaveableStateProvider(screenKey) {
         when (page.level) {
+            Level.ASK ->
+                AlbumSearch(api, expire) { pages = pages + Page(Level.PHOTOS, it.title, it.path) }
             Level.YEARS,
             Level.ALBUMS,
             Level.SEARCH ->
@@ -316,7 +343,7 @@ private fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisAp
 }
 
 @Composable
-private fun EntryScreen(
+internal fun EntryScreen(
     load: suspend (Int) -> EntryPage,
     onExpired: () -> Unit,
     onOpen: (Entry) -> Unit,

@@ -9,9 +9,11 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 ## Qué puedes hacer
 
-En **Carpetas** puedes explorar años y álbumes, buscar en el índice y abrir una galería paginada. Si el servidor tiene miniaturas activadas, la app carga las que necesitas para ver la galería. Toca una foto para abrir el original.
+- **Carpetas** muestra años, álbumes y una galería paginada. Si el servidor tiene miniaturas activadas, la app carga las visibles. Toca una foto para abrir el original.
+- **Clasificar** abre la cola de álbumes pendientes. Busca personas por nombre o alias, revisa las etiquetas sugeridas a partir del nombre de la carpeta o salta un álbum si tienes dudas. Pide una vista previa solo cuando la necesites. Para corregir un álbum, abre **Etiquetar este álbum** en la galería.
+- **Buscar** empieza con palabras del álbum o el nombre de una persona. Escribe después `antes de 2020` o `con Ana` para acotar esos resultados. Si el nombre del álbum es ambiguo, elige uno de los candidatos. Se usan las reglas de búsqueda locales.
 
-Entra con un código familiar de un solo uso. Abre **Etiquetar álbumes** para revisar los pendientes o **Etiquetar este álbum** desde la galería para corregirlo. Puedes buscar personas por nombre o alias, añadirlas o quitar su vínculo y decidir sobre las etiquetas sugeridas a partir del nombre de la carpeta. Pulsa **Ver hasta tres fotos** si necesitas una vista previa. Si saltas el álbum, queda pendiente.
+En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elección se guarda en el dispositivo.
 
 Falta probar el recorrido completo en un teléfono físico actual. El cliente nativo de `android/` usa Kotlin y Jetpack Compose con Material 3. El servicio compartido gestiona el acceso al archivo, los permisos, la indexación y el etiquetado.
 
@@ -54,4 +56,4 @@ PYTHONPATH=src python tests/android_fixture.py \
 
 Instala el certificado temporal como CA de usuario de confianza en un emulador de pruebas. Usa la dirección `https://10.0.2.2:8443` y el código de un solo uso que imprime el ejemplo. Abre 2024, pasa a la segunda página de la galería, abre una foto y gira el dispositivo. Comprueba que sigue abierta la misma foto y que al volver atrás aparece la segunda página. Relanza la app para comprobar que conserva la sesión.
 
-En **Carpetas**, abre **Etiquetar álbumes**, filtra por `Anita`, selecciona a Ana y guarda. Vuelve a **Carpetas** y busca `Ana`. Abre la galería y pulsa **Etiquetar este álbum** para retirar el vínculo o comprobar las decisiones guardadas. Repite la prueba con `--index-only` para comprobar que la navegación, los nombres y la edición de álbumes siguen funcionando con el archivo sintético desconectado. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
+En **Clasificar**, filtra por `Anita`, selecciona a Ana y guarda. Abre **Buscar**, busca `Ana` y afina con `solo 2024` para encontrar el álbum. Abre la galería y pulsa **Etiquetar este álbum** para retirar el vínculo o comprobar las decisiones guardadas. Repite la prueba con `--index-only` para comprobar que la navegación, los nombres y la edición de álbumes siguen funcionando con el archivo sintético desconectado. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.

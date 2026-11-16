@@ -12,6 +12,13 @@
     <string name="invalid_code">El código es incorrecto, ya se usó o ha caducado.</string>
     <string name="connecting">Conectando…</string>
     <string name="folders">Carpetas</string>
+    <string name="organize">Clasificar</string>
+    <string name="settings">Ajustes</string>
+    <string name="appearance">Apariencia</string>
+    <string name="theme_system">Como el sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="done">Listo</string>
     <string name="loading">Cargando…</string>
     <string name="no_results">No hay resultados.</string>
     <string name="previous">Anterior</string>
@@ -19,6 +26,13 @@
     <string name="search_hint">Buscar álbumes</string>
     <string name="search">Buscar</string>
     <string name="results">Resultados</string>
+    <string name="start_search_help">Prueba «playa 2024» o el nombre de una persona. Se busca en tu archivo.</string>
+    <string name="refine_search_help">Acota los resultados con «antes de 2020» o «con» y un nombre.</string>
+    <string name="refine_hint">Afinar búsqueda</string>
+    <string name="refine">Afinar</string>
+    <string name="new_search">Nueva búsqueda</string>
+    <string name="choose_album">¿A qué álbum te refieres?</string>
+    <string name="invalid_refinement">No se pudo aplicar ese filtro. Comprueba el nombre, el año o la frase.</string>
     <string name="closing_session">Cerrando sesión…</string>
     <string name="expired_session">La sesión ha caducado o se ha revocado. Pide otro código.</string>
     <string name="untrusted_certificate">No se pudo verificar el certificado del NAS.</string>

@@ -524,6 +524,10 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **References:** [Cx File Explorer](https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer), [Android lazy grids](https://developer.android.com/develop/ui/compose/lists), [APK distribution](https://developer.android.com/studio/publish), [network security](https://developer.android.com/privacy-and-security/security-config), and [local network permissions](https://developer.android.com/privacy-and-security/local-network-permission).
 
+**Interaction design:** Use three equally visible entry points: **Carpetas**, **Clasificar**, and **Buscar**. Keep layouts quiet with neutral surfaces, one accent and clear text labels. **Ajustes** remembers the system, light or dark appearance. Each entry point keeps its own saved screen state. Take the predictable navigation and selection patterns from file managers. Test other controls only when they shorten a family task.
+
+**Next explorer increment:** Add a compact trail with tappable year and album steps, and test a single local “resume album” shortcut. Use the existing album paths and list positions. Verify that an interrupted browse can return to the same album, and that opening a different year takes one tap from a gallery.
+
 ## Planned Later
 
 ### MVP 19B — Manual Photo Tagging
@@ -537,6 +541,8 @@ The trial confirmed that the authorization boundary can stay in the application 
 **Acceptance:** Link Ana to the album and tag only two of three synthetic photos with Ana. The photo-level filter returns exactly those two while album search still finds the album. Correct one link, reindex and verify the remaining decision and its origin. A non-curator cannot edit. No metadata is written to image files.
 
 **Progress:** The application service and local HTTP API support curator-only photo edits, SQLite provenance, and paged search by confirmed person. Full and incremental scans preserve decisions for unchanged indexed photos. The gallery still needs selection, editing, and confirmed-search controls.
+
+**Interaction test:** Provide an explicit **Seleccionar** action and a long-press shortcut. Keep the number selected and the **Etiquetar** action visible while browsing a page. Preview proposed people or tags before saving only to the selected photos. After validating the gallery flow, test opening a search result directly in this mode with its album context. Verify that Back cancels selection without writing and that the normal tap still opens a photo.
 
 ### MVP 19C — Index and People Tools
 
@@ -558,7 +564,7 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Acceptance:** On the same synthetic Spanish prompts, compare correct filters and clarification for both modes. Report latency, peak memory and model size. Cover aliases, compound dates, ambiguity, invalid model output and timeout. Enable the model only if it improves retrieval within the stated budget.
 
-**Progress:** The rules recognise Spanish album requests and explicit ranges such as “de 2018 a 2020” and “entre 2018 y 2020”. Unconnected years still prompt for clarification. “Antes de 2020” is available as a follow-up refinement. A single prompt that combines a name and relative date still needs coverage before it can be relied on.
+**Progress:** Android **Buscar** starts a regular album search and accepts follow-up messages through the existing private refinement API. It shows the active phrases and lets the user choose an album if the name is ambiguous. This first flow needs no model. The rules recognise Spanish album requests and explicit ranges such as “de 2018 a 2020” and “entre 2018 y 2020”. Unconnected years still prompt for clarification. Next, show the person, date and album filters as removable controls. Compare that flow with starting over when a user wants to remove one constraint. A single prompt that combines a name and relative date still needs coverage before it can be relied on.
 
 ### MVP 19E — Face Review Trial
 

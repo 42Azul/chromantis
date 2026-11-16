@@ -9,7 +9,11 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 ## What you can do
 
-**Folders** (*Carpetas*) lists years and albums, searches indexed albums, and opens a paged gallery. It requests thumbnails for visible tiles when the server has them enabled and loads an original after a tap. Family sign-in uses the existing one-time code and revocable session. Open **Tag albums** (*Etiquetar álbumes*) for the pending queue or **Tag this album** (*Etiquetar este álbum*) in a gallery to make a correction. Search for a person by name or alias, select or clear the link, add a person, or decide on tags suggested from folder names. Use **View up to three photos** to request previews. Skipping leaves the album pending.
+- **Folders** (*Carpetas*) lists years and albums and opens a paged gallery. Visible tiles use thumbnails when enabled on the server. Tap a tile to open the original.
+- **Organize** (*Clasificar*) opens the pending album queue. Search people by name or alias, decide on folder-name suggestions, or skip an uncertain album. Preview photos on request. Open **Tag this album** (*Etiquetar este álbum*) from a gallery to correct a reviewed album.
+- **Search** (*Buscar*) starts with album keywords or a person's name. Send a follow-up such as `antes de 2020` or `con Ana` to narrow the current results. If several albums match a requested name, choose one. The follow-up uses the existing local search rules.
+
+Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appearance. The choice is stored on the device.
 
 The full flow on a current physical phone is pending. The native client in `android/` uses Kotlin and Jetpack Compose with Material 3. Archive access, permissions, indexing, and curation remain in the shared service.
 
@@ -52,4 +56,4 @@ PYTHONPATH=src python tests/android_fixture.py \
 
 Install the temporary certificate as a trusted user CA on the disposable emulator. Set the address to `https://10.0.2.2:8443` and use the fixture's printed one-time code. Open 2024, browse the second gallery page, open a photo, and rotate the device. Check that the same photo remains open and that going back returns to the second page. Relaunch the app to check the retained session.
 
-From **Folders**, open **Tag albums**, filter people with `Anita`, select Ana, and save. Return to **Folders** and search `Ana` to find the album. Open its gallery and use **Tag this album** to remove the link or check which suggestion decisions were saved. Repeat with `--index-only` on a fresh fixture to check that navigation, filenames, and album editing still work with the synthetic archive disconnected. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and synthetic photos.
+From **Organize**, filter people with `Anita`, select Ana, and save. Open **Search**, search `Ana` and refine with `solo 2024` to find the album. Open its gallery and use **Tag this album** to remove the link or check which suggestion decisions were saved. Repeat with `--index-only` on a fresh fixture to check that navigation, filenames, and album editing still work with the synthetic archive disconnected. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and synthetic photos.

@@ -183,6 +183,28 @@ class FamilyAccessTests(unittest.TestCase):
         self.app.family_access.revoke(identity)
         self.assertEqual(self.request("GET", gallery, cookie=cookie)[0], 401)
 
+    def test_family_refines_a_search_from_the_index_and_respects_revocation(self):
+        earlier_album = "2023/2023-01-05_beach_trip"
+        with self.repository.write_transaction() as connection:
+            record = PathParser().parse_image_path("/synthetic", earlier_album + "/synthetic.jpg", 4, None)
+            self.repository.upsert_image_record(connection, record, "test")
+        identity, code = self.app.family_access.invite("Search fixture")
+        cookie = self.enter(code)
+
+        def folders(query):
+            status, _, body = self.request("GET", "/folders?" + urlencode({"q": query}), cookie=cookie)
+            self.assertEqual(status, 200, body)
+            return {item["path"] for item in json.loads(body)["items"]}
+
+        self.assertEqual(folders("beach"), {ALBUM, earlier_album})
+        request = {"q": "beach", "text": "antes de 2024"}
+        status, _, body = self.request("POST", "/refine", body=request, cookie=cookie)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(folders(json.loads(body)["q"]), {earlier_album})
+        self.image_fetcher.assert_not_called()
+        self.app.family_access.revoke(identity)
+        self.assertEqual(self.request("POST", "/refine", body=request, cookie=cookie)[0], 401)
+
     def test_expired_invite_and_session_and_revoked_inflight_write(self):
         first, expired = self.app.family_access.invite("Viejo")
         with self.repository.session() as connection:
