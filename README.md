@@ -258,10 +258,13 @@ Available read-only endpoints:
 - `GET /api/v1/years?from=2019&to=2021`
 - `GET /api/v1/folders?q=city&limit=10`
 - `GET /api/v1/images?q=city&limit=10`
+- `GET /api/v1/album-images?path=<indexed-album-path>&limit=30&offset=0`
 - `GET /api/v1/random?q=city&count=3`
 - `GET /api/v1/people`
 
 Use `Authorization: Bearer <token>` or `X-API-Token: <token>`. If either token setting is configured, the API requires a token except on `/api/v1/health`. `API_TOKEN` keeps its existing read-only access to search. Chat tokens use the current Telegram role and stop working while their chat is unauthorized.
+
+Family sessions can use `/api/v1/years`, `/api/v1/folders` and `/api/v1/album-images` to browse the index. The album-images route takes the exact, URL-encoded path returned by folder search and returns `{"items": [...], "next_offset": ...}` in file-path order. The page size is capped at 50, and `next_offset` is null on the last page. These requests read SQLite metadata only. A client can request thumbnails separately when needed.
 
 To configure an owner token, set `TELEGRAM_ADMIN_CHAT_ALLOWLIST` to the owner chat ID and put a separate token for that ID in `API_CHAT_TOKENS`. Generate one token per chat with `python -c 'import secrets; print(secrets.token_urlsafe(32))'` and restart the API after changing the configuration.
 

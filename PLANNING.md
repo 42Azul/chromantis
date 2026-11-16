@@ -514,15 +514,59 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Case:** A family member can open Chromantis from an Android home-screen icon, sign in with a one-time family code and find or review an album over the home Wi-Fi without a Telegram account.
 
-**Scope:** Build a small native Android client in Spanish with a configurable NAS address, a persistent revocable family session, album search, and the existing person and tag review flow. Show previews on request. Reuse the existing HTTP API, SQLite index, and server-side permissions. Keep the photo archive read-only and the web and Telegram available independently. Build on a development computer and produce an installable, signed APK for private testing. Album invite handling, collections, and broader browsing can follow the first validated flow.
+**Scope:** Make **Carpetas** the home screen. Use the familiar Cx File Explorer pattern: browse by year, open a folder, see its path and return to the same place. Show photos in a paged grid with thumbnails loaded when the user opens the grid and reaches the relevant rows. Load an original only when opened. Keep the existing album review as a separate action with explicit photo previews. Reuse the local HTTP API, SQLite index, and revocable family permission. Build a small native Android client in Spanish, with code and technical documentation in English, and produce a signed APK for private testing. The archive stays read-only and the web and Telegram remain independent clients.
 
-**Dependencies:** Android SDK and build tools on the development computer, the existing family-session and album-review APIs, and a reachable HTTPS endpoint on the private test network with certificate validation. Check Android local-network permission behaviour for the chosen target SDK and private installation rules for the test device. The NAS continues to run the existing service.
+**Dependencies:** Android SDK and build tools on the development computer, the family-session, album-review, year and paged album-image APIs, and a reachable HTTPS endpoint on the private test network with certificate validation. Check local-network permissions for the chosen target SDK and private installation rules for the test device. The NAS runs the existing service.
 
-**Acceptance:** Build and install the APK on an emulator or test phone with synthetic albums. Enter the NAS address and a one-time code, then reopen the app without re-entering the code. Open a pending album, link the fixture person Ana, save it, and find it by searching for Ana. Verify that revocation blocks the next protected request and that a revoked session, inaccessible NAS, or denied network permission where applicable shows a clear recovery message. The tagging flow works from the index with the photo source disconnected, and previews are requested only after a tap.
+**Acceptance:** Build and install the APK on an emulator or test phone with synthetic albums. Sign in once, reopen the app and navigate year → folder → photo, then go back to the same folder position. Link the fixture person Ana to an album, save it, and find the album by searching for Ana. Verify revocation on the next protected request. With the photo source disconnected, folder navigation, filename listing and album tagging still work. Preview errors, an unreachable NAS and a denied local-network permission where applicable show how to recover.
 
-**References:** [Android app publishing](https://developer.android.com/studio/publish), [developer verification rollout](https://developer.android.com/developer-verification), [network security configuration](https://developer.android.com/privacy-and-security/security-config), and [local network permissions](https://developer.android.com/privacy-and-security/local-network-permission).
+**Progress:** Family sessions can list indexed years and page through the photos in one exact album path. These requests read index metadata only, so the Android client controls when it loads thumbnails.
+
+**References:** [Cx File Explorer](https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer), [Android lazy grids](https://developer.android.com/develop/ui/compose/lists), [APK distribution](https://developer.android.com/studio/publish), [network security](https://developer.android.com/privacy-and-security/security-config), and [local network permissions](https://developer.android.com/privacy-and-security/local-network-permission).
 
 ## Planned Later
+
+### MVP 19B — Manual Photo Tagging
+
+**Case:** A family member who knows which photos show Ana can record that for those photos and find them later.
+
+**Scope:** Add **Etiquetar fotos** to the gallery. Let the curator select one or more photos and apply manual tags or link existing people, correct changes, or skip. Test a brief optional prompt inside the review mode and keep prompts out of ordinary browsing. Reuse the people directory and existing curation permission. Store explicit photo-level evidence in SQLite separately from indexed tags and album-level links.
+
+**Dependencies:** MVP 19A gallery, existing person IDs and aliases, and a migration with stable indexed photo identity. Preserve decisions for unchanged indexed paths across reindexing and define what happens when a photo is replaced.
+
+**Acceptance:** Link Ana to the album and tag only two of three synthetic photos with Ana. The photo-level filter returns exactly those two while album search still finds the album. Correct one link, reindex and verify the remaining decision and its origin. A non-curator cannot edit. No metadata is written to image files.
+
+### MVP 19C — Index and People Tools
+
+**Case:** The owner has added folders to the NAS and wants to update the catalogue and check the result from the app.
+
+**Scope:** Add **Herramientas → Índice** for last run, status and **Buscar carpetas nuevas**, a background incremental scan. Reserve the trigger for an owner credential, share a single scan lock with scheduled scans, and reuse the existing scanner and run history. Give the owner a place to inspect database readiness and reach existing backup and verification tools. Keep initial NAS setup and destructive recovery in the existing CLI. Group the directory, aliases and corrections under **Personas**, with the current role checks.
+
+**Dependencies:** Existing incremental scanner, run summaries, backup commands and owner authorization. The app must never pass arbitrary commands or filesystem locations to the server.
+
+**Acceptance:** Add a synthetic folder, start an incremental scan from the owner UI and confirm only one run starts under concurrent requests. See its status and find the folder without opening any image. A family curator can tag albums, while the same credential is denied an index trigger. A failed scan preserves the last complete index and reports the failure.
+
+### MVP 19D — Chat Search and Local Model Comparison
+
+**Case:** A family member can ask «fotos de la playa con Ana antes de 2020» from the **Buscar** tab, inspect the filters and open the result in its folder.
+
+**Scope:** Start with the existing Spanish rule interpreter, query refinement, and deterministic search. Keep the chat read-only and ask for clarification when a year or person is ambiguous. Compare the rules with one small locally run quantized text model through the existing command adapter. Try it on a development computer first, send only the query to the local process, validate structured output, and retain the rules as default and fallback. Keep OCR and image/text search as separate optional experiments from MVP 14.
+
+**Dependencies:** Existing interpreter, refinement and search services. For the comparison only, a pinned GGUF model, model license and a local runtime such as [llama.cpp](https://github.com/ggml-org/llama.cpp/blob/master/grammars/README.md). Set latency and memory budgets before considering the NAS.
+
+**Acceptance:** On the same synthetic Spanish prompts, compare correct filters and clarification for both modes. Report latency, peak memory and model size. Cover aliases, compound dates, ambiguity, invalid model output and timeout. Enable the model only if it improves retrieval within the stated budget.
+
+**Progress:** The rules recognise Spanish album requests and explicit ranges such as “de 2018 a 2020” and “entre 2018 y 2020”. Unconnected years still prompt for clarification. “Antes de 2020” is available as a follow-up refinement. A single prompt that combines a name and relative date still needs coverage before it can be relied on.
+
+### MVP 19E — Face Review Trial
+
+**Case:** The owner can prepare a small set of photos for review in **Personas → Caras** and confirm or correct suggested face-to-person links.
+
+**Scope:** Separate detection of face regions, similarity suggestions, and confirmed identities. Test optional local processing of one small selected album, initially on a development computer. Record progress and source/model provenance so a run can resume and skip unchanged photos. Show suggested matches for approval or rejection and allow correction and deletion. Confirmed links refer to the exact photo. Keep face processing off by default and independent of indexing. Keep all derived face data local and define its deletion policy before persistence.
+
+**Dependencies:** MVP 19B photo-level links, a bounded processing and cancellation path, and synthetic face fixtures. Compare [ML Kit face detection](https://developers.google.com/ml-kit/vision/face-detection) for Android-only detection with [OpenCV YuNet and SFace](https://docs.opencv.org/4.x/d0/dd4/tutorial_dnn_face.html) for a local detection and similarity trial. Verify model licenses, measure CPU, memory, per-photo time and storage, and calibrate on the trial data before adopting a threshold.
+
+**Acceptance:** Process a bounded synthetic batch, interrupt and resume it, review a proposed match and reject an unknown or lookalike without creating a confirmed link. A wrong suggestion can be corrected and derived data can be removed. Reindexing alone never runs the model or alters originals.
 
 ### Optional remote MCP transport
 

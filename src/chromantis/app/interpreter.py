@@ -16,6 +16,7 @@ FILLER_WORDS = {
     "a",
     "all",
     "album",
+    "albumes",
     "albums",
     "folder",
     "folders",
@@ -93,13 +94,19 @@ class RuleQueryInterpreter:
         re.IGNORECASE,
     )
     FOLDERS_HINT_RE = re.compile(
-        r"\b(folder|folders|album|albums|trip|event|carpeta|carpetas|evento|eventos)\b",
+        r"\b(folder|folders|[aá]lbum(?:s|es)?|trip|event|carpeta|carpetas|evento|eventos)\b",
         re.IGNORECASE,
+    )
+    SPANISH_YEAR_RANGES = (
+        re.compile(r"\b((?:19|20)\d{2})\s+a\s+((?:19|20)\d{2})\b", re.IGNORECASE),
+        re.compile(r"\bentre\s+((?:19|20)\d{2})\s+y\s+((?:19|20)\d{2})\b", re.IGNORECASE),
     )
     COUNT_RE = re.compile(r"\b(\d{1,2})\b")
 
     def interpret(self, text: str) -> InterpretedRequest:
         raw = text.strip().replace("–", "-")
+        for pattern in self.SPANISH_YEAR_RANGES:
+            raw = pattern.sub(r"\1-\2", raw)
         lowered = raw.lower()
         if self.YEARS_HINT_RE.search(lowered) and not re.search(r"\b(19|20)\d{2}\b", lowered):
             return InterpretedRequest(action="years", query="", count=1)

@@ -11,6 +11,7 @@ from http.client import HTTPConnection
 from http.cookies import SimpleCookie
 from pathlib import Path
 from threading import Thread
+from unittest.mock import Mock
 from urllib.parse import urlencode
 
 from chromantis.api.server import ApiServer, make_api_handler
@@ -39,10 +40,11 @@ class FamilyAccessTests(unittest.TestCase):
         self.start_server()
 
     def start_server(self, *, protected=True):
+        self.image_fetcher = Mock(return_value=b"test")
         server = ApiServer(("127.0.0.1", 0), make_api_handler(
             self.app,
             api_chat_tokens=((10, "owner-example"),) if protected else (),
-            image_fetcher=lambda path: b"test",
+            image_fetcher=self.image_fetcher,
         ))
         self.address = server.server_address
         thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
@@ -144,6 +146,42 @@ class FamilyAccessTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("Max-Age=0", header)
         self.assertEqual(self.request("GET", "/auth/me", cookie=cookie)[0], 401)
+
+    def test_family_browses_an_exact_indexed_album_without_reading_photos(self):
+        other_album = "2023/2023-01-05_beach_trip"
+        extra_photo = ALBUM + "/another.jpg"
+        parser = PathParser()
+        with self.repository.write_transaction() as connection:
+            for path in (extra_photo, other_album + "/another.jpg"):
+                record = parser.parse_image_path("/synthetic", path, 4, None)
+                self.repository.upsert_image_record(connection, record, "test")
+
+        identity, code = self.app.family_access.invite("Synthetic Android")
+        cookie = self.enter(code)
+        gallery = "/album-images?" + urlencode({"path": ALBUM, "limit": 1})
+        self.assertEqual(self.request("GET", gallery)[0], 401)
+        status, _, body = self.request("GET", "/years", cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual({year["year"] for year in json.loads(body)["items"]}, {2023, 2024})
+        status, _, body = self.request("GET", "/folders?q=2024", cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual([item["path"] for item in json.loads(body)["items"]], [ALBUM])
+
+        for offset, expected, next_offset in ((0, extra_photo, 1), (1, PHOTO, None), (2, None, None)):
+            with self.subTest(offset=offset):
+                status, _, body = self.request("GET", gallery + f"&offset={offset}", cookie=cookie)
+                self.assertEqual(status, 200)
+                payload = json.loads(body)
+                self.assertEqual([item["path"] for item in payload["items"]], [expected] if expected else [])
+                self.assertEqual(payload["next_offset"], next_offset)
+
+        for invalid in ("&offset=-1", "&offset=9223372036854775808"):
+            self.assertEqual(self.request("GET", gallery + invalid, cookie=cookie)[0], 400)
+        self.assertEqual(self.request("GET", "/album-images", cookie=cookie)[0], 400)
+        self.assertEqual(self.request("GET", "/images", cookie=cookie)[0], 403)
+        self.image_fetcher.assert_not_called()
+        self.app.family_access.revoke(identity)
+        self.assertEqual(self.request("GET", gallery, cookie=cookie)[0], 401)
 
     def test_expired_invite_and_session_and_revoked_inflight_write(self):
         first, expired = self.app.family_access.invite("Viejo")

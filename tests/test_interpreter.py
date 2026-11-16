@@ -14,6 +14,19 @@ class QueryInterpreterTests(unittest.TestCase):
     def make_interpreter(self, code: str, timeout: float = 2.0) -> CommandQueryInterpreter:
         return CommandQueryInterpreter((sys.executable, "-c", code), timeout)
 
+    def test_spanish_album_requests_distinguish_ranges_from_separate_years(self) -> None:
+        rules = RuleQueryInterpreter()
+        for prompt in (
+            "Busca los álbumes de playa de 2018 a 2020",
+            "Busca álbumes de playa entre 2018 y 2020",
+        ):
+            with self.subTest(prompt=prompt):
+                result = rules.interpret(prompt)
+                self.assertEqual((result.action, result.query), ("folders", "playa 2018-2020"))
+                self.assertFalse(result.needs_clarification)
+        result = rules.interpret("Busca álbumes de playa de 2018 y 2020")
+        self.assertEqual((result.action, result.clarification), ("folders", "several_years"))
+
     def test_application_accepts_a_local_model_adapter(self) -> None:
         script = """
 import json

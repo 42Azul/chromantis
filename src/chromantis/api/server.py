@@ -21,6 +21,7 @@ from chromantis.db.family_access import FamilySession, SESSION_SECONDS
 FAMILY_COOKIE = "chromantis_family"
 FAMILY_SESSION_PATH = "/api/v1/family/session"
 ALBUM_REVIEW_PATH = "/api/v1/album-review"
+ALBUM_IMAGES_PATH = "/api/v1/album-images"
 ALBUM_SHARES_PATH = "/api/v1/album-shares"
 SHARED_ALBUM_PATH = "/api/v1/shared"
 
@@ -131,7 +132,7 @@ def _dispatch(
                              "can_curate_albums": True}
             if path == ALBUM_REVIEW_PATH or path.startswith(ALBUM_REVIEW_PATH + "/"):
                 return _album_review_route(method, path, app_service, session, body or {}, params)
-            if path == "/api/v1/folders" and method == "GET":
+            if method == "GET" and path in {"/api/v1/folders", "/api/v1/years", ALBUM_IMAGES_PATH}:
                 return _query_route(path, params, app_service)
             return 403, {"error": "El acceso familiar solo permite consultar y etiquetar álbumes."}
         if path.startswith(("/api/v1/auth/", "/api/v1/admin/")):
@@ -592,6 +593,19 @@ def _query_route(
         query = params.get("q", [""])[0]
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
         return 200, {"items": [asdict(item) for item in app_service.search_images(query, limit=limit)]}
+    if path == ALBUM_IMAGES_PATH:
+        album_path = params.get("path", [""])[0]
+        if not album_path.strip() or len(album_path) > 4096:
+            raise ValueError("path must be a non-empty indexed album path of at most 4096 characters.")
+        limit = _bounded_limit(params.get("limit", ["30"])[0], default=30)
+        offset = _optional_int(params.get("offset", [None])[0]) or 0
+        if not 0 <= offset < 2**63 - limit:
+            raise ValueError("Invalid offset.")
+        items = app_service.images_in_folder(album_path, limit=limit + 1, offset=offset)
+        return 200, {
+            "items": [asdict(item) for item in items[:limit]],
+            "next_offset": offset + limit if len(items) > limit else None,
+        }
     if path == "/api/v1/random":
         query = params.get("q", [""])[0]
         count = _bounded_limit(params.get("count", ["1"])[0], default=1)

@@ -96,9 +96,11 @@ class ApplicationService:
         return self.search.random_images(raw_query, count=count, exclude_paths=exclude_paths)
 
     def images_in_folder(
-        self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = ()
+        self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = (), *, offset: int = 0,
     ) -> list[SearchResult]:
-        return self.search.images_in_folder(folder_path, limit=limit, exclude_paths=exclude_paths)
+        return self.search.images_in_folder(
+            folder_path, limit=limit, exclude_paths=exclude_paths, offset=offset,
+        )
 
     def images_in_year(
         self, year: int, limit: int = 10, exclude_paths: tuple[str, ...] = ()

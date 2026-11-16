@@ -217,7 +217,7 @@ class SearchService:
         return results
 
     def images_in_folder(
-        self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = ()
+        self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = (), *, offset: int = 0,
     ) -> list[SearchResult]:
         excluded = set(exclude_paths)
         with self.repository.connect() as connection:
@@ -227,9 +227,9 @@ class SearchService:
                 FROM album_metadata f JOIN images i ON i.folder_id = f.id
                 WHERE f.folder_path = ?
                 ORDER BY i.file_path ASC
-                LIMIT ?
+                LIMIT ? OFFSET ?
                 """,
-                (folder_path, limit + len(excluded) if limit >= 0 else -1),
+                (folder_path, limit + len(excluded) if limit >= 0 else -1, offset),
             ).fetchall()
         results = [
             self._row_to_image_result(row, "same-folder")
