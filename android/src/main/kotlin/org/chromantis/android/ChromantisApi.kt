@@ -68,13 +68,7 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
     suspend fun signOut() =
         withContext(Dispatchers.IO) { request("DELETE", "/family/session") { Unit } }
 
-    suspend fun years() =
-        EntryPage(
-            json("/years").getJSONArray("items").mapObjects {
-                val year = it.getString("year")
-                Entry(year, year, albumCount = it.getInt("folders"))
-            }
-        )
+    suspend fun years() = EntryPage(json("/years").getJSONArray("items").mapObjects(::yearEntry))
 
     suspend fun albums(query: String, offset: Int): EntryPage {
         val entries =
@@ -105,7 +99,7 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             item.getString("path"),
             item.getLong("revision"),
             item.getString("title"),
-            item.optionalString("event_date") ?: item.optionalString("year"),
+            albumDate(item),
             item.getJSONArray("person_ids").let { ids ->
                 (0 until ids.length()).map(ids::getLong).toSet()
             },
@@ -281,6 +275,15 @@ private inline fun <T> JSONArray.mapObjects(read: (JSONObject) -> T): List<T> =
 
 private fun JSONObject.optionalString(key: String): String? =
     if (isNull(key)) null else getString(key)
+
+internal fun yearEntry(item: JSONObject): Entry {
+    val year = item.getInt("year").toString()
+    return Entry(year, year, albumCount = item.getInt("folders"))
+}
+
+internal fun albumDate(item: JSONObject): String? =
+    item.optionalString("event_date")
+        ?: if (item.isNull("year")) null else item.getInt("year").toString()
 
 private fun photoEntry(item: JSONObject): Entry {
     val path = item.getString("path")

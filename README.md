@@ -580,7 +580,7 @@ The native Android client in `android/` uses **Kotlin and Jetpack Compose with M
 Build on a development computer with JDK 17 or 21, Gradle 8.13, Android SDK Platform 36 and Build Tools 36.0.0. Set `ANDROID_HOME` to the SDK directory. From the repository root:
 
 ```bash
-gradle -p android spotlessCheck assembleDebug lintDebug
+gradle -p android spotlessCheck testDebugUnitTest assembleDebug lintDebug
 adb install -r android/build/outputs/apk/debug/Chromantis-debug.apk
 ```
 
