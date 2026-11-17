@@ -609,11 +609,13 @@ function setAlbumReviewMode(mode) {
   $("batch-albums").setAttribute("aria-pressed", String(mode === "batch"));
 }
 
-async function loadAlbumReview({ after = 0, reviewed = false, directory, saved = false, path } = {}) {
+async function loadAlbumReview({ after = 0, reviewed = false, directory, saved = false, path, onReturn } = {}) {
   closeAlbumReview();
   const request = albumRequest;
   setAlbumReviewMode(reviewed ? "reviewed" : "pending");
   message("album-review-status", "Cargando álbum…");
+  const returnButton = onReturn ? button("Volver a Por lotes", () => onReturn(false)) : null;
+  if (returnButton) $("album-review-content").append(returnButton);
   try {
     const [{ item }, { items: people }] = await Promise.all([
       api("/album-review" + queryParams(path ? { path } : { after, reviewed })),
@@ -621,7 +623,7 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
     ]);
     if (request !== albumRequest) return;
     message("album-review-status", saved ? "Álbum guardado." : "");
-    if (item) renderAlbumReview(item, people, reviewed);
+    if (item) renderAlbumReview(item, people, reviewed, onReturn, returnButton);
     else $("album-review-content").append(element("p", {},
       reviewed ? "No hay más álbumes revisados." : "No hay más álbumes pendientes en esta vuelta."
     ));
@@ -642,13 +644,26 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
     if (!groups.length) {
       $("album-review-content").append(element("p", {},
         "No hay sugerencias pendientes para revisar por lotes. Los álbumes ambiguos siguen en Pendientes."));
-      if (drafts.length) message("album-review-status", "Decisiones guardadas. Las demás selecciones ya no están pendientes.");
+      if (drafts.length) message("album-review-status", saved
+        ? "Decisiones guardadas. Las demás selecciones ya no están pendientes."
+        : "Las selecciones anteriores ya no están pendientes.");
       return;
     }
     const renderedRows = [];
     const content = $("album-review-content");
     let saving = false;
     let restored = 0;
+    const selected = ({ album, select, label }) => ({
+      id: album.id, path: album.path, revision: album.revision,
+      label, decision: select.value,
+    });
+    const openAlbum = album => {
+      const pending = renderedRows.filter(row => row.select.value).map(selected);
+      return loadAlbumReview({
+        path: album.path,
+        onReturn: savedAlbum => loadAlbumReviewBatch(savedAlbum, pending),
+      });
+    };
     content.replaceChildren(...groups.map(group => {
       const rows = group.albums.map(album => {
         const select = element("select", { "aria-label": `Decisión para ${album.title}` },
@@ -658,7 +673,7 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
         const row = element("div", { class: "batch-review-row" },
           element("div", {}, element("strong", {}, album.title),
             element("p", {}, `${album.event_date || album.year} · encontró «${album.evidence}»`)),
-          select, button("Revisar", () => loadAlbumReview({ path: album.path })));
+          select, button("Revisar", () => openAlbum(album)));
         const draft = drafts.find(entry => entry.label === group.key && entry.id === album.id &&
           entry.path === album.path && entry.revision === album.revision);
         if (draft) {
@@ -694,10 +709,6 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
       form.addEventListener("submit", async event => {
         event.preventDefault();
         if (saving) return;
-        const selected = ({ album, select, label }) => ({
-          id: album.id, path: album.path, revision: album.revision,
-          label, decision: select.value,
-        });
         const items = rows.filter(row => row.select.value).map(selected);
         if (!items.length) {
           status.textContent = "Elige al menos una decisión.";
@@ -730,7 +741,8 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
       return form;
     }));
     if (restored < drafts.length) {
-      message("album-review-status", "Decisiones guardadas. Revisa las selecciones que ya no están disponibles o han cambiado.");
+      const warning = "Revisa las selecciones que ya no están disponibles o han cambiado.";
+      message("album-review-status", saved ? `Decisiones guardadas. ${warning}` : warning);
     }
   } catch (error) {
     if (request !== albumRequest) return;
@@ -780,7 +792,7 @@ function reviewPersonPicker(people, selected) {
   return element("div", { class: "stack" }, chosen, element("label", {}, "Buscar personas", filter), matches);
 }
 
-function renderAlbumReview(album, directory, reviewed) {
+function renderAlbumReview(album, directory, reviewed, onReturn, returnButton) {
   const request = albumRequest;
   const initial = new Set(album.person_ids);
   const selected = new Set(initial);
@@ -860,15 +872,19 @@ function renderAlbumReview(album, directory, reviewed) {
     element("label", {}, "Una palabra por etiqueta, separadas por comas", manual)));
 
   const form = element("form", { class: "panel review-form" }, people, tags);
-  const next = saved => loadAlbumReview({
+  const next = saved => onReturn ? onReturn(saved) : loadAlbumReview({
     after: album.id, reviewed, directory: saved && newPerson.value.trim() ? undefined : directory, saved,
   });
-  const save = element("button", { class: "primary", type: "submit" }, "Guardar y siguiente");
-  const skip = button("Saltar", () => next(false));
-  form.append(element("div", { class: "actions" }, save, skip));
+  const save = element("button", { class: "primary", type: "submit" },
+    onReturn ? "Guardar y volver al lote" : "Guardar y siguiente");
+  const skip = onReturn ? null : button("Saltar", () => next(false));
+  form.append(element("div", { class: "actions" }, save, ...(skip ? [skip] : [])));
   form.addEventListener("submit", async event => {
     event.preventDefault();
-    save.disabled = skip.disabled = true;
+    if (save.disabled) return;
+    save.disabled = true;
+    const otherAction = returnButton || skip;
+    if (otherAction) otherAction.disabled = true;
     const { id, path, revision } = album;
     const decisions = Object.fromEntries(choices.filter(({ select }) => select.value !== "pending")
       .map(({ key, select, correction }) => [key,
@@ -885,7 +901,8 @@ function renderAlbumReview(album, directory, reviewed) {
     } catch (error) {
       if (request === albumRequest) message("album-review-status", error.message);
     } finally {
-      save.disabled = skip.disabled = false;
+      save.disabled = false;
+      if (otherAction) otherAction.disabled = false;
     }
   });
   const heading = element("h2", {}, album.title);

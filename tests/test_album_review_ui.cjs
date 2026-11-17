@@ -9,7 +9,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
     return {
       tag, props, children, value: "", disabled: false, textContent: "", listeners: {},
       addEventListener(name, listener) { this.listeners[name] = listener; },
-      append(child) { this.children.push(child); },
+      append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
       querySelectorAll() {
         return this.children.flatMap(child => typeof child === "string" ? [] :
@@ -28,18 +28,35 @@ async function verifyBatchReview(source, failedReloads = 0) {
     group("playa", album(1, 3), album(5, 2)),
     group("familia", album(1, 3), album(2, 8), album(3, 0), album(4, 0)),
   ];
-  const start = source.indexOf("async function loadAlbumReviewBatch(");
-  const end = source.indexOf("\nfunction reviewPersonPicker(", start);
+  const start = source.indexOf("async function loadAlbumReview(");
+  const end = source.indexOf("\nfunction albumContextEditor(", start);
   assert(start >= 0 && end > start, "Batch UI function is missing");
   const posts = [];
+  const detailPosts = [];
   const api = async (path, request) => {
     if (!request) {
+      if (path === "/album-review/people") return { items: [] };
+      if (path.startsWith("/album-review?path=")) {
+        const item = groups.flatMap(group => group.albums).find(album => path === `/album-review?path=${album.path}`);
+        assert(item, "Expected to open a specific album from the batch");
+        return { item: {
+          ...item, person_ids: [], manual_tags: [],
+          suggestions: { familia: { label: "familia", state: "pending", evidence: "fixture" } },
+        } };
+      }
       assert(path === "/album-review/batch?limit=50", "Unexpected batch read");
       if (posts.length === 1 && failedReloads > 0) {
         failedReloads--;
         throw new Error("Simulated loss of connection");
       }
       return { groups };
+    }
+    if (path === "/album-review" && request.method === "POST") {
+      detailPosts.push(request.data);
+      groups = groups.map(group => ({
+        ...group, albums: group.albums.filter(album => album.id !== request.data.id),
+      }));
+      return {};
     }
     assert(path === "/album-review/batch" && request.method === "POST", "Unexpected batch write");
     posts.push(request.data.items);
@@ -51,6 +68,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
     `let albumRequest = 0;
      const closeAlbumReview = () => { albumRequest++; $("album-review-content").replaceChildren(); };
      const setAlbumReviewMode = () => {};
+     const queryParams = ({ path }) => "?path=" + path;
+     const albumContextEditor = () => element("div", {});
      ${source.slice(start, end)}
      return loadAlbumReviewBatch;`)(
     () => content, (id, value) => { messages[id] = value; },
@@ -64,7 +83,24 @@ async function verifyBatchReview(source, failedReloads = 0) {
   const selectValues = form => form.querySelectorAll().filter(control => control.tag === "select");
   const submit = form => form.listeners.submit({ preventDefault() {} });
 
+  const action = (panel, label) => {
+    const control = panel.querySelectorAll().find(control => control.children[0] === label);
+    assert(control, "Expected action: " + label);
+    return control.listeners.click();
+  };
+
   const reloadAttempts = failedReloads;
+  await load();
+  selectValues(content.children[0])[0].value = "accepted";
+  await action(content.children[0], "Revisar");
+  assert(selectValues(content.children.at(-1))[0].value === "pending",
+    "The individual review should show its current server state");
+  await action(content, "Volver a Por lotes");
+  assert(selectValues(content.children[0])[0].value === "accepted",
+    "Returning without saving should preserve the batch choice");
+  assert(posts.length === 0 && detailPosts.length === 0, "Returning must not write either draft");
+  assert(messages["album-review-status"] === "", "Returning must not claim that decisions were saved");
+
   await load();
   const [beach, family] = content.children;
   const beachChoices = selectValues(beach);
@@ -122,6 +158,17 @@ async function verifyBatchReview(source, failedReloads = 0) {
   assert(restored[0].value === "rejected" && restored[1].value === "accepted",
     "A failed save must leave the pending choices available");
   assert(!restoredFamily.querySelectorAll().some(control => control.disabled), "A failed save must restore controls");
+
+  await action(restoredFamily.children.filter(child => child.props?.class === "batch-review-row")[1], "Revisar");
+  const detail = content.children.at(-1);
+  assert(detail.querySelectorAll().some(control => control.children[0] === "Guardar y volver al lote"),
+    "The individual save should return to the batch");
+  selectValues(detail)[0].value = "accepted";
+  await submit(detail);
+  assert(detailPosts.length === 1 && detailPosts[0].id === 2 && detailPosts[0].decisions.familia === "familia",
+    "The individual save should affect only the selected album");
+  assert(posts.length === 2 && selectValues(content.children[0])[0].value === "rejected",
+    "After the correction, return to the batch with decisions on the other albums still selected");
 }
 
 const source = readFileSync("src/chromantis/api/ui/app.js", "utf8");
