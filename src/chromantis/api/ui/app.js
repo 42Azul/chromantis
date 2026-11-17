@@ -671,10 +671,26 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
       });
       const submit = element("button", { class: "primary", type: "submit" }, "Guardar decisiones");
       const status = element("p", { class: "message", "aria-live": "polite" });
+      const selectionCount = element("p", { class: "meta", "aria-live": "polite" });
+      function updateSelectionCount() {
+        const count = rows.filter(row => row.select.value).length;
+        selectionCount.textContent = `${count} de ${rows.length} álbumes con una decisión.`;
+      }
+      function fillPending(decision) {
+        for (const { select } of rows) {
+          if (!select.value) select.value = decision;
+        }
+        updateSelectionCount();
+      }
+      for (const { select } of rows) select.addEventListener("change", updateSelectionCount);
+      updateSelectionCount();
       const form = element("form", { class: "panel batch-review-group" },
         element("h3", {}, `Etiqueta sugerida: ${group.label}`),
         element("p", {}, "Decide solo los álbumes claros. Deja el resto pendiente o ábrelo para corregir."),
-        ...rows.map(row => row.row), element("div", { class: "actions" }, submit), status);
+        ...(rows.length > 1 ? [element("div", { class: "actions" },
+          button("Aceptar los pendientes", () => fillPending("accepted")),
+          button("Rechazar los pendientes", () => fillPending("rejected")))] : []),
+        ...rows.map(row => row.row), selectionCount, element("div", { class: "actions" }, submit), status);
       form.addEventListener("submit", async event => {
         event.preventDefault();
         if (saving) return;

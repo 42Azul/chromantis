@@ -68,9 +68,26 @@ async function verifyBatchReview(source, failedReloads = 0) {
   await load();
   const [beach, family] = content.children;
   const beachChoices = selectValues(beach);
-  beachChoices[0].value = "accepted";
+  beachChoices[1].value = "accepted";
+  const acceptPending = beach.querySelectorAll().find(control => control.children[0] === "Aceptar los pendientes");
+  const rejectPending = beach.querySelectorAll().find(control => control.children[0] === "Rechazar los pendientes");
+  assert(acceptPending && rejectPending, "A group should offer both actions for its pending rows");
+  rejectPending.listeners.click();
+  assert(beachChoices.map(control => control.value).join() === "rejected,accepted",
+    "Rejection should fill only rows without an existing choice");
+  beachChoices[0].value = "";
   beachChoices[1].value = "rejected";
+  beachChoices[0].listeners.change();
+  assert(beach.children.some(child => child.textContent === "1 de 2 álbumes con una decisión."),
+    "Clearing a choice should update the count before saving");
+  acceptPending.listeners.click();
+  assert(beachChoices.map(control => control.value).join() === "accepted,rejected",
+    "Acceptance should leave an existing rejection intact");
+  assert(beach.children.some(child => child.textContent === "2 de 2 álbumes con una decisión."),
+    "Filling the remaining choices should update the count before saving");
+  assert(posts.length === 0, "Filling the group must not write until Save");
   const familyChoices = selectValues(family);
+  assert(familyChoices.every(control => !control.value), "A different group must remain untouched");
   familyChoices[0].value = "rejected";
   familyChoices[1].value = "accepted";
   familyChoices[2].value = "accepted";

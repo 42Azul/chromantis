@@ -485,6 +485,7 @@ Current architecture map:
 - Stream pending indexed names until the queue is full so albums without suggestions cannot hide later actionable albums.
 - Reuse the existing suggestion evidence and decision tables. Keep corrections and ambiguous albums in the current single-album review flow.
 - Operate only on indexed names and SQLite; do not request thumbnails or originals during the batch action.
+- Offer group actions to fill undecided rows and show how many decisions will be submitted. Keep existing row choices and require an explicit save.
 - Preserve unsaved selections in other groups after a save. Restore a selection only if the refreshed queue still offers it with the expected album revision. If the refresh fails, keep the selections available through a read-only retry.
 
 **Dependencies:** Existing deterministic vocabulary, album review permissions and decision persistence only.
