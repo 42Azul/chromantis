@@ -19,7 +19,9 @@ To narrow the current search, follow up with `before 2020`, `only 2019`, or `wit
 
 ## Find photos by person
 
-Under **Buscar álbumes**, change the result type to **Fotos por persona** and search a name or alias. Results include photos [tagged individually in Android](./android.md#tag-individual-photos). Use **Álbumes** to search by album links. Previews appear when the thumbnail cache is enabled. Tap a result to open its original.
+Under **Buscar álbumes**, change the result type to **Fotos por persona** and search a name or alias. Results include individually tagged photos from the web or [Android](./android.md#tag-individual-photos). Use **Álbumes** to search by album links. Previews appear when the thumbnail cache is enabled. Tap a result to open its original.
+
+With a curator account, choose **Personas en esta foto** to add or remove people on that specific photo. The same action is available under **Ver hasta 3 fotos** in the album editor. Pick a name or alias and choose **Guardar personas**. If you remove the person you were searching for, the photo leaves those results.
 
 ## Tag your first album
 

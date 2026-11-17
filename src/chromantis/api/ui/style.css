@@ -88,7 +88,7 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .folder-card { min-height: 92px; padding: 14px; display: grid; align-content: center; text-align: left; overflow-wrap: anywhere; }
 .folder-card span { color: var(--muted); margin-top: .2rem; }
 .collection-card { display: grid; gap: .4rem; min-width: 0; align-content: start; }
-.photo-card > .collection-save { margin: 0 10px 10px; }
+.photo-card > :is(.collection-save, .photo-people-button) { margin: 0 10px 10px; }
 .shared-header { max-width: 48rem; margin-bottom: 26px; }
 .shared-kicker { color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
 .shared-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
@@ -200,3 +200,6 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
   .batch-review-row { grid-template-columns: minmax(0, 1fr) auto; }
   .batch-review-row > button { grid-column: 1 / -1; }
 }
+
+#photo-people { width: min(460px, 94vw); }
+#photo-people-content form { display: grid; align-items: stretch; justify-content: stretch; }

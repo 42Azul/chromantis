@@ -77,6 +77,7 @@ function resetPhotos() {
   for (const url of photoURLs) URL.revokeObjectURL(url);
   photoURLs.clear();
   if ($("lightbox").open) $("lightbox").close();
+  if ($("photo-people").open) $("photo-people").close();
 }
 
 async function createAlbumShare(path) {
@@ -348,6 +349,9 @@ async function archiveRequest(action, arguments_ = {}) {
       const pageSize = 24;
       const page = await api("/confirmed-images" + queryParams({ person, offset, limit: pageSize }));
       if (request !== requestNumber) return;
+      if (!page.items.length && offset) {
+        return archiveRequest("confirmed", { person, offset: Math.max(0, offset - pageSize) });
+      }
       setRecallSearch();
       renderConfirmedPhotos(page, person, offset, pageSize);
     } else if (action === "folders" || action === "timeline") {
@@ -494,7 +498,10 @@ function renderConfirmedPhotos(page, person, offset, pageSize) {
   message("result-count", String(page.items.length));
   message("archive-status", page.items.length ? "" : "No hay fotos etiquetadas con ese nombre o alias.");
   $("results").replaceChildren(...page.items.map(item =>
-    photoCard(item, photoRequests.signal, { spanish: true, originalOnClick: true })));
+    photoCard(item, photoRequests.signal, {
+      spanish: true, originalOnClick: true, editPeople: canCurateAlbums,
+      onPeopleSaved: () => archiveRequest("confirmed", { person, offset }),
+    })));
   const actions = [];
   if (offset) actions.push(button("Página anterior",
     () => archiveRequest("confirmed", { person, offset: Math.max(0, offset - pageSize) })));
@@ -614,7 +621,9 @@ $("lightbox").addEventListener("close", () => {
   $("photo-dates").replaceChildren();
 });
 
-function photoCard(item, signal, { urls = photoURLs, spanish = false, originalOnClick = false } = {}) {
+function photoCard(item, signal, {
+  urls = photoURLs, spanish = false, originalOnClick = false, editPeople = false, onPeopleSaved,
+} = {}) {
   const filename = item.path.split("/").at(-1);
   const isThumbnail = !!indexStatus?.thumbnails;
   const deferOriginal = originalOnClick && !isThumbnail;
@@ -628,6 +637,11 @@ function photoCard(item, signal, { urls = photoURLs, spanish = false, originalOn
       ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])),
     ...(isOwner() ? [collectionButton("image", item.path, filename,
       spanish ? "album-review-status" : "archive-status")] : []));
+  if (editPeople) {
+    const edit = button("Personas en esta foto", () => openPhotoPeople(item, signal, onPeopleSaved), "photo-people-button");
+    edit.setAttribute("aria-label", `Personas en esta foto: ${filename}`);
+    card.append(edit);
+  }
   if (deferOriginal) return card;
   frame.disabled = true;
   const image = element("img", { alt: filename, decoding: "async" });
@@ -663,6 +677,7 @@ function closeAlbumReview() {
   for (const url of albumPhotoURLs) URL.revokeObjectURL(url);
   albumPhotoURLs.clear();
   if ($("lightbox").open) $("lightbox").close();
+  if ($("photo-people").open) $("photo-people").close();
   $("album-review-content").replaceChildren();
 }
 
@@ -820,7 +835,7 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
   }
 }
 
-function reviewPersonPicker(people, selected) {
+function reviewPersonPicker(people, selected, scope = "del álbum") {
   const filter = element("input", { type: "search", autocomplete: "off", placeholder: "Escribe un nombre o alias" });
   const matches = element("div", { class: "review-people" });
   const chosen = element("div", { class: "actions", "aria-label": "Personas seleccionadas" });
@@ -844,7 +859,7 @@ function reviewPersonPicker(people, selected) {
         draw();
         filter.focus();
       });
-      remove.setAttribute("aria-label", `Quitar a ${person.display_name} del álbum`);
+      remove.setAttribute("aria-label", `Quitar a ${person.display_name} ${scope}`);
       return remove;
     }));
   }
@@ -857,6 +872,75 @@ function reviewPersonPicker(people, selected) {
   });
   draw();
   return element("div", { class: "stack" }, chosen, element("label", {}, "Buscar personas", filter), matches);
+}
+
+$("photo-people").addEventListener("close", () => {
+  if (!$("photo-people").open) {
+    $("photo-people-content").replaceChildren();
+    message("photo-people-file");
+  }
+});
+
+async function openPhotoPeople(item, signal, onSaved) {
+  const dialog = $("photo-people");
+  const content = $("photo-people-content");
+  const cancel = $("close-photo-people");
+  const status = element("p", { class: "message", role: "status" }, "Cargando personas…");
+  const panel = element("div", { class: "stack" }, status);
+  const current = () => dialog.open && content.firstChild === panel && !signal.aborted;
+  const retry = text => {
+    status.textContent = text;
+    panel.replaceChildren(status, button("Volver a cargar", () => openPhotoPeople(item, signal, onSaved)));
+  };
+  cancel.disabled = false;
+  dialog.oncancel = event => { if (cancel.disabled) event.preventDefault(); };
+  message("photo-people-file", item.path.split("/").at(-1));
+  content.replaceChildren(panel);
+  if (!dialog.open) dialog.showModal();
+  try {
+    const [{ items: [photo] }, { items: people }] = await Promise.all([
+      api("/photo-tags" + queryParams({ path: item.path }), { signal }),
+      api("/album-review/people", { signal }),
+    ]);
+    if (!current()) return;
+    const initial = new Set(photo.people.map(person => person.person_id));
+    const selected = new Set(initial);
+    const save = element("button", { class: "primary", type: "submit" }, "Guardar personas");
+    const form = element("form", { class: "stack" }, reviewPersonPicker(people, selected, "de la foto"),
+      status, element("div", { class: "actions" }, save));
+    status.textContent = "";
+    panel.replaceChildren(form);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (save.disabled) return;
+      const add_people = [...selected].filter(id => !initial.has(id));
+      const remove_people = [...initial].filter(id => !selected.has(id));
+      if (!add_people.length && !remove_people.length) {
+        dialog.close();
+        return;
+      }
+      save.disabled = true;
+      cancel.disabled = true;
+      status.textContent = "";
+      try {
+        await api("/photo-tags", { method: "PATCH", data: {
+          photos: [{ path: photo.path, identity: photo.identity }], add_people, remove_people,
+        } });
+        if (!current()) return;
+        await onSaved?.();
+        if (current()) dialog.close();
+      } catch (error) {
+        if (!current()) return;
+        if (error.status === 409) retry("La foto ha cambiado. Vuelve a cargarla antes de editar.");
+        else status.textContent = error.message;
+      } finally {
+        if (content.firstChild === panel) cancel.disabled = false;
+        save.disabled = false;
+      }
+    });
+  } catch (error) {
+    if (current()) retry(error.status === 404 ? "Esta foto ya no está en el índice." : error.message);
+  }
 }
 
 function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
@@ -887,7 +971,10 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
       const { items } = await api("/album-review/photos" + queryParams({ path: album.path }), { signal });
       if (signal.aborted) return;
       photoGrid.hidden = false;
-      photoGrid.replaceChildren(...items.map(item => photoCard(item, signal, { urls: albumPhotoURLs, spanish: true })));
+      photoGrid.replaceChildren(...items.map(item => photoCard(item, signal, {
+        urls: albumPhotoURLs, spanish: true, editPeople: canCurateAlbums,
+        onPeopleSaved: () => message("album-review-status", "Personas de la foto guardadas."),
+      })));
       if (!items.length) photoGrid.append(element("p", {}, "No hay fotos disponibles."));
       photos.textContent = "Ocultar fotos";
     } catch (error) {
