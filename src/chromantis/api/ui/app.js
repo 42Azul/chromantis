@@ -344,7 +344,7 @@ async function archiveRequest(action, arguments_ = {}) {
       if (request !== requestNumber) return;
       if (timeline) setRecallSearch();
       else setRecallSearch("folders", arguments_.q);
-      renderFolders(items.slice(0, 30), timeline);
+      renderFolders(items.slice(0, 30), timeline, () => archiveRequest(action, arguments_));
       if (timeline) {
         const offset = arguments_.offset || 0;
         if (offset) $("browsing").append(button(family ? "Página anterior" : "Previous page",
@@ -405,7 +405,7 @@ async function refineArchive(text) {
   }
 }
 
-function renderFolders(items, timeline = false) {
+function renderFolders(items, timeline, refresh) {
   const family = principal?.auth_mode === "family";
   resetPhotos();
   message("archive-status", items.length ? "" : family ? "No se han encontrado álbumes." : "No matching folders.");
@@ -414,8 +414,17 @@ function renderFolders(items, timeline = false) {
   $("browsing").replaceChildren();
   $("results").classList.toggle("timeline-results", timeline);
   $("results").replaceChildren(...items.map(item => {
-    const card = button("", () => family ? showView("album-review", { path: item.path }) :
-      archiveRequest("open_folder", { folder: item.path }), "folder-card");
+    const card = button("", () => family ? showView("album-review", {
+      path: item.path,
+      returnTo: {
+        label: "Volver a resultados",
+        saveLabel: "Guardar y volver a resultados",
+        async open() {
+          await showView("archive");
+          await refresh();
+        },
+      },
+    }) : archiveRequest("open_folder", { folder: item.path }), "folder-card");
     card.append(element("strong", {}, item.title));
     const details = [];
     if (timeline) {
@@ -609,12 +618,12 @@ function setAlbumReviewMode(mode) {
   $("batch-albums").setAttribute("aria-pressed", String(mode === "batch"));
 }
 
-async function loadAlbumReview({ after = 0, reviewed = false, directory, saved = false, path, onReturn } = {}) {
+async function loadAlbumReview({ after = 0, reviewed = false, directory, saved = false, path, returnTo } = {}) {
   closeAlbumReview();
   const request = albumRequest;
-  setAlbumReviewMode(reviewed ? "reviewed" : "pending");
+  setAlbumReviewMode(path ? "album" : reviewed ? "reviewed" : "pending");
   message("album-review-status", "Cargando álbum…");
-  const returnButton = onReturn ? button("Volver a Por lotes", () => onReturn(false)) : null;
+  const returnButton = returnTo ? button(returnTo.label, () => returnTo.open(false)) : null;
   if (returnButton) $("album-review-content").append(returnButton);
   try {
     const [{ item }, { items: people }] = await Promise.all([
@@ -623,9 +632,9 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
     ]);
     if (request !== albumRequest) return;
     message("album-review-status", saved ? "Álbum guardado." : "");
-    if (item) renderAlbumReview(item, people, reviewed, onReturn, returnButton);
+    if (item) renderAlbumReview(item, people, reviewed, returnTo, returnButton);
     else $("album-review-content").append(element("p", {},
-      reviewed ? "No hay más álbumes revisados." : "No hay más álbumes pendientes en esta vuelta."
+      path ? "No se encuentra ese álbum." : reviewed ? "No hay más álbumes revisados." : "No hay más álbumes pendientes en esta vuelta."
     ));
   } catch (error) {
     if (request === albumRequest) message("album-review-status", error.message);
@@ -661,7 +670,11 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
       const pending = renderedRows.filter(row => row.select.value).map(selected);
       return loadAlbumReview({
         path: album.path,
-        onReturn: savedAlbum => loadAlbumReviewBatch(savedAlbum, pending),
+        returnTo: {
+          label: "Volver a Por lotes",
+          saveLabel: "Guardar y volver al lote",
+          open: savedAlbum => loadAlbumReviewBatch(savedAlbum, pending),
+        },
       });
     };
     content.replaceChildren(...groups.map(group => {
@@ -792,7 +805,7 @@ function reviewPersonPicker(people, selected) {
   return element("div", { class: "stack" }, chosen, element("label", {}, "Buscar personas", filter), matches);
 }
 
-function renderAlbumReview(album, directory, reviewed, onReturn, returnButton) {
+function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
   const request = albumRequest;
   const initial = new Set(album.person_ids);
   const selected = new Set(initial);
@@ -872,12 +885,12 @@ function renderAlbumReview(album, directory, reviewed, onReturn, returnButton) {
     element("label", {}, "Una palabra por etiqueta, separadas por comas", manual)));
 
   const form = element("form", { class: "panel review-form" }, people, tags);
-  const next = saved => onReturn ? onReturn(saved) : loadAlbumReview({
+  const next = saved => returnTo ? returnTo.open(saved) : loadAlbumReview({
     after: album.id, reviewed, directory: saved && newPerson.value.trim() ? undefined : directory, saved,
   });
   const save = element("button", { class: "primary", type: "submit" },
-    onReturn ? "Guardar y volver al lote" : "Guardar y siguiente");
-  const skip = onReturn ? null : button("Saltar", () => next(false));
+    returnTo?.saveLabel || "Guardar y siguiente");
+  const skip = returnTo ? null : button("Saltar", () => next(false));
   form.append(element("div", { class: "actions" }, save, ...(skip ? [skip] : [])));
   form.addEventListener("submit", async event => {
     event.preventDefault();

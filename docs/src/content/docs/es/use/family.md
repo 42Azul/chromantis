@@ -32,7 +32,7 @@ Para comprobar el álbum antes de guardar, pulsa **Ver hasta 3 fotos**. Toca una
 
 El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales) o la [API de etiquetado por foto](../reference/api.md#etiquetado-manual-por-foto).
 
-Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Ana ×** entre las personas seleccionadas y después **Guardar y siguiente**. También puedes abrir álbumes ya revisados desde **Ya revisados**.
+Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Ana ×** entre las personas seleccionadas y después **Guardar y volver a resultados**. La búsqueda se actualiza y el álbum desaparece si ha dejado de coincidir. Pulsa **Volver a resultados** para salir del editor sin guardar los cambios de personas y etiquetas. También puedes abrir álbumes ya revisados desde **Ya revisados**.
 
 ## Revisa sugerencias por lotes
 

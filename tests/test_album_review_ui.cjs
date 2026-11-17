@@ -20,6 +20,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
 
   const content = element("div", {});
   const messages = {};
+  const results = element("div", {});
+  const browser = { view: "archive", refreshCount: 0 };
   const album = (id, revision) => ({
     id, revision, path: `2024/fixture-${id}`, title: `Album ${id}`, year: 2024, evidence: "fixture",
   });
@@ -30,7 +32,10 @@ async function verifyBatchReview(source, failedReloads = 0) {
   ];
   const start = source.indexOf("async function loadAlbumReview(");
   const end = source.indexOf("\nfunction albumContextEditor(", start);
-  assert(start >= 0 && end > start, "Batch UI function is missing");
+  const resultsStart = source.indexOf("function renderFolders(");
+  const resultsEnd = source.indexOf("\nfunction renderBatch(", resultsStart);
+  assert(start >= 0 && end > start && resultsStart >= 0 && resultsEnd > resultsStart,
+    "Album review UI functions are missing");
   const posts = [];
   const detailPosts = [];
   const api = async (path, request) => {
@@ -64,20 +69,28 @@ async function verifyBatchReview(source, failedReloads = 0) {
     groups = [group("familia", album(1, 4), album(2, 8), album(3, 1), album(4, 0))];
     return {};
   };
-  const load = new Function("$", "message", "element", "button", "api",
+  const { loadAlbumReviewBatch: load, renderFolders } = new Function("$", "message", "element", "button", "api", "browser",
     `let albumRequest = 0;
      const closeAlbumReview = () => { albumRequest++; $("album-review-content").replaceChildren(); };
      const setAlbumReviewMode = () => {};
      const queryParams = ({ path }) => "?path=" + path;
      const albumContextEditor = () => element("div", {});
+     const principal = { auth_mode: "family" };
+     const isOwner = () => false;
+     const resetPhotos = () => {};
+     const showView = async (view, options) => {
+       browser.view = view;
+       if (view === "album-review") await loadAlbumReview(options);
+     };
      ${source.slice(start, end)}
-     return loadAlbumReviewBatch;`)(
-    () => content, (id, value) => { messages[id] = value; },
+     ${source.slice(resultsStart, resultsEnd)}
+     return { loadAlbumReviewBatch, renderFolders };`)(
+    id => id === "results" ? results : content, (id, value) => { messages[id] = value; },
     element, (title, action) => {
       const control = element("button", {}, title);
       control.addEventListener("click", action);
       return control;
-    }, api,
+    }, api, browser,
   );
 
   const selectValues = form => form.querySelectorAll().filter(control => control.tag === "select");
@@ -169,11 +182,30 @@ async function verifyBatchReview(source, failedReloads = 0) {
     "The individual save should affect only the selected album");
   assert(posts.length === 2 && selectValues(content.children[0])[0].value === "rejected",
     "After the correction, return to the batch with decisions on the other albums still selected");
+
+  results.classList = { toggle() {} };
+  renderFolders([{ ...album(4, 0), reason: "" }], false, () => { browser.refreshCount++; });
+  const openResult = () => results.children[0].listeners.click();
+  await openResult();
+  assert(browser.view === "album-review", "A family search result should open the individual album");
+  await action(content, "Volver a resultados");
+  assert(browser.view === "archive" && browser.refreshCount === 1 && detailPosts.length === 1,
+    "Returning to the same search should refresh its results without saving a draft");
+
+  await openResult();
+  const resultEditor = content.children.at(-1);
+  assert(resultEditor.querySelectorAll().some(control => control.children[0] === "Guardar y volver a resultados"),
+    "The search result editor should offer to save and return");
+  selectValues(resultEditor)[0].value = "rejected";
+  await submit(resultEditor);
+  assert(browser.view === "archive" && browser.refreshCount === 2 && detailPosts.length === 2
+    && detailPosts[1].id === 4 && detailPosts[1].decisions.familia === null,
+    "Saving the album should refresh the same search after the correction");
 }
 
 const source = readFileSync("src/chromantis/api/ui/app.js", "utf8");
 verifyBatchReview(source).then(() => verifyBatchReview(source, 2)).then(() => {
-  console.log("Album review batch regression checks passed.");
+  console.log("Album review UI regression checks passed.");
 }).catch(error => {
   console.error(error);
   process.exitCode = 1;
