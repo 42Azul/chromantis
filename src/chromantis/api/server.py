@@ -128,10 +128,7 @@ def _dispatch(
             query = data.get("q", "")
             if not isinstance(query, str):
                 raise ValueError("q must be a string.")
-            try:
-                result = app_service.refine_query(query, _text(data, "text"))
-            except RefinementError as error:
-                return 400, {"error": str(error), "code": error.code}
+            result = app_service.refine_query(query, _text(data, "text"))
             return 200, {"q": result.query, "choices": [asdict(item) for item in result.choices]}
         if path == PHOTO_TAGS_PATH:
             actor = session if session is not None else chat_id
@@ -224,6 +221,8 @@ def _dispatch(
         return 404, {"error": "Not found"}
     except AuthOperationError as exc:
         return exc.status, {"error": str(exc), "code": exc.code}
+    except RefinementError as exc:
+        return 400, {"error": str(exc), "code": exc.code}
     except ValueError as exc:
         return 400, {"error": str(exc)}
 

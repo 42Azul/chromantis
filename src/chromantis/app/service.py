@@ -14,7 +14,7 @@ from chromantis.app.album_review import (
     save_review_progress,
 )
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
-from chromantis.app.recall import Refinement, refine
+from chromantis.app.recall import Refinement, normalize_album_request, refine
 from chromantis.db.album_shares import AlbumShareStore
 from chromantis.db.collections import CollectionStore
 from chromantis.db.family_access import FamilyAccess, FamilySession
@@ -76,8 +76,9 @@ class ApplicationService:
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
         date_to: str | None = None, chronological: bool = False, offset: int = 0,
     ) -> list[SearchResult]:
+        query = normalize_album_request(raw_query, self.repository.list_alias_map)
         return self.search.search_folders(
-            raw_query, limit=limit, place=place, date_from=date_from, date_to=date_to,
+            query, limit=limit, place=place, date_from=date_from, date_to=date_to,
             chronological=chronological, offset=offset,
         )
 
@@ -477,7 +478,8 @@ class ApplicationService:
         return self.interpreter.interpret(text)
 
     def refine_query(self, base: str, text: str) -> Refinement:
-        return refine(base, text, self.repository.list_alias_map(), self.search_folders)
+        aliases = self.repository.list_alias_map()
+        return refine(normalize_album_request(base, lambda: aliases), text, aliases, self.search_folders)
 
     def authorize_with_code(
         self,

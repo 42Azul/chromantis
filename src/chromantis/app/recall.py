@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 
 from chromantis.db.repository import ResolvedPerson
 from chromantis.parsing.path_parser import normalize_text
-from chromantis.search.query_parser import parse_query, split_recall
+from chromantis.search.query_parser import RecallFilters, parse_query, split_recall
 from chromantis.search.service import SearchResult
 
 
@@ -16,6 +16,13 @@ INTENT = re.compile(
     re.IGNORECASE,
 )
 YEAR = re.compile(r"[1-9][0-9]{3}")
+ALBUM_REQUEST = re.compile(
+    r"^(?:fotos|[aá]lbumes)\s+(?:de(?:\s+(?:el|la|los|las))?|del)\s+"
+    r"(?P<topic>.+?)\s+con\s+(?P<name>.+?)\s+"
+    r"(?P<direction>antes|despu[eé]s)\s+de\s+(?P<year>[1-9][0-9]{3})[?.!]?$",
+    re.IGNORECASE,
+)
+MIN_YEAR, MAX_YEAR = 1000, 9999
 
 
 @dataclass(frozen=True)
@@ -34,6 +41,22 @@ def is_refinement(text: str) -> bool:
     return INTENT.fullmatch(text.strip()) is not None
 
 
+def normalize_album_request(
+    text: str, aliases: Callable[[], dict[str, ResolvedPerson]],
+) -> str:
+    match = ALBUM_REQUEST.fullmatch(text.strip())
+    if match is None:
+        return text
+    person = aliases().get(normalize_text(match["name"]))
+    if person is None:
+        raise RefinementError("person", "Ese nombre o alias no figura en Personas.")
+    year = int(match["year"])
+    years = (MIN_YEAR, year - 1) if match["direction"].lower() == "antes" else (year + 1, MAX_YEAR)
+    if years[0] > years[1]:
+        raise RefinementError("year_conflict", "El año indicado queda fuera del intervalo de búsqueda.")
+    return RecallFilters(years=years, people=(person.id,)).apply(match["topic"])
+
+
 def refine(
     base: str, text: str, alias_map: dict[str, ResolvedPerson],
     folders: Callable[[str, int], list[SearchResult]],
@@ -50,9 +73,9 @@ def refine(
         if YEAR.fullmatch(value) is None:
             raise RefinementError("year", "Enter a four-digit year.")
         year = int(value)
-        first, last = filters.years or (1000, 9999)
+        first, last = filters.years or (MIN_YEAR, MAX_YEAR)
         parsed = parse_query(previous)
-        first, last = max(first, parsed.year_from or 1000), min(last, parsed.year_to or 9999)
+        first, last = max(first, parsed.year_from or MIN_YEAR), min(last, parsed.year_to or MAX_YEAR)
         if prefix in {"antes de", "before"}:
             last = min(last, year - 1)
         elif prefix in {"despues de", "after"}:

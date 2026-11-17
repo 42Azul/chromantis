@@ -116,4 +116,6 @@ Start a scan with an empty request body or `{}` and an owner token. A `202` resp
 
 `GET /api/v1/folders` accepts `sort=timeline`, `place`, `date_from`, and `date_to` alongside the usual `q`, `offset`, and `limit`. Date bounds are inclusive. `POST /api/v1/refine` takes `{"q":"beach","text":"before 2020"}` and returns a refined query or choices when the request is ambiguous.
 
+For a combined Spanish request, set `q` to `fotos de la playa con Ana antes de 2020`. The year is exclusive, and the person must be linked to the album. Use the original `q` for refinements. An unknown name or alias returns 400 with `code: person`.
+
 Owner collections use `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collections/{id}`, `POST /api/v1/collections/{id}/entries`, and `DELETE /api/v1/collections/{id}/entries/{entry-id}`. Creation accepts a `name` and optional `entry`. Each entry contains `kind` (`folder` or `image`) and its exact indexed `path`.

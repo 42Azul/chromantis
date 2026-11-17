@@ -28,14 +28,14 @@ class GuidedRecallTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        root = Path(temp.name) / "photos"
+        self.archive = Path(temp.name) / "photos"
         for album in (OLD, SECOND, BOUNDARY, UNLINKED):
-            image = root / album / "fixture.jpg"
+            image = self.archive / album / "fixture.jpg"
             image.parent.mkdir(parents=True)
             image.write_bytes(b"synthetic photo")
         self.repository = Repository(str(Path(temp.name) / "index.db"))
         self.repository.init_schema()
-        ArchiveScanner(LocalArchiveSource(str(root)), self.repository, PathParser()).scan()
+        ArchiveScanner(LocalArchiveSource(str(self.archive)), self.repository, PathParser()).scan()
         self.app = ApplicationService(self.repository, static_owner_chat_ids=(1,), static_viewer_chat_ids=(2,))
         person = self.app.create_person("Ana")
         self.app.add_person_alias(person.id, "Ani")
@@ -93,6 +93,7 @@ class GuidedRecallTests(unittest.TestCase):
         self.assertEqual(self.repository.list_saved_searches(1, pinned_only=True)[0].query, saved.query)
 
     def test_family_api_refines_and_lists_only_authorized_results(self):
+        self.archive.rename(self.archive.with_name("disconnected"))
         identity, code = self.app.family_access.invite("synthetic")
         cookie = "chromantis_family=" + self.app.family_access.redeem(code)
         server = ApiServer(("127.0.0.1", 0), make_api_handler(self.app, api_chat_tokens=((1, "owner-fixture"),)))
@@ -113,6 +114,26 @@ class GuidedRecallTests(unittest.TestCase):
                 return response.status, json.loads(response.read())
             finally:
                 http.close()
+
+        spoken_query = "fotos de la playa con Ani antes de 2020"
+        status, albums = request("GET", "/folders?" + urlencode({"q": spoken_query}))
+        self.assertEqual(status, 200)
+        self.assertEqual({row["path"] for row in albums["items"]}, {OLD, SECOND})
+        status, narrowed = request("POST", "/refine", {"q": spoken_query, "text": "solo 2019"})
+        self.assertEqual(status, 200)
+        status, albums = request("GET", "/folders?" + urlencode({"q": narrowed["q"]}))
+        self.assertEqual(status, 200)
+        self.assertEqual([row["path"] for row in albums["items"]], [OLD])
+        status, conflict = request("POST", "/refine", {"q": spoken_query, "text": "solo 2020"})
+        self.assertEqual((status, conflict["code"]), (400, "year_conflict"))
+
+        later = "álbumes de playa con Ana después de 2019"
+        status, albums = request("GET", "/folders?" + urlencode({"q": later}))
+        self.assertEqual(status, 200)
+        self.assertEqual([row["path"] for row in albums["items"]], [BOUNDARY])
+        unknown = "fotos de la playa con Alguien antes de 2020"
+        status, error = request("GET", "/folders?" + urlencode({"q": unknown}))
+        self.assertEqual((status, error["code"]), (400, "person"))
 
         body = {"q": "playa", "text": "antes de 2020"}
         self.assertEqual(request("POST", "/refine", body, with_cookie=False)[0], 401)
