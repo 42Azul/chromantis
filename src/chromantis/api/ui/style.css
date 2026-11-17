@@ -175,6 +175,8 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 .folder-card small { color: var(--accent); }
 .timeline { margin-top: 1rem; }
 .refine-hint { margin-top: .55rem; font-size: .9rem; }
+#active-search-filters:empty { display: none; }
+#active-search-filters button { overflow-wrap: anywhere; }
 #refine-choices:not(:empty) { margin-top: .75rem; }
 #timeline-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-top: .75rem; }
 #timeline-form label { display: grid; gap: 4px; min-width: 0; }

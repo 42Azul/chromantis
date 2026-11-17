@@ -651,12 +651,16 @@ def _query_route(
         offset = _optional_int(params.get("offset", [None])[0]) or 0
         if not 0 <= offset < 2**63 - limit:
             raise ValueError("Invalid offset.")
+        filters = app_service.album_search_filters(query) if params.get("filters") == ["1"] else None
         items = app_service.search_folders(
-            query, limit=limit, offset=offset, chronological=order == "timeline",
+            filters["q"] if filters else query, limit=limit, offset=offset, chronological=order == "timeline",
             place=params.get("place", [""])[0], date_from=params.get("date_from", [None])[0],
             date_to=params.get("date_to", [None])[0],
         )
-        return 200, {"items": [asdict(item) for item in items]}
+        payload = {"items": [asdict(item) for item in items]}
+        if filters is not None:
+            payload["filters"] = filters
+        return 200, payload
     if path == "/api/v1/images":
         query = params.get("q", [""])[0]
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)

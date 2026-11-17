@@ -119,6 +119,28 @@ class GuidedRecallTests(unittest.TestCase):
         status, albums = request("GET", "/folders?" + urlencode({"q": spoken_query}))
         self.assertEqual(status, 200)
         self.assertEqual({row["path"] for row in albums["items"]}, {OLD, SECOND})
+        self.assertNotIn("filters", albums)
+
+        def filtered(query):
+            status, response = request("GET", "/folders?" + urlencode({"q": query, "filters": 1}))
+            self.assertEqual(status, 200)
+            return {row["path"] for row in response["items"]}, response["filters"]
+
+        paths, filters = filtered(spoken_query)
+        self.assertEqual(paths, {OLD, SECOND})
+        self.assertEqual(filters["text"], "playa")
+        year, person = filters["active"]
+        self.assertEqual((year["kind"], year["label"]), ("year", "≤ 2019"))
+        self.assertEqual((person["kind"], person["label"]), ("person", "Ana"))
+        self.assertEqual(filtered(year["without"])[0], {OLD, SECOND, BOUNDARY})
+        self.assertEqual(filtered(person["without"])[0], {OLD, SECOND, UNLINKED})
+
+        narrowed = self.app.refine_query(spoken_query, f"álbum {OLD}").query
+        paths, selected = filtered(narrowed)
+        self.assertEqual(paths, {OLD})
+        album = selected["active"][-1]
+        self.assertEqual(album["kind"], "album")
+        self.assertEqual(filtered(album["without"])[0], {OLD, SECOND})
         status, narrowed = request("POST", "/refine", {"q": spoken_query, "text": "solo 2019"})
         self.assertEqual(status, 200)
         status, albums = request("GET", "/folders?" + urlencode({"q": narrowed["q"]}))

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from sqlite3 import Connection
 
 from chromantis.app.album_review import (
@@ -14,7 +14,7 @@ from chromantis.app.album_review import (
     save_review_progress,
 )
 from chromantis.app.interpreter import InterpretedRequest, QueryInterpreter, RuleQueryInterpreter
-from chromantis.app.recall import Refinement, normalize_album_request, refine
+from chromantis.app.recall import MAX_YEAR, MIN_YEAR, Refinement, normalize_album_request, refine
 from chromantis.db.album_shares import AlbumShareStore
 from chromantis.db.collections import CollectionStore
 from chromantis.db.family_access import FamilyAccess, FamilySession
@@ -30,6 +30,7 @@ from chromantis.db.repository import (
     SavedSearch,
     YearSummary,
 )
+from chromantis.search.query_parser import split_recall
 from chromantis.search.service import SearchResult, SearchService
 
 
@@ -81,6 +82,42 @@ class ApplicationService:
             query, limit=limit, place=place, date_from=date_from, date_to=date_to,
             chronological=chronological, offset=offset,
         )
+
+    def album_search_filters(self, raw_query: str) -> dict[str, object]:
+        if len(raw_query) > 2000:
+            raise ValueError("La consulta admite hasta 2000 caracteres.")
+        query = normalize_album_request(raw_query, self.repository.list_alias_map)
+        text, filters = split_recall(query)
+        active = []
+        if filters.years:
+            first, last = filters.years
+            if first == last:
+                label = str(first)
+            elif first == MIN_YEAR:
+                label = f"≤ {last}"
+            elif last == MAX_YEAR:
+                label = f"≥ {first}"
+            else:
+                label = f"{first}–{last}"
+            active.append({"kind": "year", "label": label, "without": replace(filters, years=None).apply(text)})
+        if filters.people:
+            names = {person.id: person.display_name for person in self.repository.list_alias_map().values()}
+            for person_id in filters.people:
+                remaining = tuple(value for value in filters.people if value != person_id)
+                active.append({
+                    "kind": "person", "label": names.get(person_id, str(person_id)),
+                    "without": replace(filters, people=remaining).apply(text),
+                })
+        if filters.album:
+            with self.repository.session() as connection:
+                row = connection.execute(
+                    "SELECT title FROM album_metadata WHERE folder_path = ?", (filters.album,)
+                ).fetchone()
+            active.append({
+                "kind": "album", "label": row["title"] if row else filters.album,
+                "without": replace(filters, album=None).apply(text),
+            })
+        return {"q": query, "text": text, "active": active}
 
     def search_images(
         self,

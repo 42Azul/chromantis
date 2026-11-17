@@ -13,7 +13,7 @@ En una sesión familiar, abre **Buscar álbumes** para navegar por año o buscar
 
 Usa la cronología para buscar por lugar o fecha. La fecha puede venir de la carpeta indexada o de una corrección guardada. Si están disponibles, el visor indica por separado la fecha de captura y la de modificación del archivo.
 
-Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coinciden varios álbumes, elige uno. Escribe una consulta nueva para empezar de cero.
+Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coinciden varios álbumes, elige uno. Escribe una consulta nueva para empezar de cero. Prueba `fotos de la playa con Ana antes de 2020` para añadir persona y año a la vez. Pulsa **×** al lado del año, la persona o el álbum para quitar solo ese filtro.
 
 ![Búsqueda familiar en el móvil. Al buscar Ana aparece el álbum Un día en la playa.](../../../../assets/screenshots/web-search.webp)
 

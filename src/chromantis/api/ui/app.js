@@ -340,10 +340,14 @@ async function archiveRequest(action, arguments_ = {}) {
     if (action === "folders" || action === "timeline") {
       const timeline = action === "timeline";
       const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 } : { q: arguments_.q, limit: 30 };
-      const { items } = await api("/folders" + queryParams(params));
+      if (family && !timeline) params.filters = 1;
+      const { items, filters } = await api("/folders" + queryParams(params));
       if (request !== requestNumber) return;
       if (timeline) setRecallSearch();
-      else setRecallSearch("folders", arguments_.q);
+      else {
+        setRecallSearch("folders", filters?.q ?? arguments_.q, undefined, filters?.active);
+        if (arguments_.updateInput) $("query").value = filters?.text ?? arguments_.q;
+      }
       renderFolders(items.slice(0, 30), timeline, () => archiveRequest(action, arguments_));
       if (timeline) {
         const offset = arguments_.offset || 0;
@@ -367,12 +371,30 @@ async function archiveRequest(action, arguments_ = {}) {
   }
 }
 
-function setRecallSearch(action, q, count) {
+function setRecallSearch(action, q, count, filters = []) {
   archiveSearch = q ? { action, q, count } : undefined;
   const family = principal?.auth_mode === "family";
   $("refine-hint").hidden = !archiveSearch;
   message("refine-hint", family ? "Puedes acotar esta búsqueda con «antes de 2020» o «con Ana»."
     : "Refine this search with “before 2020” or “with Ana”.");
+  const filterNames = { year: "Año", person: "Persona", album: "Álbum" };
+  $("active-search-filters").replaceChildren(...filters.map(filter => {
+    const label = `${filterNames[filter.kind]}: ${filter.label}`;
+    const remove = button(`${label} ×`, async () => {
+      const controls = Array.from($("active-search-filters").children);
+      for (const control of controls) control.disabled = true;
+      try {
+        await archiveRequest("folders", { q: filter.without, updateInput: true });
+        if (!remove.isConnected && document.activeElement === document.body) {
+          ($("active-search-filters").querySelector("button") || $("archive-search")).focus();
+        }
+      } finally {
+        for (const control of controls) control.disabled = false;
+      }
+    });
+    remove.setAttribute("aria-label", `Quitar filtro de ${label}`);
+    return remove;
+  }));
 }
 
 async function refineArchive(text) {

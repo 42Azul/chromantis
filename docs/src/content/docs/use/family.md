@@ -13,7 +13,7 @@ In a family session, open **Buscar álbumes** to browse by year or search by fol
 
 Use the album timeline to browse by place or date. A date can come from the indexed folder or a saved correction. The photo viewer shows camera-reported and file modification dates separately when available.
 
-To narrow the current search, follow up with `before 2020`, `only 2019`, or `with Ana`. Choose an album if several match. A fresh query starts a new search.
+To narrow the current search, follow up with `before 2020`, `only 2019`, or `with Ana`. Choose an album if several match. A fresh query starts a new search. Try `fotos de la playa con Ana antes de 2020` to set a person and year at once. Tap **×** beside an active person, year, or album to remove just that filter.
 
 ![Family search on a phone. The query Ana returns Un día en la playa.](../../../assets/screenshots/web-search.webp)
 
