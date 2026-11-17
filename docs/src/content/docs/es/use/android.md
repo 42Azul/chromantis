@@ -66,6 +66,8 @@ PYTHONPATH=src python tests/android_fixture.py \
 
 Instala el certificado temporal como CA de usuario de confianza en un emulador de pruebas. Usa la dirección `https://10.0.2.2:8443` y el código de un solo uso que imprime el ejemplo. Abre 2024, pasa a la segunda página de la galería, abre una foto y gira el dispositivo. Comprueba que sigue abierta la misma foto y que al volver atrás aparece la segunda página. Relanza la app para comprobar que conserva la sesión.
 
+Para comprobar el mismo servidor de prueba por HTTPS sin abrir la app, ejecuta `PYTHONPATH=src python -m unittest discover -s tests -p test_android_fixture.py -v`.
+
 En **Clasificar**, desliza la primera tarjeta a la izquierda y usa **Volver al principio** al final de la cola para recuperarla. En **Carpetas**, abre el álbum de playa de 2024 y pulsa **Etiquetar este álbum**. Busca `Anita`, selecciona a Ana y guarda. En **Buscar**, escribe `fotos de la playa con Anita antes de 2025` y comprueba que aparecen los dos filtros. Quita el año con **×** y comprueba que sigue aplicado el filtro de persona.
 
 Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre una etiqueta sugerida. La app muestra la siguiente sugerencia del mismo álbum o pasa al siguiente cuando terminas. Abre el álbum desde **Carpetas** y comprueba la decisión en **Etiquetar este álbum**. Prueba los botones y los gestos con el archivo sintético desconectado.
@@ -75,3 +77,10 @@ Para comprobar el etiquetado individual, selecciona las fotos 1 y 3 del álbum d
 Para probar los gestos, arranca un ejemplo nuevo con el archivo sintético conectado. En **Revisar foto a foto**, elige a Ana, marca la foto 1, salta la 2, marca la 3, deshaz la última decisión y salta la 3. Guarda y comprueba que la búsqueda confirmada devuelve solo la foto 1. Repite con el editor por lotes y compara el tiempo y los errores de selección.
 
 Para comprobar la ruta de carpetas, abre la segunda página de la galería de 2024 y entra en una foto. Toca el álbum en la ruta para volver a la segunda página y luego **Carpetas** para llegar a la lista de años en un toque. Cierra y vuelve a abrir la app y usa **Continuar en…** para regresar a la segunda página. Si al reindexar se eliminó esa página, el acceso directo abre la primera disponible.
+
+Para probar la revocación, ejecuta este comando en otra terminal con la ruta **SQLite** y el **Family access ID** que imprime el servidor de prueba. Después, abre otro año en la app y comprueba que pide un código nuevo.
+
+```bash
+SOURCE_TYPE=local SOURCE_ROOT=/tmp SQLITE_PATH=/tmp/chromantis-android-EXAMPLE/index.db \
+  python scripts/family_access.py revoke 1
+```

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ssl
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -17,15 +18,8 @@ from chromantis.parsing.path_parser import PathParser
 from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cert", required=True)
-    parser.add_argument("--key", required=True)
-    parser.add_argument("--bind", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8443)
-    parser.add_argument("--index-only", action="store_true", help="Disconnect the synthetic archive after indexing.")
-    args = parser.parse_args()
-
+@contextmanager
+def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False):
     with TemporaryDirectory(prefix="chromantis-android-") as directory:
         root = Path(directory)
         archive = root / "archive"
@@ -44,10 +38,10 @@ def main() -> None:
         repository.add_person_alias(ana.id, "Anita")
         source = LocalArchiveSource(str(archive))
         ArchiveScanner(source, repository, PathParser()).scan()
-        if args.index_only:
+        if index_only:
             archive.rename(root / "disconnected")
         app = ApplicationService(repository)
-        _, invite = app.family_access.invite("Android fixture")
+        identity, invite = app.family_access.invite("Android fixture")
         handler = make_api_handler(
             app,
             api_token="synthetic-fixture-only",
@@ -55,16 +49,31 @@ def main() -> None:
             thumbnails=build_thumbnail_cache(db, 8, source),
         )
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        context.load_cert_chain(args.cert, args.key)
-        with ApiServer((args.bind, args.port), handler) as server:
+        context.load_cert_chain(cert, key)
+        with ApiServer((bind, port), handler) as server:
             server.socket = context.wrap_socket(server.socket, server_side=True)
-            print(f"Fixture: https://{args.bind}:{server.server_port}", flush=True)
-            print(f"SQLite: {db}", flush=True)
-            print(f"Family code: {invite}", flush=True)
-            try:
-                server.serve_forever()
-            except KeyboardInterrupt:
-                pass
+            yield server, db, identity, invite
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--cert", required=True)
+    parser.add_argument("--key", required=True)
+    parser.add_argument("--bind", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8443)
+    parser.add_argument("--index-only", action="store_true", help="Disconnect the synthetic archive after indexing.")
+    args = parser.parse_args()
+
+    with open_fixture(args.cert, args.key, args.bind, args.port, index_only=args.index_only) as fixture:
+        server, db, identity, invite = fixture
+        print(f"Fixture: https://{args.bind}:{server.server_port}", flush=True)
+        print(f"SQLite: {db}", flush=True)
+        print(f"Family code: {invite}", flush=True)
+        print(f"Family access ID: {identity}", flush=True)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":
