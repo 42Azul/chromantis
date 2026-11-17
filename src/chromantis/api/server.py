@@ -852,8 +852,11 @@ def make_api_handler(
             self.send_header("Cache-Control", "no-store")
             if cookie is not None:
                 self.send_header("Set-Cookie", cookie)
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                self.close_connection = True
 
     return ChromantisApiHandler
 

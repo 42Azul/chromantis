@@ -229,7 +229,13 @@ function setArchiveMode(family) {
   message("date-from-label", family ? "Desde" : "From");
   message("date-to-label", family ? "Hasta" : "To");
   $("query").placeholder = family ? "Ana, playa, 2024" : "Try beach 2021";
-  for (const id of ["year", "scope", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
+  const scope = $("scope");
+  scope.setAttribute("aria-label", family ? "Tipo de resultado" : "Result type");
+  scope.replaceChildren(...(family ? [["folders", "Álbumes"], ["confirmed", "Fotos por persona"]]
+    : [["images", "Photos"], ["folders", "Folders"]]).map(([value, label]) => element("option", { value }, label)));
+  $("confirmed-photo-hint").hidden = true;
+  $("timeline").hidden = false;
+  for (const id of ["year", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
   $("search-form").classList.toggle("family-search", family);
 }
 
@@ -337,7 +343,14 @@ async function archiveRequest(action, arguments_ = {}) {
   $("refine-choices").replaceChildren();
   message("archive-status", family ? "Buscando…" : "Loading…");
   try {
-    if (action === "folders" || action === "timeline") {
+    if (action === "confirmed") {
+      const { person, offset = 0 } = arguments_;
+      const pageSize = 24;
+      const page = await api("/confirmed-images" + queryParams({ person, offset, limit: pageSize }));
+      if (request !== requestNumber) return;
+      setRecallSearch();
+      renderConfirmedPhotos(page, person, offset, pageSize);
+    } else if (action === "folders" || action === "timeline") {
       const timeline = action === "timeline";
       const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 } : { q: arguments_.q, limit: 30 };
       if (family && !timeline) params.filters = 1;
@@ -474,6 +487,22 @@ function renderFolders(items, timeline, refresh) {
   }));
 }
 
+function renderConfirmedPhotos(page, person, offset, pageSize) {
+  resetPhotos();
+  $("results").classList.remove("timeline-results");
+  message("results-title", "Fotos por persona");
+  message("result-count", String(page.items.length));
+  message("archive-status", page.items.length ? "" : "No hay fotos etiquetadas con ese nombre o alias.");
+  $("results").replaceChildren(...page.items.map(item =>
+    photoCard(item, photoRequests.signal, { spanish: true, originalOnClick: true })));
+  const actions = [];
+  if (offset) actions.push(button("Página anterior",
+    () => archiveRequest("confirmed", { person, offset: Math.max(0, offset - pageSize) })));
+  if (page.next_offset !== null) actions.push(button("Página siguiente",
+    () => archiveRequest("confirmed", { person, offset: page.next_offset })));
+  $("browsing").replaceChildren(...actions);
+}
+
 function renderBatch(batch) {
   resetPhotos();
   $("results").classList.remove("timeline-results");
@@ -507,7 +536,7 @@ function renderBatch(batch) {
   $("browsing").replaceChildren(...actions);
 }
 
-async function openPhoto(item, filename, previewURL, isThumbnail, spanish) {
+async function openPhoto(item, filename, previewURL, fetchOriginal, spanish) {
   const box = $("lightbox");
   const image = box.querySelector("img");
   const download = $("download-original");
@@ -522,12 +551,12 @@ async function openPhoto(item, filename, previewURL, isThumbnail, spanish) {
   box.lang = spanish ? "es" : "en";
   message("close-photo", spanish ? "Cerrar" : "Close");
   message("download-original", spanish ? "Descargar original" : "Download original");
-  message("original-status", isThumbnail ? (spanish ? "Cargando original…" : "Loading original…") : "");
+  message("original-status", fetchOriginal ? (spanish ? "Cargando original…" : "Loading original…") : "");
   $("photo-dates").replaceChildren();
   box.showModal();
   loadPhotoDates(item.path, request, spanish);
   try {
-    if (isThumbnail) {
+    if (fetchOriginal) {
       const blob = await api("/image" + queryParams({ path: item.path }), { raw: true, signal: request.signal });
       if (request.signal.aborted || originalRequest !== request || !box.open) return;
       originalURL = URL.createObjectURL(blob);
@@ -585,14 +614,21 @@ $("lightbox").addEventListener("close", () => {
   $("photo-dates").replaceChildren();
 });
 
-function photoCard(item, signal, urls = photoURLs, spanish = false) {
+function photoCard(item, signal, { urls = photoURLs, spanish = false, originalOnClick = false } = {}) {
   const filename = item.path.split("/").at(-1);
   const isThumbnail = !!indexStatus?.thumbnails;
+  const deferOriginal = originalOnClick && !isThumbnail;
   let previewURL;
   const unavailable = spanish ? "Foto no disponible" : "Preview unavailable";
-  const frame = button(spanish ? "Cargando foto…" : "Loading photo…",
-    () => openPhoto(item, filename, previewURL, isThumbnail, spanish), "frame");
+  const frame = button(deferOriginal ? "Abrir foto" : spanish ? "Cargando foto…" : "Loading photo…",
+    () => openPhoto(item, filename, previewURL, isThumbnail || deferOriginal, spanish), "frame");
   frame.setAttribute("aria-label", `${spanish ? "Abrir" : "Open"} ${filename}`);
+  const card = element("article", { class: "photo-card" }, frame,
+    element("div", { class: "card-caption" }, element("h3", {}, filename),
+      ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])),
+    ...(isOwner() ? [collectionButton("image", item.path, filename,
+      spanish ? "album-review-status" : "archive-status")] : []));
+  if (deferOriginal) return card;
   frame.disabled = true;
   const image = element("img", { alt: filename, decoding: "async" });
   image.addEventListener("load", () => {
@@ -618,11 +654,7 @@ function photoCard(item, signal, urls = photoURLs, spanish = false) {
   }, { rootMargin: "120px" });
   signal.addEventListener("abort", () => observer.disconnect(), { once: true });
   observer.observe(frame);
-  return element("article", { class: "photo-card" }, frame,
-    element("div", { class: "card-caption" }, element("h3", {}, filename),
-      ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])),
-    ...(isOwner() ? [collectionButton("image", item.path, filename,
-      spanish ? "album-review-status" : "archive-status")] : []));
+  return card;
 }
 
 function closeAlbumReview() {
@@ -855,7 +887,7 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
       const { items } = await api("/album-review/photos" + queryParams({ path: album.path }), { signal });
       if (signal.aborted) return;
       photoGrid.hidden = false;
-      photoGrid.replaceChildren(...items.map(item => photoCard(item, signal, albumPhotoURLs, true)));
+      photoGrid.replaceChildren(...items.map(item => photoCard(item, signal, { urls: albumPhotoURLs, spanish: true })));
       if (!items.length) photoGrid.append(element("p", {}, "No hay fotos disponibles."));
       photos.textContent = "Ocultar fotos";
     } catch (error) {
@@ -1404,10 +1436,34 @@ $("disconnect").addEventListener("click", async () => {
   }
   signOut();
 });
+$("scope").addEventListener("change", () => {
+  if (principal?.auth_mode !== "family") return;
+  const confirmed = $("scope").value === "confirmed";
+  requestNumber++;
+  resetPhotos();
+  setRecallSearch();
+  for (const id of ["results", "browsing", "refine-choices"]) $(id).replaceChildren();
+  message("archive-status");
+  message("result-count");
+  message("results-title", confirmed ? "Fotos por persona" : "Álbumes");
+  $("timeline").hidden = confirmed;
+  $("confirmed-photo-hint").hidden = !confirmed;
+  $("query").placeholder = confirmed ? "Nombre o alias" : "Ana, playa, 2024";
+});
+
 $("search-form").addEventListener("submit", event => {
   event.preventDefault();
   const year = $("year").value;
   const text = $("query").value.trim();
+  if (principal?.auth_mode === "family" && $("scope").value === "confirmed") {
+    if (!text) {
+      message("archive-status", "Escribe un nombre o alias.");
+      $("query").focus();
+      return;
+    }
+    archiveRequest("confirmed", { person: text });
+    return;
+  }
   if (/^(?:antes de|despu[eé]s de|s[oó]lo|en el [aá]lbum|[aá]lbum|con|before|after|only|in album|with)\s+\S/i.test(text)) {
     refineArchive(text);
     return;

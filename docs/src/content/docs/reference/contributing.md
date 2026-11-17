@@ -11,6 +11,8 @@ Use Python 3.10+ and synthetic archives for development:
 python3 -m venv .venv
 .venv/bin/python -m pip install '.[telegram,thumbnails]'
 .venv/bin/python -m unittest discover -s tests -v
+node tests/test_album_review_ui.cjs
+node tests/test_confirmed_photo_ui.cjs
 ```
 
 The Python service lives in `src/chromantis`. Archive adapters and parsing feed the SQLite index. Search and curation live in the shared application layer, with Telegram and HTTP as clients. Write new Android code in Kotlin and build the UI in Jetpack Compose. See [Android build and smoke tests](../use/android.md).

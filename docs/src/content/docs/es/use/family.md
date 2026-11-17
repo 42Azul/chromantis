@@ -17,6 +17,10 @@ Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coin
 
 ![Búsqueda familiar en el móvil. Al buscar Ana aparece el álbum Un día en la playa.](../../../../assets/screenshots/web-search.webp)
 
+## Busca fotos por persona
+
+En **Buscar álbumes**, cambia el tipo de resultado a **Fotos por persona** y escribe un nombre o alias. Aparecen las fotos [etiquetadas individualmente en Android](./android.md#etiqueta-fotos-individuales). Usa **Álbumes** para buscar por vínculos al álbum. Las miniaturas aparecen si está activa la caché. Pulsa una foto para abrir el original.
+
 ## Etiqueta tu primer álbum
 
 1. Abre **Etiquetar álbumes** y elige uno de los pendientes. Verás su título y la fecha, si se conoce.

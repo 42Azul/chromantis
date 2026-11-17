@@ -17,6 +17,10 @@ To narrow the current search, follow up with `before 2020`, `only 2019`, or `wit
 
 ![Family search on a phone. The query Ana returns Un día en la playa.](../../../assets/screenshots/web-search.webp)
 
+## Find photos by person
+
+Under **Buscar álbumes**, change the result type to **Fotos por persona** and search a name or alias. Results include photos [tagged individually in Android](./android.md#tag-individual-photos). Use **Álbumes** to search by album links. Previews appear when the thumbnail cache is enabled. Tap a result to open its original.
+
 ## Tag your first album
 
 1. Open **Tag albums** (*Etiquetar álbumes*) and select a pending album. Its title and known date appear first.

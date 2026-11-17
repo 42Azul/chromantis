@@ -8,6 +8,7 @@ import tempfile
 from http.client import HTTPConnection
 from threading import Event, Thread
 from time import monotonic, sleep
+from unittest.mock import Mock
 from urllib.parse import urlencode
 import unittest
 from pathlib import Path
@@ -41,6 +42,18 @@ class ApiServerTests(unittest.TestCase):
         status, payload = handle_api_get("/api/v1/health", app_service=self.app_service, api_token="secret-token")
         self.assertEqual(status, 200)
         self.assertEqual(payload, {"status": "ok"})
+
+    def test_cancelled_image_response_does_not_raise(self) -> None:
+        write = make_api_handler(self.app_service)._write
+        for boundary in ("end_headers", "wfile.write"):
+            with self.subTest(boundary=boundary):
+                handler = Mock()
+                handler.configure_mock(**{boundary + ".side_effect": BrokenPipeError})
+                write(handler, 200, b"synthetic", "image/jpeg")
+        handler = Mock()
+        handler.wfile.write.side_effect = OSError("unexpected write error")
+        with self.assertRaisesRegex(OSError, "unexpected write error"):
+            write(handler, 200, b"synthetic", "image/jpeg")
 
     def test_images_endpoint_requires_token(self) -> None:
         status, payload = handle_api_get("/api/v1/images?q=city", app_service=self.app_service, api_token="secret-token")

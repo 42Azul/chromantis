@@ -11,6 +11,8 @@ Para desarrollar usa Python 3.10 o posterior y archivos sintéticos:
 python3 -m venv .venv
 .venv/bin/python -m pip install '.[telegram,thumbnails]'
 .venv/bin/python -m unittest discover -s tests -v
+node tests/test_album_review_ui.cjs
+node tests/test_confirmed_photo_ui.cjs
 ```
 
 El servicio Python está en `src/chromantis`. Los adaptadores y la interpretación de rutas alimentan el índice SQLite. La búsqueda y el etiquetado viven en la capa de aplicación compartida por Telegram y HTTP. Escribe el código nuevo de Android en Kotlin y crea la interfaz con Jetpack Compose. Consulta la [guía de compilación y pruebas de Android](../use/android.md).
