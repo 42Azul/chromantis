@@ -21,6 +21,7 @@ internal data class EntryPage(
     val entries: List<Entry>,
     val nextOffset: Int? = null,
     val hasThumbnails: Boolean = false,
+    val searchFilters: AlbumSearchFilters? = null,
 )
 
 internal data class Person(val id: Long, val name: String, val aliases: List<String>)
@@ -31,6 +32,10 @@ internal data class TaggedPhoto(
     val people: Set<Long>,
     val tags: Set<String>,
 )
+
+internal data class AlbumSearchFilters(val text: String, val active: List<AlbumFilter>)
+
+internal data class AlbumFilter(val kind: String, val label: String, val without: String)
 
 internal data class AlbumRefinement(val query: String?, val choices: List<Entry>)
 
@@ -87,14 +92,18 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             }
         }
 
-    suspend fun albums(query: String, offset: Int): EntryPage {
+    suspend fun albums(query: String, offset: Int, includeFilters: Boolean = false): EntryPage {
+        val filters = if (includeFilters) "&filters=1" else ""
+        val response =
+            json("/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters")
         val entries =
-            json("/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset")
-                .getJSONArray("items")
-                .mapObjects { Entry(it.getString("title"), it.getString("path")) }
+            response.getJSONArray("items").mapObjects {
+                Entry(it.getString("title"), it.getString("path"))
+            }
         return EntryPage(
             entries.take(pageSize),
             (offset + pageSize).takeIf { entries.size > pageSize },
+            searchFilters = albumSearchFilters(response),
         )
     }
 
@@ -315,6 +324,16 @@ private inline fun <T> JSONArray.mapObjects(read: (JSONObject) -> T): List<T> =
 
 private fun JSONObject.optionalString(key: String): String? =
     if (isNull(key)) null else getString(key)
+
+internal fun albumSearchFilters(response: JSONObject): AlbumSearchFilters? =
+    response.optJSONObject("filters")?.let { filters ->
+        AlbumSearchFilters(
+            filters.getString("text"),
+            filters.getJSONArray("active").mapObjects {
+                AlbumFilter(it.getString("kind"), it.getString("label"), it.getString("without"))
+            },
+        )
+    }
 
 internal fun albumRefinement(response: JSONObject) =
     AlbumRefinement(

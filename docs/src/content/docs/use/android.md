@@ -11,7 +11,7 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 - **Folders** (*Carpetas*) lists years and albums and opens a paged gallery. Visible tiles use thumbnails when enabled on the server. Tap a tile to open the original. Tap **Folders**, the year or the album in the trail to return to that level. **Continue in…** (*Continuar en…*) opens the last gallery visited through Folders at its last loaded page. The shortcut is stored on the device and clears when the family session ends.
 - **Organize** (*Clasificar*) shows one album card at a time. Swipe right to accept the visible tag or left to leave the album pending. Both actions have buttons. Open **People, photos and tags** (*Personas, fotos y etiquetas*) to review people by name or alias, see a few photos on demand, or edit tag decisions. Open **Tag this album** (*Etiquetar este álbum*) from a gallery to correct a reviewed album.
-- **Search** (*Buscar*) starts with album keywords or a person's name. Send a follow-up such as `antes de 2020` or `con Ana` to narrow the current results. If several albums match a requested name, choose one. The follow-up uses the existing local search rules. To combine topic, person and date in the first request, try `fotos de la playa con Ana antes de 2020`. This form matches people linked to albums, including their aliases.
+- **Search** (*Buscar*) starts with album keywords or a person's name. Send a follow-up such as `antes de 2020` or `con Ana` to narrow the current results. If several albums match a requested name, choose one. The follow-up uses the existing local search rules. To combine topic, person and date in the first request, try `fotos de la playa con Ana antes de 2020`. This form matches people linked to albums, including their aliases. Tap **×** on an active person, year, or album to remove it and keep the other filters.
 
 Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appearance. The choice is stored on the device.
 
@@ -66,7 +66,7 @@ PYTHONPATH=src python tests/android_fixture.py \
 
 Install the temporary certificate as a trusted user CA on the disposable emulator. Set the address to `https://10.0.2.2:8443` and use the fixture's printed one-time code. Open 2024, browse the second gallery page, open a photo, and rotate the device. Check that the same photo remains open and that going back returns to the second page. Relaunch the app to check the retained session.
 
-From **Organize**, swipe left on the first card, then use **Start again** (*Volver al principio*) at the end of the queue to revisit it. Use **People, photos and tags**, filter people with `Anita`, select Ana, and save. Open **Search**, search `Ana` and refine with `solo 2024` to find the album.
+From **Organize**, swipe left on the first card, then use **Start again** (*Volver al principio*) at the end of the queue to revisit it. In **Folders**, open the 2024 beach album and choose **Tag this album**. Find `Anita`, select Ana, and save. Open **Search**, search `fotos de la playa con Anita antes de 2025` and check that the two filters appear. Remove the year with **×** and check that the person filter still applies.
 
 On a fresh fixture with `--index-only`, swipe right on a suggested tag. The app shows the next suggestion for that album, or advances when all suggestions are decided. Open the tagged album from **Folders** and check the decision in **Tag this album**. Try the buttons and the swipes with the synthetic archive disconnected.
 

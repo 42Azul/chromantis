@@ -1,6 +1,9 @@
 package org.chromantis.android
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,7 +39,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Entry) -> Unit) {
     var draft by rememberSaveable { mutableStateOf("") }
-    var query by rememberSaveable { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf<String?>(null) }
     var summary by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<Int?>(null) }
     var choices by remember { mutableStateOf(emptyList<Entry>()) }
@@ -45,7 +51,7 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
         busy = true
         error = null
         scope.launch {
-            attempt { api.refineAlbums(query, text) }
+            attempt { api.refineAlbums(query.orEmpty(), text) }
                 .onSuccess { result ->
                     choices = result.choices
                     result.query?.let {
@@ -69,7 +75,7 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
         val text = draft.trim()
         if (text.isEmpty() || busy) return
         focus.clearFocus()
-        if (query.isEmpty()) {
+        if (query.isNullOrEmpty()) {
             query = text
             summary = text
             draft = ""
@@ -80,7 +86,7 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
 
     Text(
         stringResource(
-            if (query.isEmpty()) R.string.start_search_help else R.string.refine_search_help
+            if (query.isNullOrEmpty()) R.string.start_search_help else R.string.refine_search_help
         ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(vertical = 8.dp),
@@ -92,7 +98,7 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
             label = {
                 Text(
                     stringResource(
-                        if (query.isEmpty()) R.string.search_hint else R.string.refine_hint
+                        if (query.isNullOrEmpty()) R.string.search_hint else R.string.refine_hint
                     )
                 )
             },
@@ -103,7 +109,7 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
             modifier = Modifier.weight(1f),
         )
         TextButton(onClick = ::submit, enabled = draft.isNotBlank() && !busy) {
-            Text(stringResource(if (query.isEmpty()) R.string.search else R.string.refine))
+            Text(stringResource(if (query.isNullOrEmpty()) R.string.search else R.string.refine))
         }
     }
     if (busy) Text(stringResource(R.string.loading), Modifier.padding(top = 8.dp))
@@ -141,7 +147,8 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
             },
         )
     }
-    if (query.isNotEmpty()) {
+    val activeQuery = query
+    if (activeQuery != null) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 summary,
@@ -152,7 +159,7 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
             )
             TextButton(
                 onClick = {
-                    query = ""
+                    query = null
                     summary = ""
                     draft = ""
                     choices = emptyList()
@@ -163,8 +170,52 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
                 Text(stringResource(R.string.new_search))
             }
         }
-        key(query) {
-            EntryScreen(load = { offset -> api.albums(query, offset) }, onExpired, onOpen)
+        key(activeQuery) {
+            EntryScreen(
+                load = { offset -> api.albums(activeQuery, offset, includeFilters = true) },
+                onExpired = onExpired,
+                onOpen = onOpen,
+                header = { page ->
+                    page.searchFilters?.let { filters ->
+                        AlbumFilterChips(filters.active, enabled = !busy) { filter ->
+                            query = filter.without
+                            summary = filters.text
+                            draft = ""
+                            choices = emptyList()
+                            error = null
+                        }
+                    }
+                },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AlbumFilterChips(
+    filters: List<AlbumFilter>,
+    enabled: Boolean,
+    onRemove: (AlbumFilter) -> Unit,
+) {
+    if (filters.isEmpty()) return
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        filters.forEach { filter ->
+            val label =
+                when (filter.kind) {
+                    "year" -> stringResource(R.string.filter_year, filter.label)
+                    "person" -> stringResource(R.string.filter_person, filter.label)
+                    "album" -> stringResource(R.string.filter_album, filter.label)
+                    else -> filter.label
+                }
+            val description = stringResource(R.string.remove_search_filter, label)
+            AssistChip(
+                onClick = { onRemove(filter) },
+                label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                trailingIcon = { Text("×") },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = description },
+            )
         }
     }
 }

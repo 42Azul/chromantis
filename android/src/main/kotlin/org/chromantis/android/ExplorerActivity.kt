@@ -432,6 +432,7 @@ internal fun EntryScreen(
     allowPhotoEdits: Boolean = false,
     initialOffset: Int = 0,
     onPageLoaded: ((Int) -> Unit)? = null,
+    header: @Composable (EntryPage) -> Unit = {},
 ) {
     var offset by rememberSaveable { mutableIntStateOf(initialOffset) }
     var reload by remember { mutableIntStateOf(0) }
@@ -450,6 +451,7 @@ internal fun EntryScreen(
             val selection = selected
             BackHandler(selection != null && !edit) { selected = null }
             Column {
+                header(page)
                 if (page.entries.isEmpty()) Text(stringResource(R.string.no_results))
                 if (saved) {
                     Text(stringResource(R.string.photo_tags_saved))

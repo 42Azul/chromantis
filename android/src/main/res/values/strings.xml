@@ -32,6 +32,10 @@
     <string name="refine_hint">Afinar búsqueda</string>
     <string name="refine">Afinar</string>
     <string name="new_search">Nueva búsqueda</string>
+    <string name="filter_year">Año: %1$s</string>
+    <string name="filter_person">Persona: %1$s</string>
+    <string name="filter_album">Álbum: %1$s</string>
+    <string name="remove_search_filter">Quitar filtro de %1$s</string>
     <string name="choose_album">¿A qué álbum te refieres?</string>
     <string name="invalid_refinement">No se pudo aplicar ese filtro. Comprueba el nombre, el año o la frase.</string>
     <string name="closing_session">Cerrando sesión…</string>

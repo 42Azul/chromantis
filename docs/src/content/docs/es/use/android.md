@@ -11,7 +11,7 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 - **Carpetas** muestra años, álbumes y una galería paginada. Si el servidor tiene miniaturas activadas, la app carga las visibles. Toca una foto para abrir el original. Toca **Carpetas**, el año o el álbum en la ruta para volver a ese nivel. **Continuar en…** abre la última galería visitada desde Carpetas en la última página que se cargó. El acceso directo se guarda en el dispositivo y se borra cuando termina la sesión familiar.
 - **Clasificar** muestra una tarjeta por álbum. Desliza a la derecha para aceptar la etiqueta que ves o a la izquierda para dejar el álbum pendiente. También puedes pulsar los botones. En **Personas, fotos y etiquetas** puedes buscar personas por nombre o alias, ver algunas fotos bajo demanda o corregir decisiones. Para editar un álbum ya revisado, abre **Etiquetar este álbum** en la galería.
-- **Buscar** empieza con palabras del álbum o el nombre de una persona. Escribe después `antes de 2020` o `con Ana` para acotar esos resultados. Si el nombre del álbum es ambiguo, elige uno de los candidatos. Se usan las reglas de búsqueda locales. Para combinar tema, persona y fecha en la primera consulta, prueba `fotos de la playa con Ana antes de 2020`. Esta forma busca personas vinculadas al álbum y admite sus alias.
+- **Buscar** empieza con palabras del álbum o el nombre de una persona. Escribe después `antes de 2020` o `con Ana` para acotar esos resultados. Si el nombre del álbum es ambiguo, elige uno de los candidatos. Se usan las reglas de búsqueda locales. Para combinar tema, persona y fecha en la primera consulta, prueba `fotos de la playa con Ana antes de 2020`. Esta forma busca personas vinculadas al álbum y admite sus alias. Pulsa **×** en un filtro de persona, año o álbum para quitarlo y conservar el resto.
 
 En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elección se guarda en el dispositivo.
 
@@ -66,7 +66,7 @@ PYTHONPATH=src python tests/android_fixture.py \
 
 Instala el certificado temporal como CA de usuario de confianza en un emulador de pruebas. Usa la dirección `https://10.0.2.2:8443` y el código de un solo uso que imprime el ejemplo. Abre 2024, pasa a la segunda página de la galería, abre una foto y gira el dispositivo. Comprueba que sigue abierta la misma foto y que al volver atrás aparece la segunda página. Relanza la app para comprobar que conserva la sesión.
 
-En **Clasificar**, desliza la primera tarjeta a la izquierda y usa **Volver al principio** al final de la cola para recuperarla. Abre **Personas, fotos y etiquetas**, filtra por `Anita`, selecciona a Ana y guarda. En **Buscar**, busca `Ana` y afina con `solo 2024` para encontrar el álbum.
+En **Clasificar**, desliza la primera tarjeta a la izquierda y usa **Volver al principio** al final de la cola para recuperarla. En **Carpetas**, abre el álbum de playa de 2024 y pulsa **Etiquetar este álbum**. Busca `Anita`, selecciona a Ana y guarda. En **Buscar**, escribe `fotos de la playa con Anita antes de 2025` y comprueba que aparecen los dos filtros. Quita el año con **×** y comprueba que sigue aplicado el filtro de persona.
 
 Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre una etiqueta sugerida. La app muestra la siguiente sugerencia del mismo álbum o pasa al siguiente cuando terminas. Abre el álbum desde **Carpetas** y comprueba la decisión en **Etiquetar este álbum**. Prueba los botones y los gestos con el archivo sintético desconectado.
 
