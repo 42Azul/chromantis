@@ -13,7 +13,9 @@ ssh -N -L 8787:127.0.0.1:8787 user@nas
 
 Abre [http://127.0.0.1:8787/](http://127.0.0.1:8787/) y deja esa terminal abierta. Añade `-p PUERTO` si SSH usa un puerto personalizado. Si el puerto local 8787 está ocupado, cambia el primero del comando y el de la dirección del navegador.
 
-Para entrar habitualmente desde la Wi-Fi de casa, usa un proxy inverso HTTPS local de confianza que conserve la cabecera `Host` del navegador. Android necesita una dirección HTTPS con un certificado de confianza. El DNS da un nombre al NAS. Para HTTPS también hacen falta un servicio que atienda las conexiones y un certificado válido para ese nombre. Mantén Chromantis en la red privada.
+Para entrar habitualmente desde la Wi-Fi de casa, usa un proxy inverso HTTPS local con un certificado de confianza para tus dispositivos. Chromantis admite HTTP sin cifrar solo desde la interfaz de bucle local y con un nombre local, como en el túnel SSH de arriba. El acceso por red requiere HTTPS y [autenticación de la API](#configura-un-token-de-propietario).
+
+Si un proxy inverso en la misma máquina termina HTTPS, conserva `API_BIND_HOST=127.0.0.1` y añade `API_TRUST_LOCAL_PROXY=true` en `.env`. Reinicia la API. Configura el proxy para servir HTTPS en la red privada, conservar la cabecera `Host` original con su puerto y sobrescribir `X-Forwarded-Proto` con el protocolo real. Redirige HTTP en el propio proxy. La API solo confía en esa cabecera desde la interfaz de bucle local y con esta opción activada. Si ya usabas un proxy HTTPS, aplica estos ajustes al actualizar.
 
 ## Configura un token de propietario
 

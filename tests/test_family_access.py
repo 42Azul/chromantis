@@ -39,12 +39,18 @@ class FamilyAccessTests(unittest.TestCase):
         self.ana = self.repository.create_person("Ana")
         self.start_server()
 
-    def start_server(self, *, protected=True):
+    def start_server(self, *, protected=True, trust_local_proxy=False, peer=None):
         self.image_fetcher = Mock(return_value=b"test")
-        server = ApiServer(("127.0.0.1", 0), make_api_handler(
+
+        class PeerApiServer(ApiServer):
+            def finish_request(self, request, address):
+                super().finish_request(request, (peer, address[1]) if peer else address)
+
+        server = PeerApiServer(("127.0.0.1", 0), make_api_handler(
             self.app,
             api_chat_tokens=((10, "owner-example"),) if protected else (),
             image_fetcher=self.image_fetcher,
+            trust_local_proxy=trust_local_proxy,
         ))
         self.address = server.server_address
         thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
@@ -54,9 +60,9 @@ class FamilyAccessTests(unittest.TestCase):
         self.addCleanup(server.shutdown)
 
     def request(self, method, path, *, body=None, cookie=None, origin=True, token=None,
-                content_type="application/json"):
+                content_type="application/json", extra_headers=None):
         connection = HTTPConnection(*self.address, timeout=3)
-        headers = {}
+        headers = dict(extra_headers or {})
         if body is not None:
             headers["Content-Type"] = content_type
         if origin:
@@ -128,6 +134,57 @@ class FamilyAccessTests(unittest.TestCase):
         self.cli("revoke", str(identity))
         for method, path in (("GET", "/auth/me"), ("GET", preview), ("POST", "/album-review")):
             self.assertEqual(self.request(method, path, cookie=cookie, body=data if method == "POST" else None)[0], 401)
+
+    def test_http_is_limited_to_a_loopback_peer_and_host(self):
+        host = "photos.home.arpa"
+        for forwarded in ({}, {"X-Forwarded-Proto": "https"}):
+            headers = {"Host": host, **forwarded}
+            status, _, payload = self.request("GET", "/image?" + urlencode({"path": PHOTO}),
+                                              token="owner-example", extra_headers=headers)
+            self.assertEqual((status, json.loads(payload)["code"]), (403, "private_transport_required"))
+        self.image_fetcher.assert_not_called()
+
+        _, code = self.app.family_access.invite("Local fixture")
+        secure_origin = f"https://127.0.0.1:{self.address[1]}"
+        self.assertEqual(self.request("POST", "/family/session", body={"code": code}, origin=secure_origin)[0], 403)
+        self.enter(code)
+
+        self.start_server(trust_local_proxy=True, peer="192.0.2.10")
+        status, _, payload = self.request("GET", "/years", token="owner-example",
+                                          extra_headers={"Host": "localhost", "X-Forwarded-Proto": "https"})
+        self.assertEqual((status, json.loads(payload)["code"]), (403, "private_transport_required"))
+
+    def test_trusted_proxy_requires_https_and_an_exact_https_origin(self):
+        self.start_server(trust_local_proxy=True)
+        _, code = self.app.family_access.invite("Proxy fixture")
+        host = "photos.home.arpa:9443"
+        path = "/family/session"
+        headers = {"Host": host, "X-Forwarded-Proto": "https"}
+        for forwarded in ("http", "https, http"):
+            self.assertEqual(self.request("POST", path, body={"code": code}, origin=f"https://{host}",
+                                          extra_headers={**headers, "X-Forwarded-Proto": forwarded})[0], 403)
+        self.assertEqual(self.request("POST", path, body={"code": code}, origin=f"http://{host}",
+                                      extra_headers=headers)[0], 403)
+        status, session, _ = self.request("POST", path, body={"code": code}, origin=f"https://{host}",
+                                          extra_headers=headers)
+        self.assertEqual(status, 200)
+        self.assertIn("Secure", session.split("; "))
+        cookie = session.split(";", 1)[0]
+        self.assertEqual(self.request("GET", "/auth/me", cookie=cookie, extra_headers=headers)[0], 200)
+        self.assertEqual(self.request("GET", "/auth/me", cookie=cookie, extra_headers={"Host": host})[0], 403)
+        self.assertEqual(self.request("DELETE", path, cookie=cookie, origin=f"http://{host}",
+                                      extra_headers=headers)[0], 403)
+        status, cleared, _ = self.request("DELETE", path, cookie=cookie, origin=f"https://{host}",
+                                          extra_headers=headers)
+        self.assertEqual(status, 200)
+        self.assertIn("Secure", cleared.split("; "))
+
+        self.start_server(protected=False, trust_local_proxy=True)
+        self.assertEqual(self.request("GET", "/years", extra_headers=headers)[0], 403)
+        for forwarded in ("http", "https"):
+            self.assertEqual(self.request("GET", "/years", extra_headers={
+                "Host": "localhost", "X-Forwarded-Proto": forwarded,
+            })[0], 403)
 
     def test_csrf_checks_before_redeeming_and_saving(self):
         _, code = self.app.family_access.invite("Móvil")

@@ -88,6 +88,7 @@ class AppConfig:
     query_interpreter_timeout: float = 10.0
     enrichment_search: bool = False
     thumbnail_cache_mib: int = 0
+    api_trust_local_proxy: bool = False
 
     @classmethod
     def from_env(cls, dotenv_path: str | None = None) -> "AppConfig":
@@ -146,6 +147,7 @@ class AppConfig:
             telegram_access_code=os.getenv("TELEGRAM_ACCESS_CODE") or None,
             api_bind_host=os.getenv("API_BIND_HOST", "127.0.0.1"),
             api_port=int(os.getenv("API_PORT", "8787")),
+            api_trust_local_proxy=os.getenv("API_TRUST_LOCAL_PROXY", "false").strip().lower() == "true",
             api_token=api_token,
             api_chat_tokens=api_chat_tokens,
             api_curator_chat_ids=_parse_chat_allowlist(os.getenv("API_CURATOR_CHAT_IDS")),

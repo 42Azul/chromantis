@@ -12,6 +12,7 @@ Empieza con el [archivo de configuración de ejemplo](https://github.com/42Azul/
 | `FTP_HOST`, `FTP_PORT`, `FTP_USER`, `FTP_PASSWORD` | Datos de conexión de solo lectura para una fuente FTP. |
 | `SQLITE_PATH` | Ruta del índice, con permiso de escritura y fuera del archivo. |
 | `API_BIND_HOST`, `API_PORT` | Por defecto, `127.0.0.1:8787`. |
+| `API_TRUST_LOCAL_PROXY` | Por defecto, `false`. Actívalo solo si un proxy HTTPS en la misma máquina sobrescribe `X-Forwarded-Proto`. |
 | `API_TOKEN`, `API_CHAT_TOKENS` | Token compartido de solo lectura y tokens por chat como objeto JSON. Son opcionales. |
 | `API_CURATOR_CHAT_IDS` | IDs de lectores autorizados a etiquetar álbumes, separados por comas. |
 | `TELEGRAM_TOKEN`, `TELEGRAM_ACCESS_CODE` | Token del bot y código fijo opcional para lectores. |

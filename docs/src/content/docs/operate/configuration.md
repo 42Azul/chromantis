@@ -12,6 +12,7 @@ Start with [the example environment file](https://github.com/42Azul/chromantis/b
 | `FTP_HOST`, `FTP_PORT`, `FTP_USER`, `FTP_PASSWORD` | Read-only FTP connection settings when using an FTP source. |
 | `SQLITE_PATH` | Writable index path outside the archive. |
 | `API_BIND_HOST`, `API_PORT` | Defaults to `127.0.0.1:8787`. |
+| `API_TRUST_LOCAL_PROXY` | Defaults to `false`. Enable only when an HTTPS proxy on the same machine overwrites `X-Forwarded-Proto`. |
 | `API_TOKEN`, `API_CHAT_TOKENS` | Optional shared read-only token and per-chat tokens as a JSON object. |
 | `API_CURATOR_CHAT_IDS` | Comma-separated authorized viewer IDs that can curate albums. |
 | `TELEGRAM_TOKEN`, `TELEGRAM_ACCESS_CODE` | Bot token and optional fixed viewer access code. |

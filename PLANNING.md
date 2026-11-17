@@ -358,6 +358,7 @@ Current architecture map:
 - The owner issues one-time codes and revokes sessions from the NAS CLI. Only hashes are stored in SQLite.
 - Family members redeem a code in the local web app and can return to album review and search with the same browser. The session is scoped to album review, folder search and indexed previews.
 - Existing Telegram and browser-token flows use the same indexing, search and curation logic.
+- Network requests require HTTPS and configured API credentials. Plain HTTP remains available through loopback for the SSH tunnel and local development. Family writes require the exact scheme and host, and HTTPS sessions use secure cookies.
 
 **Acceptance:** A family member opens the browser, signs in once and can resume album review after a reload. The owner can revoke the session and the curator cannot access administration.
 
@@ -533,6 +534,17 @@ The trial confirmed that the authorization boundary can stay in the application 
 **Explorer shortcuts:** The folder trail links to the year list, the current year and, from an original photo, its gallery. **Continuar en…** on the home tab reopens the last gallery browsed through folders at its last loaded page. The shortcut is stored locally and cleared when the family session ends. Verify on a phone that the shortcut survives a cold start and that the year and album steps return to their existing positions.
 
 ## Planned Later
+
+### Optional family passkey trial
+
+**Case:** A family member can return on a trusted device without asking the owner to send another invitation code.
+
+**Scope:** Use the existing invitation to enroll a passkey. Verify it against a single configured private HTTPS origin using a maintained WebAuthn implementation and keep the existing revocable permissions in SQLite. Use a new owner-issued invitation for recovery. Defer Google sign-in to deployments that want an external identity provider and meet its web redirect requirements.
+
+**Dependencies:** A stable local DNS name, trusted HTTPS and a compatible browser or platform authenticator. Review the [WebAuthn origin and relying-party requirements](https://www.w3.org/TR/webauthn/) and [Google's web redirect rules](https://developers.google.com/identity/protocols/oauth2/web-server#uri-validation) before choosing an implementation.
+
+**Validation:** On two household devices with a synthetic archive, enroll and sign in while offline from the internet. Reject a response from the wrong origin, a reused challenge and a revoked credential. Measure the steps to recover after losing a device.
+
 
 ### MVP 19B — Manual Photo Tagging
 

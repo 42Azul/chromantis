@@ -13,7 +13,9 @@ ssh -N -L 8787:127.0.0.1:8787 user@nas
 
 Open [http://127.0.0.1:8787/](http://127.0.0.1:8787/) and keep that terminal running. Add `-p PORT` if SSH uses a custom port. If local port 8787 is busy, change the first port in the command and in the browser address.
 
-For everyday use on home Wi-Fi, use a trusted local HTTPS reverse proxy and preserve the browser's `Host` header. Android requires a trusted HTTPS origin. A DNS name gives the NAS an address. HTTPS still needs a listener and a certificate valid for that name. Keep the Chromantis service on the private network.
+For everyday use on home Wi-Fi, use a local HTTPS reverse proxy with a certificate your devices trust. Chromantis accepts plain HTTP only from loopback with a loopback hostname, such as the SSH tunnel above. Network access needs both HTTPS and [API authentication](#configure-an-owner-token).
+
+If a reverse proxy on the same machine terminates HTTPS, keep `API_BIND_HOST=127.0.0.1` and set `API_TRUST_LOCAL_PROXY=true` in `.env`. Restart the API. Configure the proxy to serve HTTPS on the private network, preserve the original `Host` including its port, and overwrite `X-Forwarded-Proto` with the actual scheme. Redirect HTTP at the proxy. The API trusts that header only from loopback and only after this explicit opt-in. Apply these settings when upgrading an existing HTTPS proxy setup.
 
 ## Configure an owner token
 

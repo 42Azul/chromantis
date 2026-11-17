@@ -57,6 +57,7 @@ class ConfigTests(unittest.TestCase):
                 "API_BIND_HOST",
                 "API_PORT",
                 "API_TOKEN",
+                "API_TRUST_LOCAL_PROXY",
             ):
                 os.environ.pop(key, None)
 
@@ -72,6 +73,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.api_bind_host, "127.0.0.1")
         self.assertEqual(config.api_port, 8787)
         self.assertIsNone(config.api_token)
+        self.assertFalse(config.api_trust_local_proxy)
 
     def test_from_env_reads_local_source_root(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -103,11 +105,12 @@ class ConfigTests(unittest.TestCase):
                         "API_BIND_HOST=0.0.0.0",
                         "API_PORT=9001",
                         "API_TOKEN=test-token",
+                        "API_TRUST_LOCAL_PROXY=true",
                     ]
                 ),
                 encoding="utf-8",
             )
-            for key in ("SOURCE_TYPE", "SOURCE_ROOT", "API_BIND_HOST", "API_PORT", "API_TOKEN"):
+            for key in ("SOURCE_TYPE", "SOURCE_ROOT", "API_BIND_HOST", "API_PORT", "API_TOKEN", "API_TRUST_LOCAL_PROXY"):
                 os.environ.pop(key, None)
 
             config = AppConfig.from_env(str(dotenv_path))
@@ -115,3 +118,4 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.api_bind_host, "0.0.0.0")
         self.assertEqual(config.api_port, 9001)
         self.assertEqual(config.api_token, "test-token")
+        self.assertTrue(config.api_trust_local_proxy)

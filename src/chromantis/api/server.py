@@ -9,8 +9,10 @@ from ftplib import Error as FtpError
 from hmac import compare_digest
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from ipaddress import ip_address
 from mimetypes import guess_type
 from pathlib import Path
+from ssl import SSLSocket
 from urllib.parse import parse_qs, unquote, urlparse
 
 from chromantis.api.thumbnails import ThumbnailCache
@@ -20,6 +22,8 @@ from chromantis.app.browse import browse
 from chromantis.app.recall import RefinementError
 from chromantis.db.family_access import FamilySession, SESSION_SECONDS
 from chromantis.source.scanner import ScanBusy
+
+LOOPBACK_HOST = re.compile(r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", re.IGNORECASE)
 
 FAMILY_COOKIE = "chromantis_family"
 FAMILY_SESSION_PATH = "/api/v1/family/session"
@@ -715,9 +719,35 @@ def make_api_handler(
     deployment_info: dict[str, object] | None = None,
     thumbnails: ThumbnailCache | None = None,
     start_index_scan: Callable[[], int] | None = None,
+    *,
+    trust_local_proxy: bool = False,
 ):
     class ChromantisApiHandler(BaseHTTPRequestHandler):
         server_version = "ChromantisAPI/0.1"
+
+        def parse_request(self) -> bool:
+            if not super().parse_request():
+                return False
+            hosts = self.headers.get_all("Host", [])
+            loopback_peer = ip_address(self.client_address[0]).is_loopback
+            forwarded = self.headers.get_all("X-Forwarded-Proto")
+            secure = isinstance(self.connection, SSLSocket) or (
+                trust_local_proxy and loopback_peer and forwarded == ["https"]
+            )
+            protected_https = secure and bool(api_token or api_chat_tokens)
+            local_http = (
+                not secure and forwarded is None and loopback_peer
+                and len(hosts) == 1 and LOOPBACK_HOST.fullmatch(hosts[0]) is not None
+            )
+            if len(hosts) != 1 or not (protected_https or local_http):
+                self.close_connection = True
+                self._write_json(403, {
+                    "error": "Usa HTTPS con autenticación de API o un túnel SSH a localhost.",
+                    "code": "private_transport_required",
+                })
+                return False
+            self.external_scheme = "https" if secure else "http"
+            return True
 
         def do_GET(self) -> None:  # noqa: N802
             request_path = self.path.partition("?")[0]
@@ -794,8 +824,7 @@ def make_api_handler(
 
         def _same_origin_family_request(self) -> bool:
             host = self.headers.get("Host")
-            origin = self.headers.get("Origin")
-            return bool(host) and origin in {f"http://{host}", f"https://{host}"} and (
+            return bool(host) and self.headers.get_all("Origin") == [f"{self.external_scheme}://{host}"] and (
                 self.command == "DELETE" or self.headers.get_content_type() == "application/json"
             )
 
@@ -825,7 +854,7 @@ def make_api_handler(
             cookie[FAMILY_COOKIE]["path"] = "/api/v1"
             cookie[FAMILY_COOKIE]["httponly"] = True
             cookie[FAMILY_COOKIE]["samesite"] = "Strict"
-            if self.headers["Origin"].startswith("https://"):
+            if self.external_scheme == "https":
                 cookie[FAMILY_COOKIE]["secure"] = True
             self._write_json(200, {"ok": True}, cookie[FAMILY_COOKIE].OutputString())
 

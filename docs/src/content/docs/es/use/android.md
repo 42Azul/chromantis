@@ -36,7 +36,7 @@ gradle -p android spotlessCheck testDebugUnitTest assembleDebug lintDebug
 adb install -r android/build/outputs/apk/debug/Chromantis-debug.apk
 ```
 
-El APK de depuración se firma con la clave de depuración local. Ábrelo con una dirección HTTPS privada a la que llegue el móvil y un código familiar. Si usas un proxy inverso para HTTPS, conserva la cabecera `Host` original en las solicitudes de la sesión familiar. HTTP sin cifrar está desactivado. El APK de depuración admite certificados instalados por el usuario para las pruebas locales. El APK de distribución usa los certificados de confianza del sistema. Para formatear el código Kotlin con la versión fijada de ktfmt, ejecuta `gradle -p android spotlessApply`.
+El APK de depuración se firma con la clave de depuración local. Ábrelo con una dirección HTTPS privada a la que llegue el móvil y un código familiar. Si usas un proxy inverso HTTPS, sigue la [configuración de acceso privado](../start/private-access.md). HTTP sin cifrar está desactivado. El APK de depuración admite certificados instalados por el usuario para las pruebas locales. El APK de distribución usa los certificados de confianza del sistema. Para formatear el código Kotlin con la versión fijada de ktfmt, ejecuta `gradle -p android spotlessApply`.
 
 ## Firma un APK para distribuirlo en privado
 

@@ -41,6 +41,7 @@ def main() -> None:
         image_fetcher=source.read_bytes,
         thumbnails=build_thumbnail_cache(config.sqlite_path, config.thumbnail_cache_mib, source),
         start_index_scan=scanner.start_incremental,
+        trust_local_proxy=config.api_trust_local_proxy,
         deployment_info={
             "source_type": config.source_type,
             "enrichment_search": config.enrichment_search,

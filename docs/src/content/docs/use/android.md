@@ -36,7 +36,7 @@ gradle -p android spotlessCheck testDebugUnitTest assembleDebug lintDebug
 adb install -r android/build/outputs/apk/debug/Chromantis-debug.apk
 ```
 
-The debug APK is signed by the local debug key. Open it with a private HTTPS origin reachable by the device and a family code. If HTTPS is terminated by a local reverse proxy, preserve the original `Host` header for family session writes. Plain HTTP is disabled. The debug build also trusts certificates installed by the Android user for local fixtures. Release builds use the platform trust store. Run `gradle -p android spotlessApply` to format Kotlin with the pinned ktfmt version.
+The debug APK is signed by the local debug key. Open it with a private HTTPS origin reachable by the device and a family code. For an HTTPS reverse proxy, follow the [private access settings](../start/private-access.md). Plain HTTP is disabled. The debug build also trusts certificates installed by the Android user for local fixtures. Release builds use the platform trust store. Run `gradle -p android spotlessApply` to format Kotlin with the pinned ktfmt version.
 
 ## Sign a private release
 
