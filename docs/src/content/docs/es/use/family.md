@@ -25,6 +25,8 @@ Si tienes permiso para etiquetar, pulsa **Etiquetar foto** para añadir o quitar
 
 Para buscar una etiqueta manual de foto, elige **Fotos por etiqueta** y escribe una etiqueta como `romería`. La búsqueda compara la palabra entera e ignora las tildes y las mayúsculas. Si quitas la etiqueta de un resultado, esa foto sale de la lista.
 
+Pulsa **Ver álbum** en una foto de los resultados para abrir el álbum al que pertenece. Con **Volver a resultados** o **Guardar y volver a resultados** recuperas la misma búsqueda y la misma página.
+
 ## Etiqueta tu primer álbum
 
 1. Abre **Etiquetar álbumes** y elige uno de los pendientes. Verás su título y la fecha, si se conoce.

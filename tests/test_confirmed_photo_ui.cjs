@@ -15,12 +15,15 @@ const opened = [];
 const edits = [];
 const permissions = { curate: false };
 const searches = [];
-const render = new Function("results", "browsing", "opened", "searches", "edits", "permissions", `
+const views = [];
+const query = { value: "" };
+const resultsTitle = { focus() { this.focused = true; } };
+const render = new Function("results", "browsing", "opened", "searches", "edits", "permissions", "views", "query", "resultsTitle", `
   ${between("const familyPhotoSearchModes", "const sharedSecret")}
   const indexStatus = { thumbnails: false };
   const photoURLs = new Set();
   const photoRequests = new AbortController();
-  const $ = id => ({ results, browsing })[id];
+  const $ = id => ({ results, browsing, query, archive: { hidden: false }, "results-title": resultsTitle })[id];
   const resetPhotos = () => {};
   const message = () => {};
   const isOwner = () => false;
@@ -31,12 +34,14 @@ const render = new Function("results", "browsing", "opened", "searches", "edits"
   const openPhoto = (item, filename, preview, fetchOriginal) => opened.push({ item, preview, fetchOriginal });
   const openPhotoTags = (items, signal, saved) => edits.push({ items, saved });
   const archiveRequest = (action, options) => searches.push({ action, options });
+  const showView = (view, options) => views.push({ view, options });
+  ${between("function openAlbumFromResults(", "function renderFolders(")}
   ${between("function renderFamilyPhotoResults(", "function renderBatch(")}
   ${between("function photoCard(", "function closeAlbumReview(")}
   return (...args) => { canCurateAlbums = permissions.curate; return renderFamilyPhotoResults(...args); };
-`)(results, browsing, opened, searches, edits, permissions);
+`)(results, browsing, opened, searches, edits, permissions, views, query, resultsTitle);
 
-const item = { path: "2024/fixture/Photo-25.jpg" };
+const item = { path: "2024/fixture/Photo-25.jpg", folder_path: "2024/fixture" };
 render({ items: [item], next_offset: null }, "confirmed", "Anita", 24, 24);
 assert.equal(results.cards.length, 1);
 assert.equal(results.cards[0].children.length, 2);
@@ -55,19 +60,33 @@ browsing.buttons[0].click();
 assert.deepEqual(searches[1], { action: "confirmed", options: { term: "Anita", offset: 24 } });
 permissions.curate = true;
 render({ items: [item], next_offset: null }, "confirmed", "Anita", 24, 24);
-const edit = results.cards[0].children.at(-1);
+const [edit, album] = results.cards[0].children.slice(-2);
 assert.equal(edit.label, "Etiquetar foto");
 edit.click();
 assert.deepEqual(edits[0].items, [item]);
 assert.equal(opened.length, 1);
 edits[0].saved();
 assert.deepEqual(searches.at(-1), { action: "confirmed", options: { term: "Anita", offset: 24 } });
+assert.equal(album.label, "Ver álbum");
+album.click();
+assert.equal(views[0].view, "album-review");
+assert.equal(views[0].options.path, item.folder_path);
 render({ items: [item], next_offset: 24 }, "tagged", "romería", 0, 24);
 browsing.buttons[0].click();
 assert.deepEqual(searches.at(-1), { action: "tagged", options: { term: "romería", offset: 24 } });
-results.cards[0].children.at(-1).click();
+results.cards[0].children.at(-2).click();
 edits.at(-1).saved();
 assert.deepEqual(searches.at(-1), { action: "tagged", options: { term: "romería", offset: 0 } });
+
+async function verifyReturnToPhotoSearch() {
+  const { returnTo } = views[0].options;
+  assert.equal(returnTo.label, "Volver a resultados");
+  await returnTo.open();
+  assert.equal(views.at(-1).view, "archive");
+  assert.equal(query.value, "Anita");
+  assert.deepEqual(searches.at(-1), { action: "confirmed", options: { term: "Anita", offset: 24 } });
+  assert.equal(resultsTitle.focused, true);
+}
 
 async function verifyManualPhotoTags() {
   function element(tag, props, ...children) {
@@ -127,7 +146,7 @@ async function verifyManualPhotoTags() {
   assert.equal(dialog.open, false);
 }
 
-verifyManualPhotoTags().then(() => {
+verifyReturnToPhotoSearch().then(verifyManualPhotoTags).then(() => {
   console.log("Confirmed photo UI regression checks passed.");
 }).catch(error => {
   console.error(error);

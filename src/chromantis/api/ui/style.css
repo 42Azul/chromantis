@@ -88,7 +88,7 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .folder-card { min-height: 92px; padding: 14px; display: grid; align-content: center; text-align: left; overflow-wrap: anywhere; }
 .folder-card span { color: var(--muted); margin-top: .2rem; }
 .collection-card { display: grid; gap: .4rem; min-width: 0; align-content: start; }
-.photo-card > :is(.collection-save, .photo-tags-button) { margin: 0 10px 10px; }
+.photo-card > :is(.collection-save, .photo-tags-button, .photo-album-button) { margin: 0 10px 10px; }
 .photo-selection { display: none; }
 .selecting-photos .photo-selection { display: flex; gap: 6px; align-items: center; margin: 0 10px 10px; }
 .selecting-photos .photo-tags-button { display: none; }

@@ -25,6 +25,8 @@ With a curator account, choose **Etiquetar foto** to add or remove people on tha
 
 For a manual photo tag, choose **Fotos por etiqueta** and enter one exact tag such as `romería`. The search matches the whole tag and ignores accents and case. If you remove the tag from a result, that photo leaves the list.
 
+Choose **Ver álbum** on a photo result to open its album. **Volver a resultados** and **Guardar y volver a resultados** restore the same search and page.
+
 ## Tag your first album
 
 1. Open **Tag albums** (*Etiquetar álbumes*) and select a pending album. Its title and known date appear first.

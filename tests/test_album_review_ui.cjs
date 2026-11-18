@@ -9,6 +9,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
     return {
       tag, props, children, value: "", disabled: false, hidden: "hidden" in props, textContent: "", listeners: {},
       classList: { toggle() {} },
+      focus() {},
       setAttribute(name, value) { this.props[name] = value; },
       addEventListener(name, listener) { this.listeners[name] = listener; },
       append(...items) { this.children.push(...items); },
@@ -39,7 +40,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
   const end = source.indexOf("\nfunction albumContextEditor(", start);
   const photoDialogStart = source.indexOf('$("photo-tags").addEventListener("close"');
   const galleryStart = source.indexOf("function albumPhotoGallery(");
-  const resultsStart = source.indexOf("function renderFolders(");
+  const resultsStart = source.indexOf("function openAlbumFromResults(");
   const resultsEnd = source.indexOf("\nfunction renderBatch(", resultsStart);
   assert(start >= 0 && end > start && resultsStart >= 0 && resultsEnd > resultsStart,
     "Album review UI functions are missing");

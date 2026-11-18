@@ -458,6 +458,21 @@ async function refineArchive(text) {
   }
 }
 
+function openAlbumFromResults(path, refresh) {
+  return showView("album-review", {
+    path,
+    returnTo: {
+      label: "Volver a resultados",
+      saveLabel: "Guardar y volver a resultados",
+      async open() {
+        await showView("archive");
+        await refresh();
+        if (!$("archive").hidden) $("results-title").focus();
+      },
+    },
+  });
+}
+
 function renderFolders(items, timeline, refresh) {
   const family = principal?.auth_mode === "family";
   resetPhotos();
@@ -467,17 +482,8 @@ function renderFolders(items, timeline, refresh) {
   $("browsing").replaceChildren();
   $("results").classList.toggle("timeline-results", timeline);
   $("results").replaceChildren(...items.map(item => {
-    const card = button("", () => family ? showView("album-review", {
-      path: item.path,
-      returnTo: {
-        label: "Volver a resultados",
-        saveLabel: "Guardar y volver a resultados",
-        async open() {
-          await showView("archive");
-          await refresh();
-        },
-      },
-    }) : archiveRequest("open_folder", { folder: item.path }), "folder-card");
+    const card = button("", () => family ? openAlbumFromResults(item.path, refresh)
+      : archiveRequest("open_folder", { folder: item.path }), "folder-card");
     card.append(element("strong", {}, item.title));
     const details = [];
     if (timeline) {
@@ -507,16 +513,26 @@ function renderFolders(items, timeline, refresh) {
 
 function renderFamilyPhotoResults(page, action, term, offset, pageSize) {
   const { title, empty } = familyPhotoSearchModes[action];
+  const refresh = () => archiveRequest(action, { term, offset });
   resetPhotos();
   $("results").classList.remove("timeline-results");
   message("results-title", title);
   message("result-count", String(page.items.length));
   message("archive-status", page.items.length ? "" : empty);
-  $("results").replaceChildren(...page.items.map(item =>
-    photoCard(item, photoRequests.signal, {
-      spanish: true, originalOnClick: true, editTags: canCurateAlbums,
-      onTagsSaved: () => archiveRequest(action, { term, offset }),
-    })));
+  $("results").replaceChildren(...page.items.map(item => {
+    const card = photoCard(item, photoRequests.signal, {
+      spanish: true, originalOnClick: true, editTags: canCurateAlbums, onTagsSaved: refresh,
+    });
+    if (canCurateAlbums && item.folder_path) {
+      const album = button("Ver álbum", () => openAlbumFromResults(item.folder_path, () => {
+        $("query").value = term;
+        return refresh();
+      }), "photo-album-button");
+      album.setAttribute("aria-label", `Ver álbum de ${item.path.split("/").at(-1)}`);
+      card.append(album);
+    }
+    return card;
+  }));
   const actions = [];
   if (offset) actions.push(button("Página anterior",
     () => archiveRequest(action, { term, offset: Math.max(0, offset - pageSize) })));
@@ -713,7 +729,10 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
   setAlbumReviewMode(path ? "album" : reviewed ? "reviewed" : "pending");
   message("album-review-status", "Cargando álbum…");
   const returnButton = returnTo ? button(returnTo.label, () => returnTo.open(false)) : null;
-  if (returnButton) $("album-review-content").append(returnButton);
+  if (returnButton) {
+    $("album-review-content").append(returnButton);
+    returnButton.focus();
+  }
   try {
     const [{ item }, { items: people }] = await Promise.all([
       api("/album-review" + queryParams(path ? { path } : { after, reviewed })),
