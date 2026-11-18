@@ -27,6 +27,7 @@ For a browser-only installation, FTP, or a synthetic first run, follow the [inst
 python -m pip install '.[telegram,thumbnails]'
 python -m unittest discover -s tests -v
 node tests/test_album_review_ui.cjs
+node tests/test_photo_review_ui.cjs
 npm --prefix docs ci
 npm --prefix docs run dev
 npm --prefix docs run check

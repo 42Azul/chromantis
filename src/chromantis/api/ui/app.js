@@ -733,6 +733,7 @@ function photoCard(item, signal, {
 }
 
 function resetAlbumPhotos() {
+  if ($("photo-review").open) $("photo-review").close();
   albumPhotoRequests?.abort();
   albumPhotoRequests = new AbortController();
   for (const url of albumPhotoURLs) URL.revokeObjectURL(url);
@@ -1039,6 +1040,151 @@ async function openPhotoTags(items, signal, onSaved) {
   }
 }
 
+async function openPhotoReview(items, signal) {
+  const dialog = $("photo-review");
+  const content = $("photo-review-content");
+  const close = $("close-photo-review");
+  const status = element("p", { role: "status" }, "Cargando personas…");
+  const panel = element("div", { class: "stack" }, status);
+  const previewRequest = new AbortController();
+  let previewURL;
+  const clearPreview = () => {
+    if (previewURL) URL.revokeObjectURL(previewURL);
+    previewURL = undefined;
+  };
+  dialog.onclose = () => {
+    if (dialog.open) return;
+    previewRequest.abort();
+    clearPreview();
+    content.replaceChildren();
+  };
+  const current = () => dialog.open && content.firstChild === panel && !signal.aborted;
+  close.disabled = false;
+  dialog.oncancel = event => { if (close.disabled) event.preventDefault(); };
+  content.replaceChildren(panel);
+  dialog.showModal();
+  try {
+    const [{ items: photos }, { items: people }] = await Promise.all([
+      api("/photo-tags" + queryParams(items.map(item => ["path", item.path])), { signal }),
+      api("/album-review/people", { signal }),
+    ]);
+    if (!current()) return;
+    if (!people.length) {
+      status.textContent = "Añade primero una persona desde el editor del álbum.";
+      return;
+    }
+    const person = element("select", {},
+      ...people.map(item => element("option", { value: item.id },
+        [item.display_name, ...item.aliases].join(" · "))));
+    const start = button("Empezar", () => {
+      const personId = Number(person.value);
+      const personName = people.find(item => item.id === personId).display_name;
+      const decisions = [];
+      let ready = false;
+      let saving = false;
+      let blocked = false;
+      let previewVersion = 0;
+      const image = element("img", { alt: "", draggable: "false", class: "review-photo" });
+      const photoName = element("p");
+      const progress = element("p", { role: "status" });
+      const mark = button("Sí, aparece", () => decide(true), "primary");
+      const skip = button("Saltar", () => decide(false));
+      const undo = button("Deshacer", () => { decisions.pop(); draw(); });
+      const save = button("Guardar revisión", async () => {
+        if (saving || blocked) return;
+        saving = true;
+        close.disabled = mark.disabled = skip.disabled = undo.disabled = save.disabled = true;
+        const selected = photos.filter((photo, index) => decisions[index] &&
+          !photo.people.some(link => link.person_id === personId));
+        try {
+          if (selected.length) await api("/photo-tags", { method: "PATCH", data: {
+            photos: selected.map(({ path, identity }) => ({ path, identity })), add_people: [personId],
+          } });
+          if (!current()) return;
+          message("album-review-status", "Revisión de fotos guardada.");
+          dialog.close();
+        } catch (error) {
+          if (!current()) return;
+          blocked = error.status === 409;
+          status.textContent = blocked
+            ? "Una foto ha cambiado. Cierra y vuelve a abrir la revisión." : error.message;
+          save.disabled = blocked;
+        } finally {
+          saving = false;
+          close.disabled = false;
+          undo.disabled = blocked || !decisions.length;
+        }
+      }, "primary");
+      const frame = element("div", { class: "review-photo-frame" }, image);
+      frame.addEventListener("dragstart", event => event.preventDefault());
+      let pointerStart;
+      frame.addEventListener("pointerdown", event => {
+        pointerStart = { x: event.clientX, y: event.clientY, id: event.pointerId };
+        frame.setPointerCapture(event.pointerId);
+      });
+      frame.addEventListener("pointercancel", () => { pointerStart = undefined; });
+      frame.addEventListener("pointerup", event => {
+        const start = pointerStart;
+        pointerStart = undefined;
+        if (!start || start.id !== event.pointerId) return;
+        const dx = event.clientX - start.x;
+        if (Math.abs(dx) >= 80 && Math.abs(dx) > Math.abs(event.clientY - start.y) * 1.5) decide(dx > 0);
+      });
+      function decide(value) {
+        if ((value ? !ready : skip.disabled) || saving || blocked || decisions.length >= photos.length) return;
+        decisions.push(value);
+        draw();
+      }
+      function draw() {
+        const version = ++previewVersion;
+        ready = false;
+        mark.disabled = skip.disabled = true;
+        undo.disabled = !decisions.length;
+        status.textContent = "";
+        clearPreview();
+        image.removeAttribute("src");
+        const photo = photos[decisions.length];
+        panel.querySelector(".review-marked").textContent = "";
+        progress.textContent = `${decisions.length} de ${photos.length} revisadas · ${decisions.filter(Boolean).length} marcadas`;
+        save.hidden = !!photo;
+        frame.hidden = mark.hidden = skip.hidden = !photo;
+        photoName.textContent = photo ? photo.path.split("/").at(-1) : "Comprueba las fotos marcadas antes de guardar.";
+        if (!photo) {
+          panel.querySelector(".review-marked").textContent = photos.filter((_, index) => decisions[index])
+            .map(item => item.path.split("/").at(-1)).join(", ");
+          return;
+        }
+        status.textContent = "Cargando miniatura…";
+        image.onload = () => {
+          if (!current() || version !== previewVersion) return;
+          ready = true;
+          mark.disabled = skip.disabled = false;
+          status.textContent = "";
+        };
+        image.onerror = () => {
+          if (!current() || version !== previewVersion) return;
+          status.textContent = "Miniatura no disponible. Puedes saltar esta foto.";
+          skip.disabled = false;
+        };
+        api("/thumbnail" + queryParams({ path: photo.path }), { raw: true, signal: previewRequest.signal }).then(blob => {
+          if (!current() || version !== previewVersion) return;
+          previewURL = URL.createObjectURL(blob);
+          image.src = previewURL;
+        }).catch(() => image.onerror());
+      }
+      panel.replaceChildren(element("h3", {}, `¿Aparece ${personName}?`),
+        element("p", {}, "Derecha para marcar, izquierda para saltar. También puedes usar los botones."),
+        progress, frame, photoName, status, element("p", { class: "review-marked" }),
+        element("div", { class: "actions" }, skip, mark, undo, save));
+      draw();
+    }, "primary");
+    panel.replaceChildren(element("label", {}, "Persona", person), start, status);
+    status.textContent = "";
+  } catch (error) {
+    if (current()) status.textContent = error.message;
+  }
+}
+
 function albumPhotoGallery(path) {
   const limit = 6;
   let offset = 0;
@@ -1048,6 +1194,8 @@ function albumPhotoGallery(path) {
   const selection = new Set();
   let selecting = false;
   const selectPhotos = button("Seleccionar fotos", () => setSelecting(!selecting));
+  const reviewPhotos = button("Revisar foto a foto", () => openPhotoReview(pageItems, albumPhotoRequests.signal));
+  let pageItems = [];
   const editSelection = button("", () => openPhotoTags([...selection], albumPhotoRequests.signal, () => {
     setSelecting(false);
     message("album-review-status", "Se han guardado los cambios de las fotos.");
@@ -1055,7 +1203,7 @@ function albumPhotoGallery(path) {
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const panel = element("div", { hidden: "" }, selectPhotos, grid, editSelection, navigation);
+  const panel = element("div", { hidden: "" }, selectPhotos, grid, editSelection, navigation, reviewPhotos);
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);
     resetAlbumPhotos();
@@ -1099,6 +1247,7 @@ function albumPhotoGallery(path) {
       setSelecting(false);
       offset = start;
       nextOffset = next_offset;
+      pageItems = items;
       grid.replaceChildren(...items.map(item => {
         const card = photoCard(item, albumPhotoRequests.signal, {
           urls: albumPhotoURLs, spanish: true, originalOnClick: true, editTags: canCurateAlbums,
@@ -1116,6 +1265,7 @@ function albumPhotoGallery(path) {
         return card;
       }));
       selectPhotos.hidden = !canCurateAlbums || !items.length;
+      reviewPhotos.hidden = !canCurateAlbums || !items.length || !indexStatus?.thumbnails;
       status.textContent = items.length ? `Fotos ${offset + 1}–${offset + items.length}` : "No hay fotos en esta página.";
       panel.hidden = false;
       toggle.textContent = "Ocultar fotos";

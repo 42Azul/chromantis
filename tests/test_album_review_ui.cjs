@@ -106,6 +106,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
      const albumContextEditor = () => element("div", {});
      const resetAlbumPhotos = () => { albumPhotoRequests.abort(); albumPhotoRequests = new AbortController(); };
      const canCurateAlbums = true;
+     const indexStatus = { thumbnails: false };
      const document = { activeElement: null };
      const openPhotoTags = items => selections.push(items);
      const photoCard = (item, signal, options) => {

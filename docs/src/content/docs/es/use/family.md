@@ -44,6 +44,8 @@ Pulsa **Ver fotos del álbum** para recorrerlo de seis en seis con **Más fotos*
 
 Para editar varias fotos juntas, pulsa **Seleccionar fotos**, marca las de la página actual y pulsa **Etiquetar fotos**. Comprueba los nombres de los archivos y elige las personas que quieres añadir o quitar. En **Etiquetas manuales**, escribe etiquetas de una sola palabra separadas por comas o marca las que quieras quitar. Guarda una vez para aplicar los cambios a las fotos seleccionadas. También puedes usar **Etiquetas manuales** en una sola foto. Al cambiar de página se borra la selección de fotos.
 
+Con las miniaturas activadas, **Revisar foto a foto** recorre la página actual buscando a una persona. Elige su nombre o alias y pulsa **Empezar**. Arrastra a la derecha o pulsa **Sí, aparece** para marcar una foto visible. Arrastra a la izquierda o pulsa **Saltar** para dejarla para otra pasada. **Deshacer** permite revisar la decisión anterior. Al terminar, comprueba los archivos marcados y pulsa **Guardar revisión**. Si cierras antes de guardar, se descarta esta revisión.
+
 ![Revisión de un álbum con miniaturas del archivo de ejemplo.](../../../../assets/screenshots/web-gallery.webp)
 
 El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Etiquetar foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).

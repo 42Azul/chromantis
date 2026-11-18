@@ -244,3 +244,6 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 
 #photo-tags { width: min(460px, 94vw); }
 #photo-tags-content form { display: grid; align-items: stretch; justify-content: stretch; }
+#photo-review { width: min(460px, 94vw); }
+.review-photo-frame { touch-action: pan-y; user-select: none; background: var(--preview); border-radius: 8px; overflow: hidden; }
+.review-photo-frame .review-photo { height: min(38vh, 300px); object-fit: contain; user-select: none; pointer-events: none; }

@@ -44,6 +44,8 @@ Choose **Ver fotos del álbum** to browse six photos at a time. Use **Más fotos
 
 To edit several photos together, choose **Seleccionar fotos**, mark the photos on the current page, then choose **Etiquetar fotos**. Review the filenames and pick the people to add or remove. Under **Etiquetas manuales**, enter one-word tags separated by commas or mark existing tags for removal. Save once to apply the changes to the selected photos. You can use **Etiquetas manuales** on a single photo too. Changing pages clears the photo selection.
 
+With thumbnails enabled, **Revisar foto a foto** reviews the current gallery page for one person. Choose their name or alias and press **Empezar**. Swipe right or use **Sí, aparece** to mark a visible photo. Swipe left or use **Saltar** to leave it for another pass. **Deshacer** revisits the previous decision. Check the marked filenames and choose **Guardar revisión** at the end. Closing before saving discards this review.
+
 ![Album review showing thumbnails from the example archive.](../../../assets/screenshots/web-gallery.webp)
 
 An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Etiquetar foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).
