@@ -7,7 +7,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
 
   function element(tag, props, ...children) {
     return {
-      tag, props, children, value: "", disabled: false, textContent: "", listeners: {},
+      tag, props, children, value: "", disabled: false, hidden: "hidden" in props, textContent: "", listeners: {},
+      setAttribute(name, value) { this.props[name] = value; },
       addEventListener(name, listener) { this.listeners[name] = listener; },
       append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
@@ -38,7 +39,24 @@ async function verifyBatchReview(source, failedReloads = 0) {
     "Album review UI functions are missing");
   const posts = [];
   const detailPosts = [];
+  const photoOffsets = [];
+  let failPhotoPage = true;
   const api = async (path, request) => {
+    if (path.startsWith("/album-images?") && request?.signal) {
+      const params = new URLSearchParams(path.split("?")[1]);
+      const offset = Number(params.get("offset"));
+      assert(params.get("path") === "2024/fixture-4" && params.get("limit") === "6", "Read one bounded album page");
+      photoOffsets.push(offset);
+      if (offset === 6 && failPhotoPage) {
+        failPhotoPage = false;
+        throw new Error("Simulated index request failure");
+      }
+      const size = offset === 0 ? 6 : 1;
+      return {
+        items: Array.from({ length: size }, (_, index) => ({ path: `Photo-${offset + index + 1}.jpg` })),
+        next_offset: offset === 0 ? 6 : null,
+      };
+    }
     if (!request) {
       if (path === "/album-review/people") return { items: [] };
       if (path.startsWith("/album-review?path=")) {
@@ -71,10 +89,20 @@ async function verifyBatchReview(source, failedReloads = 0) {
   };
   const { loadAlbumReviewBatch: load, renderFolders } = new Function("$", "message", "element", "button", "api", "browser",
     `let albumRequest = 0;
+     let albumPhotoRequests = new AbortController();
+     const albumPhotoURLs = new Set();
      const closeAlbumReview = () => { albumRequest++; $("album-review-content").replaceChildren(); };
      const setAlbumReviewMode = () => {};
-     const queryParams = ({ path }) => "?path=" + path;
+     const queryParams = ({ path, limit, offset }) => "?path=" + path
+       + (offset === undefined ? "" : "&limit=" + limit + "&offset=" + offset);
      const albumContextEditor = () => element("div", {});
+     const resetAlbumPhotos = () => { albumPhotoRequests.abort(); albumPhotoRequests = new AbortController(); };
+     const canCurateAlbums = true;
+     const document = { activeElement: null };
+     const photoCard = (item, signal, options) => {
+       if (!options.originalOnClick || !options.editPeople) throw new Error("Expected on-demand originals and photo editing");
+       return { item, signal };
+     };
      const principal = { auth_mode: "family" };
      const isOwner = () => false;
      const resetPhotos = () => {};
@@ -197,6 +225,25 @@ async function verifyBatchReview(source, failedReloads = 0) {
   assert(resultEditor.querySelectorAll().some(control => control.children[0] === "Guardar y volver a resultados"),
     "The search result editor should offer to save and return");
   selectValues(resultEditor)[0].value = "rejected";
+  const [, , gallery] = content.children.at(-2).children;
+  const [toggle, status, panel] = gallery.children;
+  const [grid, navigation] = panel.children;
+  const [previous, next] = navigation.children;
+  assert(panel.hidden && photoOffsets.length === 0, "Opening the album must not load photo metadata");
+  await toggle.listeners.click();
+  assert(grid.children.length === 6 && previous.hidden && !next.hidden, "The first six photos offer a next page");
+  const firstSignal = grid.children[0].signal;
+  await next.listeners.click();
+  assert(grid.children.length === 6 && !next.disabled && !firstSignal.aborted && status.textContent.includes("Inténtalo"),
+    "A request failure should keep the visible page and restore retry");
+  await next.listeners.click();
+  assert(grid.children[0].item.path === "Photo-7.jpg" && firstSignal.aborted && next.hidden && !previous.hidden,
+    "The last page replaces the earlier cards and cancels pending previews");
+  await previous.listeners.click();
+  await toggle.listeners.click();
+  assert(photoOffsets.join() === "0,6,6,0" && panel.hidden && grid.children.length === 0,
+    "Page navigation and hide should only read the requested offsets");
+  assert(selectValues(resultEditor)[0].value === "rejected", "Photo browsing must preserve the unsaved album decision");
   await submit(resultEditor);
   assert(browser.view === "archive" && browser.refreshCount === 2 && detailPosts.length === 2
     && detailPosts[1].id === 4 && detailPosts[1].decisions.familia === null,

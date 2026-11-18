@@ -21,22 +21,22 @@ To narrow the current search, follow up with `before 2020`, `only 2019`, or `wit
 
 Under **Buscar álbumes**, change the result type to **Fotos por persona** and search a name or alias. Results include individually tagged photos from the web or [Android](./android.md#tag-individual-photos). Use **Álbumes** to search by album links. Previews appear when the thumbnail cache is enabled. Tap a result to open its original.
 
-With a curator account, choose **Personas en esta foto** to add or remove people on that specific photo. The same action is available under **Ver hasta 3 fotos** in the album editor. Pick a name or alias and choose **Guardar personas**. If you remove the person you were searching for, the photo leaves those results.
+With a curator account, choose **Personas en esta foto** to add or remove people on that specific photo. The same action is available under **Ver fotos del álbum** in the album editor. Pick a name or alias and choose **Guardar personas**. If you remove the person you were searching for, the photo leaves those results.
 
 ## Tag your first album
 
 1. Open **Tag albums** (*Etiquetar álbumes*) and select a pending album. Its title and known date appear first.
-2. Search for **Ana** or a saved alias. Select her, choose other people, or add a new person. Use **View up to three photos** if you need a reminder.
+2. Search for **Ana** or a saved alias. Select her, choose other people, or add a new person. Use **Ver fotos del álbum** if you need a reminder.
 3. Accept, reject, or correct the folder-name suggestions. You can also add one-word manual tags.
 4. Choose **Save and next** (*Guardar y siguiente*). Open **Buscar álbumes** and search for `Ana` to find the album.
 
 ![Album review with Ana selected, the playa suggestion set to Accept, and the Save and next button at the bottom.](../../../assets/screenshots/web-tag.webp)
 
-To check the album before saving, choose **View up to three photos**. Tap a preview to open the original.
+Choose **Ver fotos del álbum** to browse six photos at a time. Use **Más fotos** and **Fotos anteriores** to move through the album. When the thumbnail cache is off, start with filenames and use **Abrir foto** to load an original. Browsing keeps your unsaved album edits.
 
-![Album review showing three sample thumbnails after View up to three photos was pressed.](../../../assets/screenshots/web-gallery.webp)
+![Album review showing thumbnails from the example archive.](../../../assets/screenshots/web-gallery.webp)
 
-An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use [individual photo tagging in Android](./android.md#tag-individual-photos) or the [manual photo tagging API](../reference/api.md#manual-photo-tagging-api).
+An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Personas en esta foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).
 
 Use **Saltar** to leave a doubtful album pending. To correct a link in a family session, find the album by its title in **Buscar álbumes** and open the result. Tap **Ana ×** under the selected people, then choose **Guardar y volver a resultados**. The search refreshes and the album drops out if it no longer matches. Choose **Volver a resultados** to leave the editor without saving your people and tag changes. You can also open reviewed albums from **Ya revisados**.
 

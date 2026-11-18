@@ -21,22 +21,22 @@ Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coin
 
 En **Buscar álbumes**, cambia el tipo de resultado a **Fotos por persona** y escribe un nombre o alias. Aparecen las fotos etiquetadas individualmente desde la web o [Android](./android.md#etiqueta-fotos-individuales). Usa **Álbumes** para buscar por vínculos al álbum. Las miniaturas aparecen si está activa la caché. Pulsa una foto para abrir el original.
 
-Si tienes permiso para etiquetar, pulsa **Personas en esta foto** para añadir o quitar personas en la foto concreta. También puedes hacerlo desde **Ver hasta 3 fotos** en el editor de un álbum. Elige a alguien por nombre o alias y pulsa **Guardar personas**. Si quitas a la persona que estabas buscando, esa foto sale de los resultados.
+Si tienes permiso para etiquetar, pulsa **Personas en esta foto** para añadir o quitar personas en la foto concreta. También puedes hacerlo desde **Ver fotos del álbum** en el editor de un álbum. Elige a alguien por nombre o alias y pulsa **Guardar personas**. Si quitas a la persona que estabas buscando, esa foto sale de los resultados.
 
 ## Etiqueta tu primer álbum
 
 1. Abre **Etiquetar álbumes** y elige uno de los pendientes. Verás su título y la fecha, si se conoce.
-2. Busca a **Ana** por nombre o alias y selecciónala. Puedes elegir a más personas o añadir una nueva. Si necesitas recordar quién aparecía, pulsa **Ver hasta 3 fotos**.
+2. Busca a **Ana** por nombre o alias y selecciónala. Puedes elegir a más personas o añadir una nueva. Si necesitas recordar quién aparecía, pulsa **Ver fotos del álbum**.
 3. Acepta, rechaza o corrige las sugerencias del nombre de la carpeta. También puedes añadir etiquetas de una sola palabra.
 4. Pulsa **Guardar y siguiente**. Abre **Buscar álbumes** y busca `Ana` para encontrar el álbum.
 
 ![Revisión de un álbum con Ana seleccionada, la sugerencia playa marcada como Aceptar y el botón Guardar y siguiente al pie.](../../../../assets/screenshots/web-tag.webp)
 
-Para comprobar el álbum antes de guardar, pulsa **Ver hasta 3 fotos**. Toca una miniatura para abrir el original.
+Pulsa **Ver fotos del álbum** para recorrerlo de seis en seis con **Más fotos** y **Fotos anteriores**. Si la caché de miniaturas está desactivada, verás los nombres y podrás pulsar **Abrir foto** para cargar el original. Puedes recorrer las fotos y conservar los cambios del álbum que aún tengas por guardar.
 
-![Tres miniaturas del archivo de ejemplo tras pulsar Ver hasta 3 fotos en la revisión del álbum.](../../../../assets/screenshots/web-gallery.webp)
+![Revisión de un álbum con miniaturas del archivo de ejemplo.](../../../../assets/screenshots/web-gallery.webp)
 
-El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales) o la [API de etiquetado por foto](../reference/api.md#etiquetado-manual-por-foto).
+El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Personas en esta foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).
 
 Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Ana ×** entre las personas seleccionadas y después **Guardar y volver a resultados**. La búsqueda se actualiza y el álbum desaparece si ha dejado de coincidir. Pulsa **Volver a resultados** para salir del editor sin guardar los cambios de personas y etiquetas. También puedes abrir álbumes ya revisados desde **Ya revisados**.
 

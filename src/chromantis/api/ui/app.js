@@ -671,11 +671,16 @@ function photoCard(item, signal, {
   return card;
 }
 
-function closeAlbumReview() {
-  albumRequest++;
+function resetAlbumPhotos() {
   albumPhotoRequests?.abort();
+  albumPhotoRequests = new AbortController();
   for (const url of albumPhotoURLs) URL.revokeObjectURL(url);
   albumPhotoURLs.clear();
+}
+
+function closeAlbumReview() {
+  albumRequest++;
+  resetAlbumPhotos();
   if ($("lightbox").open) $("lightbox").close();
   if ($("photo-people").open) $("photo-people").close();
   $("album-review-content").replaceChildren();
@@ -943,6 +948,60 @@ async function openPhotoPeople(item, signal, onSaved) {
   }
 }
 
+function albumPhotoGallery(path) {
+  const limit = 6;
+  let offset = 0;
+  let nextOffset = null;
+  const grid = element("div", { class: "photo-grid" });
+  const status = element("p", { class: "message", "aria-live": "polite", tabindex: "-1" });
+  const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
+  const next = button("Más fotos", () => load(nextOffset));
+  const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
+  const panel = element("div", { hidden: "" }, grid, navigation);
+  const toggle = button("Ver fotos del álbum", () => {
+    if (panel.hidden) return load(0);
+    resetAlbumPhotos();
+    grid.replaceChildren();
+    panel.hidden = true;
+    status.textContent = "";
+    toggle.textContent = "Ver fotos del álbum";
+    toggle.setAttribute("aria-expanded", "false");
+  });
+  toggle.setAttribute("aria-expanded", "false");
+
+  async function load(start) {
+    const { signal } = albumPhotoRequests;
+    const paging = !panel.hidden;
+    toggle.disabled = previous.disabled = next.disabled = true;
+    try {
+      const { items, next_offset } = await api("/album-images" + queryParams({ path, limit, offset: start }), { signal });
+      if (signal.aborted) return;
+      resetAlbumPhotos();
+      offset = start;
+      nextOffset = next_offset;
+      grid.replaceChildren(...items.map(item => photoCard(item, albumPhotoRequests.signal, {
+        urls: albumPhotoURLs, spanish: true, originalOnClick: true, editPeople: canCurateAlbums,
+        onPeopleSaved: () => message("album-review-status", "Personas de la foto guardadas."),
+      })));
+      status.textContent = items.length ? `Fotos ${offset + 1}–${offset + items.length}` : "No hay fotos en esta página.";
+      panel.hidden = false;
+      toggle.textContent = "Ocultar fotos";
+      toggle.setAttribute("aria-expanded", "true");
+      previous.hidden = !offset;
+      next.hidden = nextOffset == null;
+      navigation.hidden = previous.hidden && next.hidden;
+    } catch (error) {
+      if (!signal.aborted) status.textContent = "No se pudieron cargar las fotos. Inténtalo de nuevo.";
+    } finally {
+      toggle.disabled = previous.disabled = next.disabled = false;
+      if (paging && status.isConnected && [document.body, previous, next].includes(document.activeElement)) {
+        status.focus();
+      }
+    }
+  }
+  return element("div", {}, toggle, status, panel);
+}
+
 function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
   const request = albumRequest;
   const initial = new Set(album.person_ids);
@@ -953,36 +1012,6 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
     reviewPersonPicker(directory, selected),
     element("details", {}, element("summary", {}, "Añadir una persona"), element("label", {}, "Nombre", newPerson))
   );
-  const photoGrid = element("div", { class: "photo-grid", hidden: "" });
-  const photos = button("Ver hasta 3 fotos", async () => {
-    if (!photoGrid.hidden) {
-      albumPhotoRequests.abort();
-      for (const url of albumPhotoURLs) URL.revokeObjectURL(url);
-      albumPhotoURLs.clear();
-      photoGrid.replaceChildren();
-      photoGrid.hidden = true;
-      photos.textContent = "Ver hasta 3 fotos";
-      return;
-    }
-    photos.disabled = true;
-    albumPhotoRequests = new AbortController();
-    const { signal } = albumPhotoRequests;
-    try {
-      const { items } = await api("/album-review/photos" + queryParams({ path: album.path }), { signal });
-      if (signal.aborted) return;
-      photoGrid.hidden = false;
-      photoGrid.replaceChildren(...items.map(item => photoCard(item, signal, {
-        urls: albumPhotoURLs, spanish: true, editPeople: canCurateAlbums,
-        onPeopleSaved: () => message("album-review-status", "Personas de la foto guardadas."),
-      })));
-      if (!items.length) photoGrid.append(element("p", {}, "No hay fotos disponibles."));
-      photos.textContent = "Ocultar fotos";
-    } catch (error) {
-      if (!signal.aborted) message("album-review-status", error.message);
-    } finally {
-      photos.disabled = false;
-    }
-  });
 
   const tags = element("div", { class: "stack" }, element("h3", {}, "Etiquetas"));
   const choices = Object.entries(album.suggestions).map(([key, suggestion]) => {
@@ -1062,7 +1091,7 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
   const heading = element("h2", {}, album.title);
   const date = element("p", {}, album.event_date || String(album.year));
   $("album-review-content").append(
-    element("div", { class: "panel album-heading" }, heading, date, photos, photoGrid,
+    element("div", { class: "panel album-heading" }, heading, date, albumPhotoGallery(album.path),
       albumContextEditor(album, heading, date, request)),
     form
   );
