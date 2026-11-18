@@ -638,7 +638,7 @@ function photoCard(item, signal, {
     ...(isOwner() ? [collectionButton("image", item.path, filename,
       spanish ? "album-review-status" : "archive-status")] : []));
   if (editPeople) {
-    const edit = button("Personas en esta foto", () => openPhotoPeople(item, signal, onPeopleSaved), "photo-people-button");
+    const edit = button("Personas en esta foto", () => openPhotoPeople([item], signal, onPeopleSaved), "photo-people-button");
     edit.setAttribute("aria-label", `Personas en esta foto: ${filename}`);
     card.append(edit);
   }
@@ -886,7 +886,8 @@ $("photo-people").addEventListener("close", () => {
   }
 });
 
-async function openPhotoPeople(item, signal, onSaved) {
+async function openPhotoPeople(items, signal, onSaved) {
+  const batch = items.length > 1;
   const dialog = $("photo-people");
   const content = $("photo-people-content");
   const cancel = $("close-photo-people");
@@ -895,33 +896,41 @@ async function openPhotoPeople(item, signal, onSaved) {
   const current = () => dialog.open && content.firstChild === panel && !signal.aborted;
   const retry = text => {
     status.textContent = text;
-    panel.replaceChildren(status, button("Volver a cargar", () => openPhotoPeople(item, signal, onSaved)));
+    panel.replaceChildren(status, button("Volver a cargar", () => openPhotoPeople(items, signal, onSaved)));
   };
   cancel.disabled = false;
   dialog.oncancel = event => { if (cancel.disabled) event.preventDefault(); };
-  message("photo-people-file", item.path.split("/").at(-1));
+  message("photo-people-title", batch ? `Personas en ${items.length} fotos` : "Personas en esta foto");
+  message("photo-people-file", items.map(item => item.path.split("/").at(-1)).join(", "));
   content.replaceChildren(panel);
   if (!dialog.open) dialog.showModal();
   try {
-    const [{ items: [photo] }, { items: people }] = await Promise.all([
-      api("/photo-tags" + queryParams({ path: item.path }), { signal }),
+    const [{ items: photos }, { items: people }] = await Promise.all([
+      api("/photo-tags" + queryParams(items.map(item => ["path", item.path])), { signal }),
       api("/album-review/people", { signal }),
     ]);
     if (!current()) return;
-    const initial = new Set(photo.people.map(person => person.person_id));
+    const initial = new Set(batch ? [] : photos[0].people.map(person => person.person_id));
     const selected = new Set(initial);
-    const save = element("button", { class: "primary", type: "submit" }, "Guardar personas");
-    const form = element("form", { class: "stack" }, reviewPersonPicker(people, selected, "de la foto"),
+    const operation = element("select", {}, element("option", { value: "add" }, "Añadir a las fotos"),
+      element("option", { value: "remove" }, "Quitar de las fotos"));
+    const save = element("button", { class: "primary", type: "submit" },
+      batch ? `Guardar en ${items.length} fotos` : "Guardar personas");
+    const form = element("form", { class: "stack" },
+      ...(batch ? [element("label", {}, "Acción", operation)] : []),
+      reviewPersonPicker(people, selected, batch ? "de la selección" : "de la foto"),
       status, element("div", { class: "actions" }, save));
     status.textContent = "";
     panel.replaceChildren(form);
     form.addEventListener("submit", async event => {
       event.preventDefault();
       if (save.disabled) return;
-      const add_people = [...selected].filter(id => !initial.has(id));
-      const remove_people = [...initial].filter(id => !selected.has(id));
+      const removing = batch && operation.value === "remove";
+      const add_people = removing ? [] : [...selected].filter(id => !initial.has(id));
+      const remove_people = removing ? [...selected] : [...initial].filter(id => !selected.has(id));
       if (!add_people.length && !remove_people.length) {
-        dialog.close();
+        if (batch) status.textContent = "Selecciona al menos una persona.";
+        else dialog.close();
         return;
       }
       save.disabled = true;
@@ -929,22 +938,29 @@ async function openPhotoPeople(item, signal, onSaved) {
       status.textContent = "";
       try {
         await api("/photo-tags", { method: "PATCH", data: {
-          photos: [{ path: photo.path, identity: photo.identity }], add_people, remove_people,
+          photos: photos.map(({ path, identity }) => ({ path, identity })), add_people, remove_people,
         } });
         if (!current()) return;
         await onSaved?.();
         if (current()) dialog.close();
       } catch (error) {
         if (!current()) return;
-        if (error.status === 409) retry("La foto ha cambiado. Vuelve a cargarla antes de editar.");
-        else status.textContent = error.message;
+        if (error.status === 409 && batch) {
+          status.textContent = "Una foto ha cambiado. Cierra y vuelve a abrir la galería para revisar la selección.";
+          panel.replaceChildren(status);
+        } else if (error.status === 409) {
+          retry("La foto ha cambiado. Vuelve a cargarla antes de editar.");
+        } else {
+          status.textContent = error.status === 413 && batch
+            ? "La selección es demasiado grande. Prueba con menos fotos." : error.message;
+        }
       } finally {
         if (content.firstChild === panel) cancel.disabled = false;
         save.disabled = false;
       }
     });
   } catch (error) {
-    if (current()) retry(error.status === 404 ? "Esta foto ya no está en el índice." : error.message);
+    if (current()) retry(error.status === 404 ? "Alguna foto de la selección ya no está en el índice." : error.message);
   }
 }
 
@@ -954,13 +970,21 @@ function albumPhotoGallery(path) {
   let nextOffset = null;
   const grid = element("div", { class: "photo-grid" });
   const status = element("p", { class: "message", "aria-live": "polite", tabindex: "-1" });
+  const selection = new Set();
+  let selecting = false;
+  const selectPhotos = button("Seleccionar fotos", () => setSelecting(!selecting));
+  const editSelection = button("", () => openPhotoPeople([...selection], albumPhotoRequests.signal, () => {
+    setSelecting(false);
+    message("album-review-status", "Personas de las fotos guardadas.");
+  }), "primary");
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const panel = element("div", { hidden: "" }, grid, navigation);
+  const panel = element("div", { hidden: "" }, selectPhotos, grid, editSelection, navigation);
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);
     resetAlbumPhotos();
+    setSelecting(false);
     grid.replaceChildren();
     panel.hidden = true;
     status.textContent = "";
@@ -969,20 +993,54 @@ function albumPhotoGallery(path) {
   });
   toggle.setAttribute("aria-expanded", "false");
 
+  function updateSelection() {
+    editSelection.textContent = `Editar personas (${selection.size})`;
+    editSelection.disabled = selectPhotos.disabled || !selection.size;
+  }
+
+  function setSelecting(active) {
+    selecting = active;
+    grid.classList.toggle("selecting-photos", active);
+    selectPhotos.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
+    editSelection.hidden = !active;
+    if (!active) {
+      selection.clear();
+      for (const checkbox of grid.querySelectorAll(".photo-selection input")) checkbox.checked = false;
+    }
+    updateSelection();
+  }
+
+  setSelecting(false);
+
   async function load(start) {
     const { signal } = albumPhotoRequests;
     const paging = !panel.hidden;
-    toggle.disabled = previous.disabled = next.disabled = true;
+    toggle.disabled = previous.disabled = next.disabled = selectPhotos.disabled = true;
+    updateSelection();
     try {
       const { items, next_offset } = await api("/album-images" + queryParams({ path, limit, offset: start }), { signal });
       if (signal.aborted) return;
       resetAlbumPhotos();
+      setSelecting(false);
       offset = start;
       nextOffset = next_offset;
-      grid.replaceChildren(...items.map(item => photoCard(item, albumPhotoRequests.signal, {
-        urls: albumPhotoURLs, spanish: true, originalOnClick: true, editPeople: canCurateAlbums,
-        onPeopleSaved: () => message("album-review-status", "Personas de la foto guardadas."),
-      })));
+      grid.replaceChildren(...items.map(item => {
+        const card = photoCard(item, albumPhotoRequests.signal, {
+          urls: albumPhotoURLs, spanish: true, originalOnClick: true, editPeople: canCurateAlbums,
+          onPeopleSaved: () => message("album-review-status", "Personas de la foto guardadas."),
+        });
+        if (canCurateAlbums) {
+          const checkbox = element("input", { type: "checkbox", "aria-label": `Seleccionar ${item.path.split("/").at(-1)}` });
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) selection.add(item);
+            else selection.delete(item);
+            updateSelection();
+          });
+          card.append(element("label", { class: "photo-selection" }, checkbox, "Seleccionar"));
+        }
+        return card;
+      }));
+      selectPhotos.hidden = !canCurateAlbums || !items.length;
       status.textContent = items.length ? `Fotos ${offset + 1}–${offset + items.length}` : "No hay fotos en esta página.";
       panel.hidden = false;
       toggle.textContent = "Ocultar fotos";
@@ -993,7 +1051,8 @@ function albumPhotoGallery(path) {
     } catch (error) {
       if (!signal.aborted) status.textContent = "No se pudieron cargar las fotos. Inténtalo de nuevo.";
     } finally {
-      toggle.disabled = previous.disabled = next.disabled = false;
+      toggle.disabled = previous.disabled = next.disabled = selectPhotos.disabled = false;
+      updateSelection();
       if (paging && status.isConnected && [document.body, previous, next].includes(document.activeElement)) {
         status.focus();
       }

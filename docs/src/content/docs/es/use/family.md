@@ -34,6 +34,8 @@ Si tienes permiso para etiquetar, pulsa **Personas en esta foto** para añadir o
 
 Pulsa **Ver fotos del álbum** para recorrerlo de seis en seis con **Más fotos** y **Fotos anteriores**. Si la caché de miniaturas está desactivada, verás los nombres y podrás pulsar **Abrir foto** para cargar el original. Puedes recorrer las fotos y conservar los cambios del álbum que aún tengas por guardar.
 
+Para añadir o quitar a las mismas personas en varias fotos, pulsa **Seleccionar fotos**, marca las de la página actual y pulsa **Editar personas**. Comprueba los nombres de los archivos, elige si quieres añadir o quitar personas y guarda una sola vez. Al cambiar de página se borra la selección de fotos.
+
 ![Revisión de un álbum con miniaturas del archivo de ejemplo.](../../../../assets/screenshots/web-gallery.webp)
 
 El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Personas en esta foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).

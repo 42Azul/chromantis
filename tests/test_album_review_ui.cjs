@@ -8,11 +8,15 @@ async function verifyBatchReview(source, failedReloads = 0) {
   function element(tag, props, ...children) {
     return {
       tag, props, children, value: "", disabled: false, hidden: "hidden" in props, textContent: "", listeners: {},
+      classList: { toggle() {} },
       setAttribute(name, value) { this.props[name] = value; },
       addEventListener(name, listener) { this.listeners[name] = listener; },
       append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
-      querySelectorAll() {
+      querySelectorAll(selector) {
+        if (selector === ".photo-selection input") {
+          return this.children.flatMap(card => card.children.map(label => label.children[0]));
+        }
         return this.children.flatMap(child => typeof child === "string" ? [] :
           ["button", "select"].includes(child.tag) ? [child] : child.querySelectorAll());
       },
@@ -33,6 +37,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
   ];
   const start = source.indexOf("async function loadAlbumReview(");
   const end = source.indexOf("\nfunction albumContextEditor(", start);
+  const photoDialogStart = source.indexOf('$("photo-people").addEventListener("close"');
+  const galleryStart = source.indexOf("function albumPhotoGallery(");
   const resultsStart = source.indexOf("function renderFolders(");
   const resultsEnd = source.indexOf("\nfunction renderBatch(", resultsStart);
   assert(start >= 0 && end > start && resultsStart >= 0 && resultsEnd > resultsStart,
@@ -40,6 +46,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
   const posts = [];
   const detailPosts = [];
   const photoOffsets = [];
+  const selections = [];
   let failPhotoPage = true;
   const api = async (path, request) => {
     if (path.startsWith("/album-images?") && request?.signal) {
@@ -87,7 +94,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
     groups = [group("familia", album(1, 4), album(2, 8), album(3, 1), album(4, 0))];
     return {};
   };
-  const { loadAlbumReviewBatch: load, renderFolders } = new Function("$", "message", "element", "button", "api", "browser",
+  const { loadAlbumReviewBatch: load, renderFolders } = new Function("$", "message", "element", "button", "api", "browser", "selections",
     `let albumRequest = 0;
      let albumPhotoRequests = new AbortController();
      const albumPhotoURLs = new Set();
@@ -99,9 +106,10 @@ async function verifyBatchReview(source, failedReloads = 0) {
      const resetAlbumPhotos = () => { albumPhotoRequests.abort(); albumPhotoRequests = new AbortController(); };
      const canCurateAlbums = true;
      const document = { activeElement: null };
+     const openPhotoPeople = items => selections.push(items);
      const photoCard = (item, signal, options) => {
        if (!options.originalOnClick || !options.editPeople) throw new Error("Expected on-demand originals and photo editing");
-       return { item, signal };
+       return Object.assign(element("article", {}), { item, signal });
      };
      const principal = { auth_mode: "family" };
      const isOwner = () => false;
@@ -110,7 +118,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
        browser.view = view;
        if (view === "album-review") await loadAlbumReview(options);
      };
-     ${source.slice(start, end)}
+     ${source.slice(start, photoDialogStart)}
+     ${source.slice(galleryStart, end)}
      ${source.slice(resultsStart, resultsEnd)}
      return { loadAlbumReviewBatch, renderFolders };`)(
     id => id === "results" ? results : content, (id, value) => { messages[id] = value; },
@@ -118,7 +127,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
       const control = element("button", {}, title);
       control.addEventListener("click", action);
       return control;
-    }, api, browser,
+    }, api, browser, selections,
   );
 
   const selectValues = form => form.querySelectorAll().filter(control => control.tag === "select");
@@ -227,18 +236,31 @@ async function verifyBatchReview(source, failedReloads = 0) {
   selectValues(resultEditor)[0].value = "rejected";
   const [, , gallery] = content.children.at(-2).children;
   const [toggle, status, panel] = gallery.children;
-  const [grid, navigation] = panel.children;
+  const [selectPhotos, grid, editSelection, navigation] = panel.children;
   const [previous, next] = navigation.children;
   assert(panel.hidden && photoOffsets.length === 0, "Opening the album must not load photo metadata");
   await toggle.listeners.click();
   assert(grid.children.length === 6 && previous.hidden && !next.hidden, "The first six photos offer a next page");
+  selectPhotos.listeners.click();
+  const checks = grid.querySelectorAll(".photo-selection input");
+  for (const index of [1, 3]) {
+    checks[index].checked = true;
+    checks[index].listeners.change();
+  }
+  editSelection.listeners.click();
+  assert(selections[0].map(item => item.path).join() === "Photo-2.jpg,Photo-4.jpg",
+    "Only the checked photos may enter the editor");
   const firstSignal = grid.children[0].signal;
   await next.listeners.click();
   assert(grid.children.length === 6 && !next.disabled && !firstSignal.aborted && status.textContent.includes("Inténtalo"),
     "A request failure should keep the visible page and restore retry");
+  assert(editSelection.textContent === "Editar personas (2)" && !editSelection.disabled,
+    "A page request failure should preserve the selection");
   await next.listeners.click();
   assert(grid.children[0].item.path === "Photo-7.jpg" && firstSignal.aborted && next.hidden && !previous.hidden,
     "The last page replaces the earlier cards and cancels pending previews");
+  assert(editSelection.hidden && editSelection.disabled && selectPhotos.textContent === "Seleccionar fotos",
+    "Changing pages should clear the selection");
   await previous.listeners.click();
   await toggle.listeners.click();
   assert(photoOffsets.join() === "0,6,6,0" && panel.hidden && grid.children.length === 0,

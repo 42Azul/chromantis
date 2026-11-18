@@ -34,6 +34,8 @@ With a curator account, choose **Personas en esta foto** to add or remove people
 
 Choose **Ver fotos del álbum** to browse six photos at a time. Use **Más fotos** and **Fotos anteriores** to move through the album. When the thumbnail cache is off, start with filenames and use **Abrir foto** to load an original. Browsing keeps your unsaved album edits.
 
+To add or remove the same people across several photos, choose **Seleccionar fotos**, mark the photos on the current page, then choose **Editar personas**. Review the filenames, choose whether to add or remove people, and save once. Changing pages clears the photo selection.
+
 ![Album review showing thumbnails from the example archive.](../../../assets/screenshots/web-gallery.webp)
 
 An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Personas en esta foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).

@@ -28,7 +28,7 @@ const render = new Function("results", "browsing", "opened", "searches", "edits"
   const element = (tag, options, ...children) => ({ tag, children, append(child) { children.push(child); } });
   const button = (label, click) => ({ label, click, setAttribute() {} });
   const openPhoto = (item, filename, preview, fetchOriginal) => opened.push({ item, preview, fetchOriginal });
-  const openPhotoPeople = (item, signal, saved) => edits.push({ item, saved });
+  const openPhotoPeople = (items, signal, saved) => edits.push({ items, saved });
   const archiveRequest = (action, options) => searches.push({ action, options });
   ${between("function renderConfirmedPhotos(", "function renderBatch(")}
   ${between("function photoCard(", "function closeAlbumReview(")}
@@ -57,7 +57,7 @@ render({ items: [item], next_offset: null }, "Anita", 24, 24);
 const edit = results.cards[0].children.at(-1);
 assert.equal(edit.label, "Personas en esta foto");
 edit.click();
-assert.equal(edits[0].item, item);
+assert.deepEqual(edits[0].items, [item]);
 assert.equal(opened.length, 1);
 edits[0].saved();
 assert.deepEqual(searches.at(-1), { action: "confirmed", options: { person: "Anita", offset: 24 } });

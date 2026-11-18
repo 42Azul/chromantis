@@ -89,6 +89,9 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .folder-card span { color: var(--muted); margin-top: .2rem; }
 .collection-card { display: grid; gap: .4rem; min-width: 0; align-content: start; }
 .photo-card > :is(.collection-save, .photo-people-button) { margin: 0 10px 10px; }
+.photo-selection { display: none; }
+.selecting-photos .photo-selection { display: flex; gap: 6px; align-items: center; margin: 0 10px 10px; }
+.selecting-photos .photo-people-button { display: none; }
 .shared-header { max-width: 48rem; margin-bottom: 26px; }
 .shared-kicker { color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
 .shared-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
