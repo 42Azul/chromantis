@@ -25,6 +25,8 @@ To narrow the current search, follow up with `before 2020`, `only 2019`, or `wit
 
 Under **Buscar álbumes**, change the result type to **Fotos por persona** and search a name or alias. Results include individually tagged photos from the web or [Android](./android.md#tag-individual-photos). Use **Álbumes** to search by album links. Previews appear when the thumbnail cache is enabled. Tap a result to open its original.
 
+Use **Etiqueta manual opcional** to narrow that person's photos to one manual photo tag. For example, search `Ana` with `romería`. Clear that field to see all photos confirmed for Ana again.
+
 With a curator account, choose **Etiquetar foto** to add or remove people on that specific photo. The same action is available under **Ver fotos del álbum** in the album editor. Pick a name or alias and choose **Guardar cambios**. If you remove the person you were searching for, the photo leaves those results.
 
 For a manual photo tag, choose **Fotos por etiqueta** and enter one exact tag such as `romería`. The search matches the whole tag and ignores accents and case. If you remove the tag from a result, that photo leaves the list.

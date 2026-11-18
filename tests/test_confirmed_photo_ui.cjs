@@ -23,7 +23,8 @@ const render = new Function("results", "browsing", "opened", "searches", "edits"
   const indexStatus = { thumbnails: false };
   const photoURLs = new Set();
   const photoRequests = new AbortController();
-  const $ = id => ({ results, browsing, query, archive: { hidden: false }, "results-title": resultsTitle })[id];
+  const $ = id => ({ results, browsing, query, archive: { hidden: false }, "results-title": resultsTitle,
+    "photo-tag": { value: "" } })[id];
   const resetPhotos = () => {};
   const message = () => {};
   const isOwner = () => false;
@@ -77,6 +78,12 @@ assert.deepEqual(searches.at(-1), { action: "tagged", options: { term: "romería
 results.cards[0].children.at(-2).click();
 edits.at(-1).saved();
 assert.deepEqual(searches.at(-1), { action: "tagged", options: { term: "romería", offset: 0 } });
+render({ items: [item], next_offset: 48 }, "confirmed", "Anita", 24, 24, "romería");
+browsing.buttons[1].click();
+assert.deepEqual(searches.at(-1), { action: "confirmed", options: { term: "Anita", tag: "romería", offset: 48 } });
+results.cards[0].children.at(-2).click();
+edits.at(-1).saved();
+assert.deepEqual(searches.at(-1), { action: "confirmed", options: { term: "Anita", tag: "romería", offset: 24 } });
 
 async function verifyReturnToPhotoSearch() {
   const { returnTo } = views[0].options;

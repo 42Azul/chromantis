@@ -71,7 +71,7 @@ Admins and owners can curate people with these routes. Each successful write ret
 | --- | --- | --- |
 | `GET /api/v1/photo-tags` | Repeat the URL-encoded `path` parameter for 1–50 indexed photos | Existing album curators |
 | `PATCH /api/v1/photo-tags` | Photo identities and a shared set of changes | Existing album curators |
-| `GET /api/v1/confirmed-images` | One of `person` (name or alias), `person_id`, or `tag` (exact manual photo tag), plus optional `limit` and `offset` | Search readers and active family sessions |
+| `GET /api/v1/confirmed-images` | `person` (name or alias) or `person_id`, and/or `tag` (exact manual photo tag), plus optional `limit` and `offset` | Search readers and active family sessions |
 
 The tagging routes return `{"items": [...]}` in selection order. Each item has `path`, `identity`, `people` entries with `person_id` and `origin`, and `manual_tags` entries with `tag` and `origin`. Use existing person IDs from `GET /api/v1/album-review/people`. Use each `path` from the gallery and copy its `identity` from the tagging response when saving.
 
@@ -94,6 +94,8 @@ Confirmed image search returns `{"items": [...], "next_offset": ...}` for explic
 An indexed photo keeps its identity and decisions across scans while its path, configured root, size and modification time stay the same. If the archive listing omits size or modification time, the index retains the last known values for identity checks. A conflicting comparable value, removal, or a root change clears its active decisions. A replacement with identical observed metadata shares the previous identity. Curation and search use SQLite metadata, and indexing opens no originals for this feature.
 
 Run the synthetic regression suite with `python -m unittest tests.test_photo_tags -v`.
+
+Combine `person=Ana&tag=romeria` to require both confirmed evidence and the manual tag on the same photo. A person linked only to the album does not satisfy this query.
 
 ## Album review, sharing, and maintenance
 

@@ -252,6 +252,8 @@ function setArchiveMode(family) {
     ...Object.entries(familyPhotoSearchModes).map(([key, mode]) => [key, mode.title])]
     : [["images", "Photos"], ["folders", "Folders"]]).map(([value, label]) => element("option", { value }, label)));
   $("family-photo-hint").hidden = true;
+  $("photo-tag-filter").hidden = true;
+  $("photo-tag").value = "";
   $("timeline").hidden = false;
   $("family-explorer").hidden = !family;
   for (const id of ["year", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
@@ -383,15 +385,17 @@ async function archiveRequest(action, arguments_ = {}) {
         return card;
       }));
     } else if (photoMode) {
-      const { term, offset = 0 } = arguments_;
+      const { term, offset = 0, tag } = arguments_;
       const pageSize = 24;
-      const page = await api("/confirmed-images" + queryParams({ [photoMode.parameter]: term, offset, limit: pageSize }));
+      const page = await api("/confirmed-images" + queryParams({
+        [photoMode.parameter]: term, offset, limit: pageSize, ...(tag ? { tag } : {}),
+      }));
       if (request !== requestNumber) return;
       if (!page.items.length && offset) {
-        return archiveRequest(action, { term, offset: Math.max(0, offset - pageSize) });
+        return archiveRequest(action, { ...arguments_, offset: Math.max(0, offset - pageSize) });
       }
       setRecallSearch();
-      renderFamilyPhotoResults(page, action, term, offset, pageSize);
+      renderFamilyPhotoResults(page, action, term, offset, pageSize, tag);
     } else if (action === "folders" || action === "timeline" || action === "year_albums") {
       const timeline = action === "timeline";
       const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 }
@@ -541,14 +545,15 @@ function renderFolders(items, timeline, refresh) {
   }));
 }
 
-function renderFamilyPhotoResults(page, action, term, offset, pageSize) {
+function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
   const { title, empty } = familyPhotoSearchModes[action];
-  const refresh = () => archiveRequest(action, { term, offset });
+  const search = { term, ...(tag ? { tag } : {}) };
+  const refresh = () => archiveRequest(action, { ...search, offset });
   resetPhotos();
   $("results").classList.remove("timeline-results");
   message("results-title", title);
   message("result-count", String(page.items.length));
-  message("archive-status", page.items.length ? "" : empty);
+  message("archive-status", page.items.length ? "" : tag ? "No hay fotos con esa persona y esa etiqueta manual." : empty);
   $("results").replaceChildren(...page.items.map(item => {
     const card = photoCard(item, photoRequests.signal, {
       spanish: true, originalOnClick: true, editTags: canCurateAlbums, onTagsSaved: refresh,
@@ -556,6 +561,7 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize) {
     if (canCurateAlbums && item.folder_path) {
       const album = button("Ver álbum", () => openAlbumFromResults(item.folder_path, () => {
         $("query").value = term;
+        $("photo-tag").value = tag || "";
         return refresh();
       }), "photo-album-button");
       album.setAttribute("aria-label", `Ver álbum de ${item.path.split("/").at(-1)}`);
@@ -565,9 +571,9 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize) {
   }));
   const actions = [];
   if (offset) actions.push(button("Página anterior",
-    () => archiveRequest(action, { term, offset: Math.max(0, offset - pageSize) })));
+    () => archiveRequest(action, { ...search, offset: Math.max(0, offset - pageSize) })));
   if (page.next_offset !== null) actions.push(button("Página siguiente",
-    () => archiveRequest(action, { term, offset: page.next_offset })));
+    () => archiveRequest(action, { ...search, offset: page.next_offset })));
   $("browsing").replaceChildren(...actions);
 }
 
@@ -1848,6 +1854,8 @@ $("scope").addEventListener("change", () => {
   message("results-title", photoMode?.title || "Álbumes");
   $("timeline").hidden = !!photoMode;
   $("family-photo-hint").hidden = !photoMode;
+  $("photo-tag-filter").hidden = $("scope").value !== "confirmed";
+  $("photo-tag").value = "";
   message("family-photo-hint", photoMode?.hint);
   $("query").placeholder = photoMode?.placeholder || "Ana, playa, 2024";
 });
@@ -1864,7 +1872,8 @@ $("search-form").addEventListener("submit", event => {
       $("query").focus();
       return;
     }
-    archiveRequest(action, { term: text });
+    const tag = action === "confirmed" ? $("photo-tag").value.trim() : "";
+    archiveRequest(action, { term: text, ...(tag ? { tag } : {}) });
     return;
   }
   if (/^(?:antes de|despu[eé]s de|s[oó]lo|en el [aá]lbum|[aá]lbum|con|before|after|only|in album|with)\s+\S/i.test(text)) {

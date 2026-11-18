@@ -25,6 +25,8 @@ Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coin
 
 En **Buscar álbumes**, cambia el tipo de resultado a **Fotos por persona** y escribe un nombre o alias. Aparecen las fotos etiquetadas individualmente desde la web o [Android](./android.md#etiqueta-fotos-individuales). Usa **Álbumes** para buscar por vínculos al álbum. Las miniaturas aparecen si está activa la caché. Pulsa una foto para abrir el original.
 
+En **Etiqueta manual opcional** puedes limitar las fotos de esa persona a una etiqueta manual de foto. Por ejemplo, busca `Ana` con `romería`. Borra ese campo para volver a ver todas las fotos confirmadas de Ana.
+
 Si tienes permiso para etiquetar, pulsa **Etiquetar foto** para añadir o quitar personas en la foto concreta. También puedes hacerlo desde **Ver fotos del álbum** en el editor de un álbum. Elige a alguien por nombre o alias y pulsa **Guardar cambios**. Si quitas a la persona que estabas buscando, esa foto sale de los resultados.
 
 Para buscar una etiqueta manual de foto, elige **Fotos por etiqueta** y escribe una etiqueta como `romería`. La búsqueda compara la palabra entera e ignora las tildes y las mayúsculas. Si quitas la etiqueta de un resultado, esa foto sale de la lista.

@@ -188,7 +188,7 @@ class SearchService:
         return results
 
     def search_confirmed_images(
-        self, identifier: str | int, *, limit: int = 10, offset: int = 0,
+        self, identifier: str | int, *, limit: int = 10, offset: int = 0, tag: str | None = None,
     ) -> list[SearchResult]:
         with self.repository.session() as connection:
             connection.execute("BEGIN")
@@ -201,10 +201,15 @@ class SearchService:
                    JOIN images i ON i.id = pp.image_id
                    JOIN album_metadata f ON f.id = i.folder_id
                    WHERE pp.person_id = ? AND pp.origin = 'manual'
+                     AND (? IS NULL OR EXISTS (
+                       SELECT 1 FROM photo_manual_tags pt WHERE pt.image_id = i.id AND pt.tag = ?))
                    ORDER BY f.year DESC, i.file_path ASC LIMIT ? OFFSET ?""",
-                (person.id, limit, offset),
+                (person.id, tag, tag, limit, offset),
             )
-            return [self._row_to_image_result(row, f'confirmed_person="{person.display_name}"') for row in rows]
+            reason = f'confirmed_person="{person.display_name}"'
+            if tag is not None:
+                reason += f' manual_tag="{tag}"'
+            return [self._row_to_image_result(row, reason) for row in rows]
 
     def search_manually_tagged_images(
         self, tag: str, *, limit: int = 10, offset: int = 0,
