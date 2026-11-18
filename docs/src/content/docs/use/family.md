@@ -13,6 +13,8 @@ The screenshots show the browser on a phone-sized screen with a sample archive.
 
 In a family session, open **Buscar álbumes** to browse by year or search by folder words, title, alias, place, or person. Try `playa 2024` or `Ana`. Open an album for its photos and use the viewer to open or download an original. The [optional thumbnail cache](../operate/maintenance.md#load-small-previews-on-demand) keeps the grid light on mobile.
 
+Choose **Explorar por año** to see the indexed years and their album and photo counts. Open a year, then an album. **Página siguiente** shows more albums and **Volver a años** returns to the year list. After reviewing an album, **Volver a resultados** restores the same page. This navigation works with the photo archive disconnected.
+
 Use the album timeline to browse by place or date. A date can come from the indexed folder or a saved correction. The photo viewer shows camera-reported and file modification dates separately when available.
 
 To narrow the current search, follow up with `before 2020`, `only 2019`, or `with Ana`. Choose an album if several match. A fresh query starts a new search. Try `fotos de la playa con Ana antes de 2020` to set a person and year at once. Tap **×** beside an active person, year, or album to remove just that filter.

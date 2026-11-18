@@ -253,6 +253,7 @@ function setArchiveMode(family) {
     : [["images", "Photos"], ["folders", "Folders"]]).map(([value, label]) => element("option", { value }, label)));
   $("family-photo-hint").hidden = true;
   $("timeline").hidden = false;
+  $("family-explorer").hidden = !family;
   for (const id of ["year", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
   $("search-form").classList.toggle("family-search", family);
 }
@@ -362,7 +363,26 @@ async function archiveRequest(action, arguments_ = {}) {
   message("archive-status", family ? "Buscando…" : "Loading…");
   try {
     const photoMode = family && familyPhotoSearchModes[action];
-    if (photoMode) {
+    if (family && action === "years") {
+      const { items } = await api("/years");
+      if (request !== requestNumber) return;
+      resetPhotos();
+      setRecallSearch();
+      $("results").classList.remove("timeline-results");
+      message("results-title", "Años");
+      message("result-count", String(items.length));
+      message("archive-status", items.length ? "" : "No hay años en el índice.");
+      $("browsing").replaceChildren();
+      $("results").replaceChildren(...items.map(item => {
+        const card = button("", () => {
+          $("query").value = String(item.year);
+          return archiveRequest("year_albums", { q: String(item.year) });
+        }, "folder-card");
+        card.append(element("strong", {}, String(item.year)),
+          element("span", {}, `${item.folders} álbumes · ${item.images} fotos`));
+        return card;
+      }));
+    } else if (photoMode) {
       const { term, offset = 0 } = arguments_;
       const pageSize = 24;
       const page = await api("/confirmed-images" + queryParams({ [photoMode.parameter]: term, offset, limit: pageSize }));
@@ -372,25 +392,31 @@ async function archiveRequest(action, arguments_ = {}) {
       }
       setRecallSearch();
       renderFamilyPhotoResults(page, action, term, offset, pageSize);
-    } else if (action === "folders" || action === "timeline") {
+    } else if (action === "folders" || action === "timeline" || action === "year_albums") {
       const timeline = action === "timeline";
-      const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 } : { q: arguments_.q, limit: 30 };
+      const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 }
+        : { q: arguments_.q, limit: 31, offset: arguments_.offset || 0 };
       if (family && !timeline) params.filters = 1;
       const { items, filters } = await api("/folders" + queryParams(params));
       if (request !== requestNumber) return;
+      if (!items.length && params.offset) {
+        return archiveRequest(action, { ...arguments_, offset: Math.max(0, params.offset - 30) });
+      }
       if (timeline) setRecallSearch();
       else {
         setRecallSearch("folders", filters?.q ?? arguments_.q, undefined, filters?.active);
         if (arguments_.updateInput) $("query").value = filters?.text ?? arguments_.q;
       }
       renderFolders(items.slice(0, 30), timeline, () => archiveRequest(action, arguments_));
-      if (timeline) {
-        const offset = arguments_.offset || 0;
-        if (offset) $("browsing").append(button(family ? "Página anterior" : "Previous page",
-          () => archiveRequest("timeline", { ...arguments_, offset: offset - 30 })));
-        if (items.length > 30) $("browsing").append(button(family ? "Página siguiente" : "Next page",
-          () => archiveRequest("timeline", { ...arguments_, offset: offset + 30 })));
+      if (action === "year_albums") {
+        message("results-title", `Álbumes de ${arguments_.q}`);
+        $("browsing").append(button("Volver a años", () => archiveRequest("years")));
       }
+      const offset = arguments_.offset || 0;
+      if (offset) $("browsing").append(button(family ? "Página anterior" : "Previous page",
+        () => archiveRequest(action, { ...arguments_, offset: offset - 30 })));
+      if (items.length > 30) $("browsing").append(button(family ? "Página siguiente" : "Next page",
+        () => archiveRequest(action, { ...arguments_, offset: offset + 30 })));
     } else {
       const batch = await api("/browse", { method: "POST", data: { action, ...arguments_ } });
       if (request === requestNumber) {
@@ -1707,6 +1733,12 @@ $("timeline-form").addEventListener("submit", event => {
   });
 });
 $("random").addEventListener("click", () => archiveRequest("random", { q: $("year").value }));
+$("browse-years").addEventListener("click", () => {
+  $("scope").value = "folders";
+  $("scope").dispatchEvent(new Event("change"));
+  $("query").value = "";
+  return archiveRequest("years");
+});
 $("recent").addEventListener("click", () => { pinnedOnly = false; showView("searches"); });
 $("pinned").addEventListener("click", () => { pinnedOnly = true; showView("searches"); });
 for (const tab of document.querySelectorAll("[data-view]")) {
