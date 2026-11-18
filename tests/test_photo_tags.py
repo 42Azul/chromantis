@@ -229,6 +229,39 @@ class PhotoTagTests(unittest.TestCase):
         self.assertEqual(self.request("PATCH", "/photo-tags", data, cookie=secret)[0], 401)
         self.assertEqual(self.request("GET", "/confirmed-images?person=Anita", cookie=secret)[0], 401)
 
+    def test_manual_tag_search_uses_only_photo_tags_with_the_archive_disconnected(self):
+        first, second, _ = self.tags(*PHOTOS)
+        self.assertEqual(self.edit([first, second], manual_add=["Pícnic"])[0], 200)
+        with self.repository.connect() as connection:
+            connection.execute("DROP INDEX idx_photo_manual_tags_tag")
+        self.repository.init_schema()
+        with self.repository.connect() as connection:
+            indexes = connection.execute("PRAGMA index_list(photo_manual_tags)")
+            self.assertIn("idx_photo_manual_tags_tag", {row["name"] for row in indexes})
+        self.scanner.scan(incremental=True)
+        self.archive.rename(self.archive.with_name("disconnected"))
+        self.assertEqual(self.find("confirmed-images", tag="PÍCNIC"), [PHOTO_PATH, SECOND_PATH])
+        self.assertEqual(self.find("confirmed-images", tag="pic"), [])
+        self.assertEqual(self.find("folders", q="picnic"), [ALBUM])
+
+        _, code = self.app.family_access.invite("Family curator")
+        secret = self.app.family_access.redeem(code)
+        route = "/confirmed-images?tag=picnic&limit=1"
+        status, page = self.request("GET", route, cookie=secret)
+        self.assertEqual((status, page["next_offset"]), (200, 1))
+        self.assertEqual((page["items"][0]["path"], page["items"][0]["reason"]),
+                         (PHOTO_PATH, 'manual_tag="picnic"'))
+        status, page = self.request("GET", route + "&offset=1", cookie=secret)
+        self.assertEqual((status, page["next_offset"], page["items"][0]["path"]), (200, None, SECOND_PATH))
+        for invalid in ("tag=", "tag=picnic&tag=playa", "tag=picnic&person=Ana", "tag=dos+palabras"):
+            self.assertEqual(self.request("GET", "/confirmed-images?" + invalid, cookie=secret)[0], 400)
+        self.assertEqual(self.request("GET", route, token=None)[0], 401)
+        self.assertEqual(self.edit([first], manual_remove=["picnic"])[0], 200)
+        self.assertEqual(self.find("confirmed-images", tag="picnic"), [SECOND_PATH])
+        self.app.family_access.revoke(self.app.family_access.resolve(secret).id)
+        self.assertEqual(self.request("GET", route, cookie=secret)[0], 401)
+        self.scanner.source.read_bytes.assert_not_called()
+
     def test_removed_photo_does_not_inherit_decisions_when_path_returns(self):
         third = self.tags(THIRD_PATH)[0]
         self.assertEqual(self.edit([third], add_people=[self.ana.id], manual_add=["family"])[0], 200)

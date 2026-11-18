@@ -140,6 +140,11 @@ class ApplicationService:
     ) -> list[SearchResult]:
         return self.search.search_confirmed_images(person, limit=limit, offset=offset)
 
+    def search_manually_tagged_images(
+        self, tag: str, *, limit: int = 10, offset: int = 0,
+    ) -> list[SearchResult]:
+        return self.search.search_manually_tagged_images(parse_tag(tag), limit=limit, offset=offset)
+
     def images_in_folder(
         self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = (), *, offset: int = 0,
     ) -> list[SearchResult]:

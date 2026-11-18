@@ -16,6 +16,7 @@ const edits = [];
 const permissions = { curate: false };
 const searches = [];
 const render = new Function("results", "browsing", "opened", "searches", "edits", "permissions", `
+  ${between("const familyPhotoSearchModes", "const sharedSecret")}
   const indexStatus = { thumbnails: false };
   const photoURLs = new Set();
   const photoRequests = new AbortController();
@@ -30,13 +31,13 @@ const render = new Function("results", "browsing", "opened", "searches", "edits"
   const openPhoto = (item, filename, preview, fetchOriginal) => opened.push({ item, preview, fetchOriginal });
   const openPhotoTags = (items, signal, saved) => edits.push({ items, saved });
   const archiveRequest = (action, options) => searches.push({ action, options });
-  ${between("function renderConfirmedPhotos(", "function renderBatch(")}
+  ${between("function renderFamilyPhotoResults(", "function renderBatch(")}
   ${between("function photoCard(", "function closeAlbumReview(")}
-  return (...args) => { canCurateAlbums = permissions.curate; return renderConfirmedPhotos(...args); };
+  return (...args) => { canCurateAlbums = permissions.curate; return renderFamilyPhotoResults(...args); };
 `)(results, browsing, opened, searches, edits, permissions);
 
 const item = { path: "2024/fixture/Photo-25.jpg" };
-render({ items: [item], next_offset: null }, "Anita", 24, 24);
+render({ items: [item], next_offset: null }, "confirmed", "Anita", 24, 24);
 assert.equal(results.cards.length, 1);
 assert.equal(results.cards[0].children.length, 2);
 assert.deepEqual(opened, []);
@@ -46,21 +47,28 @@ frame.click();
 assert.deepEqual(opened, [{ item, preview: undefined, fetchOriginal: true }]);
 assert.equal(browsing.buttons.length, 1);
 browsing.buttons[0].click();
-assert.deepEqual(searches, [{ action: "confirmed", options: { person: "Anita", offset: 0 } }]);
+assert.deepEqual(searches, [{ action: "confirmed", options: { term: "Anita", offset: 0 } }]);
 
-render({ items: [item], next_offset: 24 }, "Anita", 0, 24);
+render({ items: [item], next_offset: 24 }, "confirmed", "Anita", 0, 24);
 assert.equal(browsing.buttons.length, 1);
 browsing.buttons[0].click();
-assert.deepEqual(searches[1], { action: "confirmed", options: { person: "Anita", offset: 24 } });
+assert.deepEqual(searches[1], { action: "confirmed", options: { term: "Anita", offset: 24 } });
 permissions.curate = true;
-render({ items: [item], next_offset: null }, "Anita", 24, 24);
+render({ items: [item], next_offset: null }, "confirmed", "Anita", 24, 24);
 const edit = results.cards[0].children.at(-1);
 assert.equal(edit.label, "Etiquetar foto");
 edit.click();
 assert.deepEqual(edits[0].items, [item]);
 assert.equal(opened.length, 1);
 edits[0].saved();
-assert.deepEqual(searches.at(-1), { action: "confirmed", options: { person: "Anita", offset: 24 } });
+assert.deepEqual(searches.at(-1), { action: "confirmed", options: { term: "Anita", offset: 24 } });
+render({ items: [item], next_offset: 24 }, "tagged", "romería", 0, 24);
+browsing.buttons[0].click();
+assert.deepEqual(searches.at(-1), { action: "tagged", options: { term: "romería", offset: 24 } });
+results.cards[0].children.at(-1).click();
+edits.at(-1).saved();
+assert.deepEqual(searches.at(-1), { action: "tagged", options: { term: "romería", offset: 0 } });
+
 async function verifyManualPhotoTags() {
   function element(tag, props, ...children) {
     return {

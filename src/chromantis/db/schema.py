@@ -249,6 +249,7 @@ CREATE INDEX IF NOT EXISTS idx_person_aliases_person_id ON person_aliases(person
 CREATE INDEX IF NOT EXISTS idx_person_aliases_normalized ON person_aliases(alias_normalized);
 CREATE INDEX IF NOT EXISTS idx_folder_people_person_id ON folder_people(person_id);
 CREATE INDEX IF NOT EXISTS idx_photo_people_person_id ON photo_people(person_id, image_id);
+CREATE INDEX IF NOT EXISTS idx_photo_manual_tags_tag ON photo_manual_tags(tag, image_id);
 CREATE INDEX IF NOT EXISTS idx_invite_codes_role ON invite_codes(role);
 CREATE INDEX IF NOT EXISTS idx_invite_codes_expires_at ON invite_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action);

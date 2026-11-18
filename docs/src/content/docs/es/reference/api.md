@@ -71,7 +71,7 @@ Los administradores y propietarios pueden editar personas. Cada escritura correc
 | --- | --- | --- |
 | `GET /api/v1/photo-tags` | Repite `path` codificado para URL para entre 1 y 50 fotos indexadas | Con permiso de etiquetado |
 | `PATCH /api/v1/photo-tags` | Identidades de las fotos y cambios que se aplican a todas | Con permiso de etiquetado |
-| `GET /api/v1/confirmed-images` | `person` (nombre o alias) o `person_id`, con `limit` y `offset` opcionales | Lectores y sesiones familiares activas |
+| `GET /api/v1/confirmed-images` | Uno de `person` (nombre o alias), `person_id` o `tag` (etiqueta manual exacta de foto), con `limit` y `offset` opcionales | Lectores y sesiones familiares activas |
 
 Las rutas de etiquetado devuelven `{"items": [...]}` en el orden de la selección. Cada elemento tiene `path`, `identity`, entradas `people` con `person_id` y `origin`, y entradas `manual_tags` con `tag` y `origin`. Usa los IDs de `GET /api/v1/album-review/people`, la ruta de cada foto de la galería y su `identity` en la respuesta de etiquetado.
 
@@ -89,7 +89,7 @@ Las rutas de etiquetado devuelven `{"items": [...]}` en el orden de la selecció
 
 Los cambios se aplican a toda la selección de forma atómica y se pueden reintentar. Si el cuerpo supera 16 KiB, la API devuelve 413. Divide las selecciones largas en solicitudes más pequeñas, cada una atómica. Una foto ausente o cambiada produce 409 para que el cliente recargue la selección. Las etiquetas tienen una palabra de hasta 40 letras. El registro de auditoría conserva el origen manual y el chat o la sesión familiar que hizo cada cambio. Los lectores pueden buscar. Consultar o guardar la selección de etiquetado requiere el permiso correspondiente. Las escrituras de sesiones familiares usan JSON y el mismo origen que la revisión de álbumes.
 
-La búsqueda confirmada devuelve `{"items": [...], "next_offset": ...}` para vínculos explícitos a fotos. Por defecto muestra 30 elementos y admite hasta 50. Si la persona no está en el directorio, devuelve una lista vacía. `/api/v1/folders` y `/api/v1/images` conservan las coincidencias por álbum y por texto. Las etiquetas manuales por foto solo coinciden con las fotos editadas en `/api/v1/images`.
+La búsqueda confirmada devuelve `{"items": [...], "next_offset": ...}` para vínculos explícitos a fotos o etiquetas manuales de foto. Por defecto muestra 30 elementos y admite hasta 50. Si no encuentra a la persona o la etiqueta, devuelve una lista vacía. `tag` usa la misma regla de una sola palabra y la misma normalización que el etiquetado manual de fotos. El filtro se limita a esas etiquetas manuales. `/api/v1/folders` y `/api/v1/images` conservan las coincidencias por álbum y por texto. Las etiquetas manuales de foto también se pueden buscar como palabras clave en `/api/v1/images`.
 
 Una foto conserva su identidad y sus decisiones si no cambian su ruta, raíz, tamaño ni fecha de modificación. Si el listado omite tamaño o fecha, el índice retiene el último valor conocido. Eliminar la foto, cambiar la raíz o detectar un valor comparable distinto borra las decisiones activas. Un reemplazo con los mismos metadatos observados conserva la identidad. El etiquetado y la búsqueda leen SQLite, y el escaneo no abre los originales para esta función.
 

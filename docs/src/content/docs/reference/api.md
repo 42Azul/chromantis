@@ -71,7 +71,7 @@ Admins and owners can curate people with these routes. Each successful write ret
 | --- | --- | --- |
 | `GET /api/v1/photo-tags` | Repeat the URL-encoded `path` parameter for 1–50 indexed photos | Existing album curators |
 | `PATCH /api/v1/photo-tags` | Photo identities and a shared set of changes | Existing album curators |
-| `GET /api/v1/confirmed-images` | `person` (name or alias) or `person_id`, plus optional `limit` and `offset` | Search readers and active family sessions |
+| `GET /api/v1/confirmed-images` | One of `person` (name or alias), `person_id`, or `tag` (exact manual photo tag), plus optional `limit` and `offset` | Search readers and active family sessions |
 
 The tagging routes return `{"items": [...]}` in selection order. Each item has `path`, `identity`, `people` entries with `person_id` and `origin`, and `manual_tags` entries with `tag` and `origin`. Use existing person IDs from `GET /api/v1/album-review/people`. Use each `path` from the gallery and copy its `identity` from the tagging response when saving.
 
@@ -89,7 +89,7 @@ The tagging routes return `{"items": [...]}` in selection order. Each item has `
 
 Edits apply atomically to the selection and can be retried. The existing 16 KiB request body limit returns 413 for larger payloads. Clients can split long selections into smaller requests, each saved atomically. A missing or changed photo during a save returns 409 so the client can reload the selection. Tags follow the album tagging rule of one word up to 40 letters. Actual additions and removals use the existing audit log with manual origin and the acting chat or family session. Ordinary readers can search. Reading or editing the tagging selection requires curation permission. Family-session writes use the same-origin JSON request used by album curation.
 
-Confirmed image search returns `{"items": [...], "next_offset": ...}` for explicit photo links, with a default page size of 30 and a maximum of 50. A missing person in the directory gives an empty result. Existing person searches in `/api/v1/folders` and `/api/v1/images` still use album links and their existing text matching. Manual photo tags can match image keywords in `/api/v1/images` and apply only to the edited photos.
+Confirmed image search returns `{"items": [...], "next_offset": ...}` for explicit photo links or manual photo tags, with a default page size of 30 and a maximum of 50. A missing person or tag gives an empty result. The `tag` parameter uses the same one-word rule and normalization as manual photo tagging. Album and indexed tags are outside this filter. Existing person searches in `/api/v1/folders` and `/api/v1/images` still use album links and their existing text matching. Manual photo tags can also match image keywords in `/api/v1/images`.
 
 An indexed photo keeps its identity and decisions across scans while its path, configured root, size and modification time stay the same. If the archive listing omits size or modification time, the index retains the last known values for identity checks. A conflicting comparable value, removal, or a root change clears its active decisions. A replacement with identical observed metadata shares the previous identity. Curation and search use SQLite metadata, and indexing opens no originals for this feature.
 

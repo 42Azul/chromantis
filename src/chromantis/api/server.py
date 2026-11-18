@@ -670,15 +670,19 @@ def _query_route(
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
         return 200, {"items": [asdict(item) for item in app_service.search_images(query, limit=limit)]}
     if path == CONFIRMED_IMAGES_PATH:
-        identifiers = params.get("person", []) + params.get("person_id", [])
+        tags = params.get("tag", [])
+        identifiers = params.get("person", []) + params.get("person_id", []) + tags
         if len(identifiers) != 1 or not 1 <= len(identifiers[0].strip()) <= 100:
-            raise ValueError("Provide one person name or alias, or one person_id.")
-        person = _positive_id(identifiers[0]) if "person_id" in params else identifiers[0]
+            raise ValueError("Provide one person name, alias, person_id or manual tag.")
         limit = _bounded_limit(params.get("limit", ["30"])[0], default=30)
         offset = _optional_int(params.get("offset", [None])[0]) or 0
         if not 0 <= offset < 2**63 - limit:
             raise ValueError("Invalid offset.")
-        items = app_service.search_confirmed_images(person, limit=limit + 1, offset=offset)
+        if tags:
+            items = app_service.search_manually_tagged_images(tags[0], limit=limit + 1, offset=offset)
+        else:
+            person = _positive_id(identifiers[0]) if "person_id" in params else identifiers[0]
+            items = app_service.search_confirmed_images(person, limit=limit + 1, offset=offset)
         return 200, {
             "items": [asdict(item) for item in items[:limit]],
             "next_offset": offset + limit if len(items) > limit else None,

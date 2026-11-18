@@ -23,6 +23,8 @@ En **Buscar álbumes**, cambia el tipo de resultado a **Fotos por persona** y es
 
 Si tienes permiso para etiquetar, pulsa **Etiquetar foto** para añadir o quitar personas en la foto concreta. También puedes hacerlo desde **Ver fotos del álbum** en el editor de un álbum. Elige a alguien por nombre o alias y pulsa **Guardar cambios**. Si quitas a la persona que estabas buscando, esa foto sale de los resultados.
 
+Para buscar una etiqueta manual de foto, elige **Fotos por etiqueta** y escribe una etiqueta como `romería`. La búsqueda compara la palabra entera e ignora las tildes y las mayúsculas. Si quitas la etiqueta de un resultado, esa foto sale de la lista.
+
 ## Etiqueta tu primer álbum
 
 1. Abre **Etiquetar álbumes** y elige uno de los pendientes. Verás su título y la fecha, si se conoce.

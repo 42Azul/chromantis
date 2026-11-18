@@ -1,5 +1,17 @@
 const $ = id => document.getElementById(id);
 const views = ["archive", "people", "album-review", "searches", "collections", "admin"];
+const familyPhotoSearchModes = {
+  confirmed: {
+    parameter: "person", title: "Fotos por persona", placeholder: "Nombre o alias",
+    hint: "Busca las fotos etiquetadas con esa persona.",
+    prompt: "Escribe un nombre o alias.", empty: "No hay fotos etiquetadas con ese nombre o alias.",
+  },
+  tagged: {
+    parameter: "tag", title: "Fotos por etiqueta", placeholder: "Etiqueta de una palabra",
+    hint: "Busca una etiqueta manual de foto, como romería.",
+    prompt: "Escribe una etiqueta.", empty: "No hay fotos con esa etiqueta manual.",
+  },
+};
 const sharedSecret = decodeURIComponent(location.pathname.match(/^\/share\/([A-Za-z0-9_-]{43})$/)?.[1] || "");
 const photoURLs = new Set();
 let token = "";
@@ -232,9 +244,10 @@ function setArchiveMode(family) {
   $("query").placeholder = family ? "Ana, playa, 2024" : "Try beach 2021";
   const scope = $("scope");
   scope.setAttribute("aria-label", family ? "Tipo de resultado" : "Result type");
-  scope.replaceChildren(...(family ? [["folders", "Álbumes"], ["confirmed", "Fotos por persona"]]
+  scope.replaceChildren(...(family ? [["folders", "Álbumes"],
+    ...Object.entries(familyPhotoSearchModes).map(([key, mode]) => [key, mode.title])]
     : [["images", "Photos"], ["folders", "Folders"]]).map(([value, label]) => element("option", { value }, label)));
-  $("confirmed-photo-hint").hidden = true;
+  $("family-photo-hint").hidden = true;
   $("timeline").hidden = false;
   for (const id of ["year", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
   $("search-form").classList.toggle("family-search", family);
@@ -344,16 +357,17 @@ async function archiveRequest(action, arguments_ = {}) {
   $("refine-choices").replaceChildren();
   message("archive-status", family ? "Buscando…" : "Loading…");
   try {
-    if (action === "confirmed") {
-      const { person, offset = 0 } = arguments_;
+    const photoMode = family && familyPhotoSearchModes[action];
+    if (photoMode) {
+      const { term, offset = 0 } = arguments_;
       const pageSize = 24;
-      const page = await api("/confirmed-images" + queryParams({ person, offset, limit: pageSize }));
+      const page = await api("/confirmed-images" + queryParams({ [photoMode.parameter]: term, offset, limit: pageSize }));
       if (request !== requestNumber) return;
       if (!page.items.length && offset) {
-        return archiveRequest("confirmed", { person, offset: Math.max(0, offset - pageSize) });
+        return archiveRequest(action, { term, offset: Math.max(0, offset - pageSize) });
       }
       setRecallSearch();
-      renderConfirmedPhotos(page, person, offset, pageSize);
+      renderFamilyPhotoResults(page, action, term, offset, pageSize);
     } else if (action === "folders" || action === "timeline") {
       const timeline = action === "timeline";
       const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 } : { q: arguments_.q, limit: 30 };
@@ -491,22 +505,23 @@ function renderFolders(items, timeline, refresh) {
   }));
 }
 
-function renderConfirmedPhotos(page, person, offset, pageSize) {
+function renderFamilyPhotoResults(page, action, term, offset, pageSize) {
+  const { title, empty } = familyPhotoSearchModes[action];
   resetPhotos();
   $("results").classList.remove("timeline-results");
-  message("results-title", "Fotos por persona");
+  message("results-title", title);
   message("result-count", String(page.items.length));
-  message("archive-status", page.items.length ? "" : "No hay fotos etiquetadas con ese nombre o alias.");
+  message("archive-status", page.items.length ? "" : empty);
   $("results").replaceChildren(...page.items.map(item =>
     photoCard(item, photoRequests.signal, {
       spanish: true, originalOnClick: true, editTags: canCurateAlbums,
-      onTagsSaved: () => archiveRequest("confirmed", { person, offset }),
+      onTagsSaved: () => archiveRequest(action, { term, offset }),
     })));
   const actions = [];
   if (offset) actions.push(button("Página anterior",
-    () => archiveRequest("confirmed", { person, offset: Math.max(0, offset - pageSize) })));
+    () => archiveRequest(action, { term, offset: Math.max(0, offset - pageSize) })));
   if (page.next_offset !== null) actions.push(button("Página siguiente",
-    () => archiveRequest("confirmed", { person, offset: page.next_offset })));
+    () => archiveRequest(action, { term, offset: page.next_offset })));
   $("browsing").replaceChildren(...actions);
 }
 
@@ -1624,30 +1639,33 @@ $("disconnect").addEventListener("click", async () => {
 });
 $("scope").addEventListener("change", () => {
   if (principal?.auth_mode !== "family") return;
-  const confirmed = $("scope").value === "confirmed";
+  const photoMode = familyPhotoSearchModes[$("scope").value];
   requestNumber++;
   resetPhotos();
   setRecallSearch();
   for (const id of ["results", "browsing", "refine-choices"]) $(id).replaceChildren();
   message("archive-status");
   message("result-count");
-  message("results-title", confirmed ? "Fotos por persona" : "Álbumes");
-  $("timeline").hidden = confirmed;
-  $("confirmed-photo-hint").hidden = !confirmed;
-  $("query").placeholder = confirmed ? "Nombre o alias" : "Ana, playa, 2024";
+  message("results-title", photoMode?.title || "Álbumes");
+  $("timeline").hidden = !!photoMode;
+  $("family-photo-hint").hidden = !photoMode;
+  message("family-photo-hint", photoMode?.hint);
+  $("query").placeholder = photoMode?.placeholder || "Ana, playa, 2024";
 });
 
 $("search-form").addEventListener("submit", event => {
   event.preventDefault();
   const year = $("year").value;
   const text = $("query").value.trim();
-  if (principal?.auth_mode === "family" && $("scope").value === "confirmed") {
+  const action = $("scope").value;
+  const photoMode = principal?.auth_mode === "family" && familyPhotoSearchModes[action];
+  if (photoMode) {
     if (!text) {
-      message("archive-status", "Escribe un nombre o alias.");
+      message("archive-status", photoMode.prompt);
       $("query").focus();
       return;
     }
-    archiveRequest("confirmed", { person: text });
+    archiveRequest(action, { term: text });
     return;
   }
   if (/^(?:antes de|despu[eé]s de|s[oó]lo|en el [aá]lbum|[aá]lbum|con|before|after|only|in album|with)\s+\S/i.test(text)) {

@@ -206,6 +206,21 @@ class SearchService:
             )
             return [self._row_to_image_result(row, f'confirmed_person="{person.display_name}"') for row in rows]
 
+    def search_manually_tagged_images(
+        self, tag: str, *, limit: int = 10, offset: int = 0,
+    ) -> list[SearchResult]:
+        with self.repository.session() as connection:
+            rows = connection.execute(
+                """SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date
+                   FROM photo_manual_tags pt
+                   JOIN images i ON i.id = pt.image_id
+                   JOIN album_metadata f ON f.id = i.folder_id
+                   WHERE pt.tag = ? AND pt.origin = 'manual'
+                   ORDER BY f.year DESC, i.file_path ASC LIMIT ? OFFSET ?""",
+                (tag, limit, offset),
+            )
+            return [self._row_to_image_result(row, f'manual_tag="{tag}"') for row in rows]
+
     def random_image(self, raw_query: str, limit: int = 10) -> SearchResult | None:
         matches = self.search_images(raw_query, limit=limit)
         if not matches:

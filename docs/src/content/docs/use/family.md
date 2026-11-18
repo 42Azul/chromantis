@@ -23,6 +23,8 @@ Under **Buscar álbumes**, change the result type to **Fotos por persona** and s
 
 With a curator account, choose **Etiquetar foto** to add or remove people on that specific photo. The same action is available under **Ver fotos del álbum** in the album editor. Pick a name or alias and choose **Guardar cambios**. If you remove the person you were searching for, the photo leaves those results.
 
+For a manual photo tag, choose **Fotos por etiqueta** and enter one exact tag such as `romería`. The search matches the whole tag and ignores accents and case. If you remove the tag from a result, that photo leaves the list.
+
 ## Tag your first album
 
 1. Open **Tag albums** (*Etiquetar álbumes*) and select a pending album. Its title and known date appear first.
