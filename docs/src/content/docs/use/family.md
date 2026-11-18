@@ -7,7 +7,7 @@ Open the local Chromantis address and [sign in](../start/private-access.md). The
 
 Choose **Appearance** in the sidebar for **System**, **Light**, or **Dark**. In a family session, the control is labelled **Aspecto**. Your choice is saved on this browser. **System** follows the device appearance.
 
-The screenshots show the browser on a phone-sized screen with a sample archive.
+The screenshots show the browser on a phone-sized screen with a sample archive. The light-theme photo examples use blue tiles and fictional names.
 
 ## Find an album
 
@@ -42,11 +42,19 @@ Choose **Ver álbum** on a photo result to open its album. **Volver a resultados
 
 Choose **Ver fotos del álbum** to browse six photos at a time. Use **Más fotos** and **Fotos anteriores** to move through the album. When the thumbnail cache is off, start with filenames and use **Abrir foto** to load an original. Browsing keeps your unsaved album edits.
 
+![Light-theme album gallery with six sample photos, Seleccionar fotos, Más fotos and Revisar foto a foto.](../../../assets/screenshots/web-gallery-current.png)
+
+## Tag individual photos
+
 To edit several photos together, choose **Seleccionar fotos**, mark the photos on the current page, then choose **Etiquetar fotos**. Review the filenames and pick the people to add or remove. Under **Etiquetas manuales**, enter one-word tags separated by commas or mark existing tags for removal. Save once to apply the changes to the selected photos. You can use **Etiquetas manuales** on a single photo too. Changing pages clears the photo selection.
+
+![Editor for Photo-01.jpg and Photo-03.jpg, with Luis selected, two manual tags entered, and Guardar en 2 fotos.](../../../assets/screenshots/web-photo-batch.png)
+
+## Review one photo at a time
 
 With thumbnails enabled, **Revisar foto a foto** reviews the current gallery page for one person. Choose their name or alias and press **Empezar**. Swipe right or use **Sí, aparece** to mark a visible photo. Swipe left or use **Saltar** to leave it for another pass. **Deshacer** revisits the previous decision. Check the marked filenames and choose **Guardar revisión** at the end. Closing before saving discards this review.
 
-![Album review showing thumbnails from the example archive.](../../../assets/screenshots/web-gallery.webp)
+![Photo review asking whether Luis appears, showing one marked photo and the Saltar, Sí, aparece and Deshacer buttons.](../../../assets/screenshots/web-photo-review.png)
 
 An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Etiquetar foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).
 

@@ -7,7 +7,7 @@ En **Aspecto**, elige **Sistema**, **Claro** u **Oscuro**. La elección se guard
 
 Abre la dirección local de Chromantis e [inicia sesión](../start/private-access.md). Puedes usar un móvil o un ordenador.
 
-Las capturas muestran la web en una pantalla de tamaño móvil con un archivo de ejemplo.
+Las capturas muestran la web en una pantalla de tamaño móvil con un archivo de ejemplo. En las capturas con tema claro se usan bloques azules como fotos y nombres ficticios.
 
 ## Encuentra un álbum
 
@@ -42,11 +42,19 @@ Pulsa **Ver álbum** en una foto de los resultados para abrir el álbum al que p
 
 Pulsa **Ver fotos del álbum** para recorrerlo de seis en seis con **Más fotos** y **Fotos anteriores**. Si la caché de miniaturas está desactivada, verás los nombres y podrás pulsar **Abrir foto** para cargar el original. Puedes recorrer las fotos y conservar los cambios del álbum que aún tengas por guardar.
 
+![Galería con tema claro, seis fotos de ejemplo y los botones Seleccionar fotos, Más fotos y Revisar foto a foto.](../../../../assets/screenshots/web-gallery-current.png)
+
+## Etiqueta fotos individuales
+
 Para editar varias fotos juntas, pulsa **Seleccionar fotos**, marca las de la página actual y pulsa **Etiquetar fotos**. Comprueba los nombres de los archivos y elige las personas que quieres añadir o quitar. En **Etiquetas manuales**, escribe etiquetas de una sola palabra separadas por comas o marca las que quieras quitar. Guarda una vez para aplicar los cambios a las fotos seleccionadas. También puedes usar **Etiquetas manuales** en una sola foto. Al cambiar de página se borra la selección de fotos.
+
+![Editor de Photo-01.jpg y Photo-03.jpg con Luis seleccionado, dos etiquetas escritas y el botón Guardar en 2 fotos.](../../../../assets/screenshots/web-photo-batch.png)
+
+## Revisa foto a foto
 
 Con las miniaturas activadas, **Revisar foto a foto** recorre la página actual buscando a una persona. Elige su nombre o alias y pulsa **Empezar**. Arrastra a la derecha o pulsa **Sí, aparece** para marcar una foto visible. Arrastra a la izquierda o pulsa **Saltar** para dejarla para otra pasada. **Deshacer** permite revisar la decisión anterior. Al terminar, comprueba los archivos marcados y pulsa **Guardar revisión**. Si cierras antes de guardar, se descarta esta revisión.
 
-![Revisión de un álbum con miniaturas del archivo de ejemplo.](../../../../assets/screenshots/web-gallery.webp)
+![Revisión que pregunta si aparece Luis, con una foto marcada y los botones Saltar, Sí, aparece y Deshacer.](../../../../assets/screenshots/web-photo-review.png)
 
 El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Etiquetar foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).
 
