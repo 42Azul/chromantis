@@ -5,6 +5,8 @@ description: Find family photos, review albums, and save corrections in the loca
 
 Open the local Chromantis address and [sign in](../start/private-access.md). The browser works on a phone or computer.
 
+Choose **Appearance** in the sidebar for **System**, **Light**, or **Dark**. In a family session, the control is labelled **Aspecto**. Your choice is saved on this browser. **System** follows the device appearance.
+
 The screenshots show the browser on a phone-sized screen with a sample archive.
 
 ## Find an album

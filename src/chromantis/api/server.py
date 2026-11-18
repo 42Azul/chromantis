@@ -39,6 +39,7 @@ UI_ROOT = Path(__file__).with_name("ui")
 UI_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/ui/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/ui/appearance.js": ("appearance.js", "text/javascript; charset=utf-8"),
     "/ui/style.css": ("style.css", "text/css; charset=utf-8"),
 }
 

@@ -229,6 +229,10 @@ function signOut() {
 
 function setArchiveMode(family) {
   $("archive").lang = family ? "es" : "en";
+  message("appearance-label", family ? "Aspecto" : "Appearance");
+  for (const [index, label] of (family ? ["Sistema", "Claro", "Oscuro"] : ["System", "Light", "Dark"]).entries()) {
+    $("appearance").options[index].textContent = label;
+  }
   $("archive-nav").lang = $("archive").lang;
   $("archive-nav").textContent = family ? "Buscar álbumes" : "Archive";
   message("archive-title", family ? "Buscar álbumes" : "Photo archive");

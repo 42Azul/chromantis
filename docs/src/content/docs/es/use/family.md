@@ -3,6 +3,8 @@ title: Explorar y etiquetar álbumes
 description: Encuentra fotos familiares, revisa álbumes y guarda correcciones desde el navegador.
 ---
 
+En **Aspecto**, elige **Sistema**, **Claro** u **Oscuro**. La elección se guarda en este navegador. **Sistema** sigue el aspecto del dispositivo.
+
 Abre la dirección local de Chromantis e [inicia sesión](../start/private-access.md). Puedes usar un móvil o un ordenador.
 
 Las capturas muestran la web en una pantalla de tamaño móvil con un archivo de ejemplo.

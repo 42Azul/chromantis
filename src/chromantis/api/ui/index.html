@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Chromantis</title>
+  <script src="/ui/appearance.js"></script>
   <link rel="stylesheet" href="/ui/style.css">
   <script type="module" src="/ui/app.js"></script>
 </head>
@@ -19,6 +20,14 @@
         <button data-view="collections" id="collections-nav" hidden>Collections</button>
         <button data-view="admin" id="admin-nav" hidden>Administration</button>
       </nav>
+      <label class="appearance-control">
+        <span id="appearance-label">Appearance</span>
+        <select id="appearance" aria-labelledby="appearance-label">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
       <div class="sidebar-bottom" id="connection" hidden>
         <div><strong id="account"></strong><span id="account-role"></span></div>
         <button id="disconnect" class="quiet" type="button">Sign out</button>
