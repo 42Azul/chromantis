@@ -21,7 +21,7 @@ To narrow the current search, follow up with `before 2020`, `only 2019`, or `wit
 
 Under **Buscar álbumes**, change the result type to **Fotos por persona** and search a name or alias. Results include individually tagged photos from the web or [Android](./android.md#tag-individual-photos). Use **Álbumes** to search by album links. Previews appear when the thumbnail cache is enabled. Tap a result to open its original.
 
-With a curator account, choose **Personas en esta foto** to add or remove people on that specific photo. The same action is available under **Ver fotos del álbum** in the album editor. Pick a name or alias and choose **Guardar personas**. If you remove the person you were searching for, the photo leaves those results.
+With a curator account, choose **Etiquetar foto** to add or remove people on that specific photo. The same action is available under **Ver fotos del álbum** in the album editor. Pick a name or alias and choose **Guardar cambios**. If you remove the person you were searching for, the photo leaves those results.
 
 ## Tag your first album
 
@@ -34,11 +34,11 @@ With a curator account, choose **Personas en esta foto** to add or remove people
 
 Choose **Ver fotos del álbum** to browse six photos at a time. Use **Más fotos** and **Fotos anteriores** to move through the album. When the thumbnail cache is off, start with filenames and use **Abrir foto** to load an original. Browsing keeps your unsaved album edits.
 
-To add or remove the same people across several photos, choose **Seleccionar fotos**, mark the photos on the current page, then choose **Editar personas**. Review the filenames, choose whether to add or remove people, and save once. Changing pages clears the photo selection.
+To edit several photos together, choose **Seleccionar fotos**, mark the photos on the current page, then choose **Etiquetar fotos**. Review the filenames and pick the people to add or remove. Under **Etiquetas manuales**, enter one-word tags separated by commas or mark existing tags for removal. Save once to apply the changes to the selected photos. You can use **Etiquetas manuales** on a single photo too. Changing pages clears the photo selection.
 
 ![Album review showing thumbnails from the example archive.](../../../assets/screenshots/web-gallery.webp)
 
-An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Personas en esta foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).
+An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Etiquetar foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).
 
 Use **Saltar** to leave a doubtful album pending. To correct a link in a family session, find the album by its title in **Buscar álbumes** and open the result. Tap **Ana ×** under the selected people, then choose **Guardar y volver a resultados**. The search refreshes and the album drops out if it no longer matches. Choose **Volver a resultados** to leave the editor without saving your people and tag changes. You can also open reviewed albums from **Ya revisados**.
 

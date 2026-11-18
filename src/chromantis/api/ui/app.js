@@ -77,7 +77,7 @@ function resetPhotos() {
   for (const url of photoURLs) URL.revokeObjectURL(url);
   photoURLs.clear();
   if ($("lightbox").open) $("lightbox").close();
-  if ($("photo-people").open) $("photo-people").close();
+  if ($("photo-tags").open) $("photo-tags").close();
 }
 
 async function createAlbumShare(path) {
@@ -499,8 +499,8 @@ function renderConfirmedPhotos(page, person, offset, pageSize) {
   message("archive-status", page.items.length ? "" : "No hay fotos etiquetadas con ese nombre o alias.");
   $("results").replaceChildren(...page.items.map(item =>
     photoCard(item, photoRequests.signal, {
-      spanish: true, originalOnClick: true, editPeople: canCurateAlbums,
-      onPeopleSaved: () => archiveRequest("confirmed", { person, offset }),
+      spanish: true, originalOnClick: true, editTags: canCurateAlbums,
+      onTagsSaved: () => archiveRequest("confirmed", { person, offset }),
     })));
   const actions = [];
   if (offset) actions.push(button("Página anterior",
@@ -622,7 +622,7 @@ $("lightbox").addEventListener("close", () => {
 });
 
 function photoCard(item, signal, {
-  urls = photoURLs, spanish = false, originalOnClick = false, editPeople = false, onPeopleSaved,
+  urls = photoURLs, spanish = false, originalOnClick = false, editTags = false, onTagsSaved,
 } = {}) {
   const filename = item.path.split("/").at(-1);
   const isThumbnail = !!indexStatus?.thumbnails;
@@ -637,9 +637,9 @@ function photoCard(item, signal, {
       ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])),
     ...(isOwner() ? [collectionButton("image", item.path, filename,
       spanish ? "album-review-status" : "archive-status")] : []));
-  if (editPeople) {
-    const edit = button("Personas en esta foto", () => openPhotoPeople([item], signal, onPeopleSaved), "photo-people-button");
-    edit.setAttribute("aria-label", `Personas en esta foto: ${filename}`);
+  if (editTags) {
+    const edit = button("Etiquetar foto", () => openPhotoTags([item], signal, onTagsSaved), "photo-tags-button");
+    edit.setAttribute("aria-label", `Etiquetar foto: ${filename}`);
     card.append(edit);
   }
   if (deferOriginal) return card;
@@ -682,7 +682,7 @@ function closeAlbumReview() {
   albumRequest++;
   resetAlbumPhotos();
   if ($("lightbox").open) $("lightbox").close();
-  if ($("photo-people").open) $("photo-people").close();
+  if ($("photo-tags").open) $("photo-tags").close();
   $("album-review-content").replaceChildren();
 }
 
@@ -879,29 +879,29 @@ function reviewPersonPicker(people, selected, scope = "del álbum") {
   return element("div", { class: "stack" }, chosen, element("label", {}, "Buscar personas", filter), matches);
 }
 
-$("photo-people").addEventListener("close", () => {
-  if (!$("photo-people").open) {
-    $("photo-people-content").replaceChildren();
-    message("photo-people-file");
+$("photo-tags").addEventListener("close", () => {
+  if (!$("photo-tags").open) {
+    $("photo-tags-content").replaceChildren();
+    message("photo-tags-file");
   }
 });
 
-async function openPhotoPeople(items, signal, onSaved) {
+async function openPhotoTags(items, signal, onSaved) {
   const batch = items.length > 1;
-  const dialog = $("photo-people");
-  const content = $("photo-people-content");
-  const cancel = $("close-photo-people");
-  const status = element("p", { class: "message", role: "status" }, "Cargando personas…");
+  const dialog = $("photo-tags");
+  const content = $("photo-tags-content");
+  const cancel = $("close-photo-tags");
+  const status = element("p", { class: "message", role: "status" }, "Cargando etiquetas…");
   const panel = element("div", { class: "stack" }, status);
   const current = () => dialog.open && content.firstChild === panel && !signal.aborted;
   const retry = text => {
     status.textContent = text;
-    panel.replaceChildren(status, button("Volver a cargar", () => openPhotoPeople(items, signal, onSaved)));
+    panel.replaceChildren(status, button("Volver a cargar", () => openPhotoTags(items, signal, onSaved)));
   };
   cancel.disabled = false;
   dialog.oncancel = event => { if (cancel.disabled) event.preventDefault(); };
-  message("photo-people-title", batch ? `Personas en ${items.length} fotos` : "Personas en esta foto");
-  message("photo-people-file", items.map(item => item.path.split("/").at(-1)).join(", "));
+  message("photo-tags-title", batch ? `Etiquetar ${items.length} fotos` : "Etiquetar esta foto");
+  message("photo-tags-file", items.map(item => item.path.split("/").at(-1)).join(", "));
   content.replaceChildren(panel);
   if (!dialog.open) dialog.showModal();
   try {
@@ -914,12 +914,20 @@ async function openPhotoPeople(items, signal, onSaved) {
     const selected = new Set(initial);
     const operation = element("select", {}, element("option", { value: "add" }, "Añadir a las fotos"),
       element("option", { value: "remove" }, "Quitar de las fotos"));
+    const manual = element("input", { type: "text", autocomplete: "off", placeholder: "romería, familia" });
+    const existingTags = [...new Set(photos.flatMap(photo => photo.manual_tags.map(entry => entry.tag)))].sort();
+    const removeTags = existingTags.map(tag => element("input", { type: "checkbox", value: tag }));
+    const tags = element("details", {},
+      element("summary", {}, "Etiquetas manuales"),
+      element("div", { class: "stack" },
+        element("label", {}, "Añadir etiquetas (una palabra, separadas por comas)", manual),
+        ...removeTags.map(input => element("label", { class: "review-checkbox" }, input, `Quitar «${input.value}»`))));
     const save = element("button", { class: "primary", type: "submit" },
-      batch ? `Guardar en ${items.length} fotos` : "Guardar personas");
+      batch ? `Guardar en ${items.length} fotos` : "Guardar cambios");
     const form = element("form", { class: "stack" },
-      ...(batch ? [element("label", {}, "Acción", operation)] : []),
+      ...(batch ? [element("label", {}, "Acción para las personas", operation)] : []),
       reviewPersonPicker(people, selected, batch ? "de la selección" : "de la foto"),
-      status, element("div", { class: "actions" }, save));
+      tags, status, element("div", { class: "actions" }, save));
     status.textContent = "";
     panel.replaceChildren(form);
     form.addEventListener("submit", async event => {
@@ -928,8 +936,10 @@ async function openPhotoPeople(items, signal, onSaved) {
       const removing = batch && operation.value === "remove";
       const add_people = removing ? [] : [...selected].filter(id => !initial.has(id));
       const remove_people = removing ? [...selected] : [...initial].filter(id => !selected.has(id));
-      if (!add_people.length && !remove_people.length) {
-        if (batch) status.textContent = "Selecciona al menos una persona.";
+      const manual_add = manual.value.split(",").map(tag => tag.trim()).filter(Boolean);
+      const manual_remove = removeTags.filter(input => input.checked).map(input => input.value);
+      if (!add_people.length && !remove_people.length && !manual_add.length && !manual_remove.length) {
+        if (batch) status.textContent = "Elige alguna persona o etiqueta para guardar.";
         else dialog.close();
         return;
       }
@@ -938,7 +948,8 @@ async function openPhotoPeople(items, signal, onSaved) {
       status.textContent = "";
       try {
         await api("/photo-tags", { method: "PATCH", data: {
-          photos: photos.map(({ path, identity }) => ({ path, identity })), add_people, remove_people,
+          photos: photos.map(({ path, identity }) => ({ path, identity })),
+          add_people, remove_people, manual_add, manual_remove,
         } });
         if (!current()) return;
         await onSaved?.();
@@ -973,9 +984,9 @@ function albumPhotoGallery(path) {
   const selection = new Set();
   let selecting = false;
   const selectPhotos = button("Seleccionar fotos", () => setSelecting(!selecting));
-  const editSelection = button("", () => openPhotoPeople([...selection], albumPhotoRequests.signal, () => {
+  const editSelection = button("", () => openPhotoTags([...selection], albumPhotoRequests.signal, () => {
     setSelecting(false);
-    message("album-review-status", "Personas de las fotos guardadas.");
+    message("album-review-status", "Se han guardado los cambios de las fotos.");
   }), "primary");
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
@@ -994,7 +1005,7 @@ function albumPhotoGallery(path) {
   toggle.setAttribute("aria-expanded", "false");
 
   function updateSelection() {
-    editSelection.textContent = `Editar personas (${selection.size})`;
+    editSelection.textContent = `Etiquetar fotos (${selection.size})`;
     editSelection.disabled = selectPhotos.disabled || !selection.size;
   }
 
@@ -1026,8 +1037,8 @@ function albumPhotoGallery(path) {
       nextOffset = next_offset;
       grid.replaceChildren(...items.map(item => {
         const card = photoCard(item, albumPhotoRequests.signal, {
-          urls: albumPhotoURLs, spanish: true, originalOnClick: true, editPeople: canCurateAlbums,
-          onPeopleSaved: () => message("album-review-status", "Personas de la foto guardadas."),
+          urls: albumPhotoURLs, spanish: true, originalOnClick: true, editTags: canCurateAlbums,
+          onTagsSaved: () => message("album-review-status", "Se han guardado los cambios de la foto."),
         });
         if (canCurateAlbums) {
           const checkbox = element("input", { type: "checkbox", "aria-label": `Seleccionar ${item.path.split("/").at(-1)}` });

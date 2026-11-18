@@ -21,7 +21,7 @@ Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coin
 
 En **Buscar álbumes**, cambia el tipo de resultado a **Fotos por persona** y escribe un nombre o alias. Aparecen las fotos etiquetadas individualmente desde la web o [Android](./android.md#etiqueta-fotos-individuales). Usa **Álbumes** para buscar por vínculos al álbum. Las miniaturas aparecen si está activa la caché. Pulsa una foto para abrir el original.
 
-Si tienes permiso para etiquetar, pulsa **Personas en esta foto** para añadir o quitar personas en la foto concreta. También puedes hacerlo desde **Ver fotos del álbum** en el editor de un álbum. Elige a alguien por nombre o alias y pulsa **Guardar personas**. Si quitas a la persona que estabas buscando, esa foto sale de los resultados.
+Si tienes permiso para etiquetar, pulsa **Etiquetar foto** para añadir o quitar personas en la foto concreta. También puedes hacerlo desde **Ver fotos del álbum** en el editor de un álbum. Elige a alguien por nombre o alias y pulsa **Guardar cambios**. Si quitas a la persona que estabas buscando, esa foto sale de los resultados.
 
 ## Etiqueta tu primer álbum
 
@@ -34,11 +34,11 @@ Si tienes permiso para etiquetar, pulsa **Personas en esta foto** para añadir o
 
 Pulsa **Ver fotos del álbum** para recorrerlo de seis en seis con **Más fotos** y **Fotos anteriores**. Si la caché de miniaturas está desactivada, verás los nombres y podrás pulsar **Abrir foto** para cargar el original. Puedes recorrer las fotos y conservar los cambios del álbum que aún tengas por guardar.
 
-Para añadir o quitar a las mismas personas en varias fotos, pulsa **Seleccionar fotos**, marca las de la página actual y pulsa **Editar personas**. Comprueba los nombres de los archivos, elige si quieres añadir o quitar personas y guarda una sola vez. Al cambiar de página se borra la selección de fotos.
+Para editar varias fotos juntas, pulsa **Seleccionar fotos**, marca las de la página actual y pulsa **Etiquetar fotos**. Comprueba los nombres de los archivos y elige las personas que quieres añadir o quitar. En **Etiquetas manuales**, escribe etiquetas de una sola palabra separadas por comas o marca las que quieras quitar. Guarda una vez para aplicar los cambios a las fotos seleccionadas. También puedes usar **Etiquetas manuales** en una sola foto. Al cambiar de página se borra la selección de fotos.
 
 ![Revisión de un álbum con miniaturas del archivo de ejemplo.](../../../../assets/screenshots/web-gallery.webp)
 
-El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Personas en esta foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).
+El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Etiquetar foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).
 
 Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Ana ×** entre las personas seleccionadas y después **Guardar y volver a resultados**. La búsqueda se actualiza y el álbum desaparece si ha dejado de coincidir. Pulsa **Volver a resultados** para salir del editor sin guardar los cambios de personas y etiquetas. También puedes abrir álbumes ya revisados desde **Ya revisados**.
 

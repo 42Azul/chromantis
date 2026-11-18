@@ -88,10 +88,10 @@ main { width: 100%; max-width: 1500px; margin-inline: auto; padding: 48px clamp(
 .folder-card { min-height: 92px; padding: 14px; display: grid; align-content: center; text-align: left; overflow-wrap: anywhere; }
 .folder-card span { color: var(--muted); margin-top: .2rem; }
 .collection-card { display: grid; gap: .4rem; min-width: 0; align-content: start; }
-.photo-card > :is(.collection-save, .photo-people-button) { margin: 0 10px 10px; }
+.photo-card > :is(.collection-save, .photo-tags-button) { margin: 0 10px 10px; }
 .photo-selection { display: none; }
 .selecting-photos .photo-selection { display: flex; gap: 6px; align-items: center; margin: 0 10px 10px; }
-.selecting-photos .photo-people-button { display: none; }
+.selecting-photos .photo-tags-button { display: none; }
 .shared-header { max-width: 48rem; margin-bottom: 26px; }
 .shared-kicker { color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
 .shared-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
@@ -194,7 +194,7 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 .review-people, .review-suggestion { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .review-suggestion span { flex: 1 1 14rem; }
 .review-suggestion input:not([hidden]) { flex: 1 1 10rem; }
-.review-form .review-checkbox { display: flex; align-items: center; }
+:is(.review-form, #photo-tags-content) .review-checkbox { display: flex; align-items: center; gap: 5px; }
 .batch-review-group { display: grid; gap: 12px; margin-top: 12px; }
 .batch-review-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .batch-review-row p { font-size: .82rem; }
@@ -204,5 +204,5 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
   .batch-review-row > button { grid-column: 1 / -1; }
 }
 
-#photo-people { width: min(460px, 94vw); }
-#photo-people-content form { display: grid; align-items: stretch; justify-content: stretch; }
+#photo-tags { width: min(460px, 94vw); }
+#photo-tags-content form { display: grid; align-items: stretch; justify-content: stretch; }

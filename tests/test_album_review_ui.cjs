@@ -37,7 +37,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
   ];
   const start = source.indexOf("async function loadAlbumReview(");
   const end = source.indexOf("\nfunction albumContextEditor(", start);
-  const photoDialogStart = source.indexOf('$("photo-people").addEventListener("close"');
+  const photoDialogStart = source.indexOf('$("photo-tags").addEventListener("close"');
   const galleryStart = source.indexOf("function albumPhotoGallery(");
   const resultsStart = source.indexOf("function renderFolders(");
   const resultsEnd = source.indexOf("\nfunction renderBatch(", resultsStart);
@@ -106,9 +106,9 @@ async function verifyBatchReview(source, failedReloads = 0) {
      const resetAlbumPhotos = () => { albumPhotoRequests.abort(); albumPhotoRequests = new AbortController(); };
      const canCurateAlbums = true;
      const document = { activeElement: null };
-     const openPhotoPeople = items => selections.push(items);
+     const openPhotoTags = items => selections.push(items);
      const photoCard = (item, signal, options) => {
-       if (!options.originalOnClick || !options.editPeople) throw new Error("Expected on-demand originals and photo editing");
+       if (!options.originalOnClick || !options.editTags) throw new Error("Expected on-demand originals and photo editing");
        return Object.assign(element("article", {}), { item, signal });
      };
      const principal = { auth_mode: "family" };
@@ -254,7 +254,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
   await next.listeners.click();
   assert(grid.children.length === 6 && !next.disabled && !firstSignal.aborted && status.textContent.includes("Inténtalo"),
     "A request failure should keep the visible page and restore retry");
-  assert(editSelection.textContent === "Editar personas (2)" && !editSelection.disabled,
+  assert(editSelection.textContent === "Etiquetar fotos (2)" && !editSelection.disabled,
     "A page request failure should preserve the selection");
   await next.listeners.click();
   assert(grid.children[0].item.path === "Photo-7.jpg" && firstSignal.aborted && next.hidden && !previous.hidden,
