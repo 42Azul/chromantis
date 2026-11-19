@@ -63,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
@@ -557,7 +558,7 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
 
 @Composable
 private fun ChromantisMark() {
-    Canvas(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp))) {
+    Canvas(Modifier.size(56.dp)) {
         val scale = size.width / 48f
         fun logoPath(vararg points: Pair<Float, Float>) =
             Path().apply {
@@ -565,7 +566,7 @@ private fun ChromantisMark() {
                 points.drop(1).forEach { lineTo(it.first * scale, it.second * scale) }
                 close()
             }
-        drawRect(Color(0xFF1D3430))
+        drawRoundRect(Color(0xFF1D3430), cornerRadius = CornerRadius(16.dp.toPx()))
         drawPath(
             logoPath(8f to 13f, 20f to 13f, 24f to 17f, 40f to 17f, 40f to 37f, 8f to 37f),
             Color(0xFFD5E9CB),
