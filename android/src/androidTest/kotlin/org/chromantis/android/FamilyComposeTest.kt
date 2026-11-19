@@ -13,6 +13,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -166,7 +168,12 @@ class FamilyComposeTest {
             capture("folders-dark")
             click(label(R.string.search))
             compose.onNodeWithText(label(R.string.search_hint)).performTextInput("Anita")
-            compose.onAllNodesWithText(label(R.string.search)).onLast().performClick()
+            compose
+                .onNode(
+                    hasText(label(R.string.search)) and
+                        SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
+                )
+                .performClick()
             await(albumDisplayTitle(album.title))
             compose.onNodeWithText(albumDisplayTitle(album.title)).assertIsDisplayed()
         } finally {
