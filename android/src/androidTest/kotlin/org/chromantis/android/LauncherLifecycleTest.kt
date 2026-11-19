@@ -72,11 +72,10 @@ class LauncherLifecycleTest {
             settings.edit().putString("origin", config.getString("ui_origin")).commit()
             HttpsURLConnection.setDefaultSSLSocketFactory(tls.socketFactory)
             scenario = ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
-            compose
-                .onNodeWithText(label(R.string.code_label))
-                .performScrollTo()
-                .performTextInput(config.getString("launcher_code"))
-                .performImeAction()
+            val codeField = compose.onNodeWithText(label(R.string.code_label))
+            codeField.performScrollTo()
+            codeField.performTextInput(config.getString("launcher_code"))
+            codeField.performImeAction()
             await("2023")
             compose.waitUntil(15000) { settings.contains("session_encrypted") }
             assertFalse(settings.contains("session"))
