@@ -70,8 +70,7 @@ class LauncherLifecycleTest {
             clearLocalSession()
             settings.edit().putString("origin", config.getString("ui_origin")).commit()
             HttpsURLConnection.setDefaultSSLSocketFactory(tls.socketFactory)
-            scenario =
-                ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
+            scenario = ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
             compose
                 .onNodeWithText(label(R.string.code_label))
                 .performTextInput(config.getString("launcher_code"))
@@ -91,8 +90,7 @@ class LauncherLifecycleTest {
 
             requireNotNull(scenario).close()
             scenario = null
-            scenario =
-                ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
+            scenario = ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
             val resume = context.getString(R.string.resume_album, "Excursion")
             await(resume)
             click(resume)
