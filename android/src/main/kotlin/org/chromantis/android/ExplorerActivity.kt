@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -62,6 +63,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
@@ -467,11 +470,7 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painterResource(R.drawable.ic_chromantis),
-                contentDescription = null,
-                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)),
-            )
+            ChromantisMark()
             Column(Modifier.padding(start = 16.dp)) {
                 Text(
                     stringResource(R.string.app_name),
@@ -553,6 +552,28 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChromantisMark() {
+    Canvas(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp))) {
+        val scale = size.width / 48f
+        fun logoPath(vararg points: Pair<Float, Float>) =
+            Path().apply {
+                moveTo(points.first().first * scale, points.first().second * scale)
+                points.drop(1).forEach { lineTo(it.first * scale, it.second * scale) }
+                close()
+            }
+        drawRect(Color(0xFF1D3430))
+        drawPath(
+            logoPath(8f to 13f, 20f to 13f, 24f to 17f, 40f to 17f, 40f to 37f, 8f to 37f),
+            Color(0xFFD5E9CB),
+        )
+        drawPath(
+            logoPath(12f to 33f, 19f to 25f, 24f to 30f, 29f to 23f, 36f to 33f),
+            Color(0xFF426754),
+        )
     }
 }
 
