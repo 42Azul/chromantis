@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
@@ -75,7 +76,7 @@ class LauncherLifecycleTest {
                 .onNodeWithText(label(R.string.code_label))
                 .performScrollTo()
                 .performTextInput(config.getString("launcher_code"))
-            compose.onNodeWithText(label(R.string.sign_in)).performScrollTo().performClick()
+                .performImeAction()
             await("2023")
             compose.waitUntil(15000) { settings.contains("session_encrypted") }
             assertFalse(settings.contains("session"))

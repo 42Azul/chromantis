@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -70,6 +71,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -216,6 +218,29 @@ internal fun Explorer(
     val screenKey = "${workspace.level.name}:$depth"
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
+    val connect: () -> Unit = connect@{
+        val endpoint =
+            try {
+                ChromantisApi(origin)
+            } catch (_: IllegalArgumentException) {
+                error = R.string.invalid_address
+                return@connect
+            }
+        focus.clearFocus()
+        busy = true
+        error = null
+        scope.launch {
+            attempt { endpoint.signIn(code.trim()) }
+                .fold(
+                    onSuccess = onConnected,
+                    onFailure = {
+                        error =
+                            if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
+                        busy = false
+                    },
+                )
+        }
+    }
     var signingOut by remember { mutableStateOf(false) }
     var signOutError by remember { mutableStateOf<Throwable?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
@@ -508,7 +533,12 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
                     onValueChange = { code = it },
                     label = { Text(stringResource(R.string.code_label)) },
                     placeholder = { Text(stringResource(R.string.code_hint)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done,
+                        ),
+                    keyboardActions = KeyboardActions(onDone = { if (!busy) connect() }),
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     enabled = !busy,
@@ -516,30 +546,7 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
                 )
                 error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
                 Button(
-                    onClick = {
-                        val endpoint =
-                            try {
-                                ChromantisApi(origin)
-                            } catch (_: IllegalArgumentException) {
-                                error = R.string.invalid_address
-                                return@Button
-                            }
-                        focus.clearFocus()
-                        busy = true
-                        error = null
-                        scope.launch {
-                            attempt { endpoint.signIn(code.trim()) }
-                                .fold(
-                                    onSuccess = onConnected,
-                                    onFailure = {
-                                        error =
-                                            if (it.hasStatus(401)) R.string.invalid_code
-                                            else errorLabel(it)
-                                        busy = false
-                                    },
-                                )
-                        }
-                    },
+                    onClick = connect,
                     enabled = code.isNotBlank() && !busy,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                 ) {
