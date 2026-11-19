@@ -80,6 +80,7 @@ class FamilyComposeTest {
                 }
             }
         }
+        compose.onNodeWithTag("chromantis-mark").assertIsDisplayed()
         capture("sign-in-dark")
     }
 
@@ -137,6 +138,7 @@ class FamilyComposeTest {
                     }
                 }
             }
+            compose.onNodeWithTag("chromantis-mark").assertIsDisplayed()
             capture("sign-in-light")
             compose
                 .onNodeWithText(label(R.string.code_label))
