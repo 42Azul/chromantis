@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.MediaStore
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -192,6 +193,8 @@ class FamilyComposeTest {
             click(label(R.string.settings))
             click(label(R.string.sign_out))
             await(label(R.string.connect_title))
+            SystemClock.sleep(500)
+            compose.waitForIdle()
             capture("sign-in-dark")
         } finally {
             api.value?.let { runBlocking { it.signOut() } }
