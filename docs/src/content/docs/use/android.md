@@ -47,6 +47,12 @@ Covers load only for visible albums after opening a year or search result. They 
 
 ![The same Android folder list in dark mode.](../../../assets/screenshots/android-folders-dark.png)
 
+6. **Ask for a memory.** **Search** starts with examples that can be used as-is or replaced. Your request stays visible above the results. Add a detail in the same field, or remove a person, year or album filter without starting over.
+
+![Conversational album search in dark mode with a visible request and local result.](../../../assets/screenshots/android-search-dark.png)
+
+This surface uses the existing deterministic local rules. It does not claim that a model interpreted the request. **Photos by person** remains a separate exact photo-level search from the empty Search screen.
+
 The Compose test presses the real controls for sign-in, navigation, cover loading, saving without scrolling to the button, alias search and appearance. It does not yet verify the launcher's cold-start lifecycle or replace testing on a physical phone.
 
 ## Session protection
@@ -115,7 +121,7 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
 In another terminal, run `gradle -p android connectedDebugAndroidTest`. Restart the helper before each run to issue a fresh one-time code. The helper binds only to host loopback and prepares an ignored asset for the test APK. Only the test process trusts that generated certificate; hostname verification stays enabled and the app's certificate rules are unchanged. Ctrl+C removes the asset and temporary fixture. Without the generated asset, the client and Compose tests are skipped; the four Keystore tests still run. Use only disposable emulators and synthetic credentials.
 
 
-To export the six synthetic screenshots on a disposable API 29+ emulator, add `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` to the Gradle command. The test writes only its generated PNGs to `Download/chromantis-compose/`; they survive test-app cleanup. Ordinary test runs do not write screenshots to shared storage. CI validates the PNG headers before exporting them.
+To export the seven synthetic screenshots on a disposable API 29+ emulator, add `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` to the Gradle command. The test writes only its generated PNGs to `Download/chromantis-compose/`; they survive test-app cleanup. Ordinary test runs do not write screenshots to shared storage. CI validates the PNG headers before exporting them.
 
 ## Sign a private release
 

@@ -20,6 +20,10 @@ family interface is Spanish. Use the same service, people and permission model.
 - Present quick classification as one calm folder card. Explain the exact source
   of a suggestion, keep swipe gestures optional, and provide equally clear buttons
   for accepting, leaving pending and opening the full editor.
+- Make search read like a short conversation: offer grounded example prompts, keep
+  the current request visible, accept one refinement at a time, and show removable
+  deterministic filters beside visual results. Do not imply that a model ran when
+  the local rules handled the request.
 - Keep Save visible outside the scrolling review form, including conflict feedback.
 - Use warm neutral surfaces, forest-green actions and restrained clay accents. Dark
   mode must preserve the same hierarchy. Avoid gradients, arbitrary arrows, emoji

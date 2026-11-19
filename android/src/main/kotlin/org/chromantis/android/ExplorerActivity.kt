@@ -314,18 +314,18 @@ internal fun Explorer(
                 when (page.level) {
                     Level.INDEX -> IndexStatusScreen(api, expire)
                     Level.ASK -> {
-                        TextButton(
-                            onClick = {
+                        AlbumSearch(
+                            api,
+                            expire,
+                            onConfirmedPhotos = {
                                 focus.clearFocus()
                                 pages = pages + Page(Level.CONFIRMED, confirmedTitle)
-                            }
-                        ) {
-                            Text(confirmedTitle)
-                        }
-                        AlbumSearch(api, expire) {
-                            galleryStartOffset = 0
-                            pages = pages + Page(Level.PHOTOS, it.title, it.path)
-                        }
+                            },
+                            onOpen = {
+                                galleryStartOffset = 0
+                                pages = pages + Page(Level.PHOTOS, it.title, it.path)
+                            },
+                        )
                     }
                     Level.CONFIRMED ->
                         ConfirmedPhotoSearch(api, expire) {
@@ -521,7 +521,7 @@ internal fun EntryScreen(
             var saved by rememberSaveable { mutableStateOf(false) }
             val selection = selected
             BackHandler(selection != null && !edit) { selected = null }
-            Column {
+            Column(Modifier.fillMaxSize()) {
                 header(page)
                 if (page.entries.isEmpty()) Text(stringResource(R.string.no_results))
                 if (saved) {

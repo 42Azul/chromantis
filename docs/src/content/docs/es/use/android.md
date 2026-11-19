@@ -47,6 +47,12 @@ Las portadas se cargan solo para los álbumes visibles al abrir un año o un res
 
 ![La misma lista de carpetas de Android en modo oscuro.](../../../../assets/screenshots/android-folders-dark.png)
 
+6. **Pide un recuerdo.** **Buscar** comienza con ejemplos que puedes usar o sustituir. Tu petición permanece visible sobre los resultados. Añade un detalle en el mismo campo o quita un filtro de persona, año o álbum sin empezar de nuevo.
+
+![Búsqueda conversacional de álbumes en modo oscuro con la petición y el resultado visibles.](../../../../assets/screenshots/android-search-dark.png)
+
+Esta pantalla usa las reglas locales deterministas existentes. No indica que un modelo haya interpretado la petición. **Fotos por persona** sigue siendo una búsqueda exacta y separada por vínculos a fotos, disponible desde la pantalla inicial de Buscar.
+
 La prueba Compose pulsa los controles reales de entrada, navegación, carga de portadas, guardado sin desplazar la pantalla hasta el botón, búsqueda por alias y apariencia. Todavía no comprueba el inicio en frío de la actividad principal ni sustituye la prueba en un móvil físico.
 
 ## Protección de la sesión
@@ -115,7 +121,7 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
 En otra terminal, ejecuta `gradle -p android connectedDebugAndroidTest`. Reinicia el programa antes de cada ejecución para generar otro código de un solo uso. El programa solo escucha en loopback del anfitrión y prepara un recurso ignorado para el APK de pruebas. Solo el proceso de pruebas confía en ese certificado generado; se mantiene la verificación del nombre del servidor y no cambian las reglas de certificados de la app. Ctrl+C elimina el recurso y el ejemplo temporal. Sin ese recurso se omiten las pruebas del cliente y Compose; las cuatro de Keystore se siguen ejecutando. Usa únicamente emuladores desechables y credenciales sintéticas.
 
 
-Para exportar las seis capturas sintéticas en un emulador desechable API 29+, añade `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` al comando Gradle. La prueba escribe únicamente sus PNG generados en `Download/chromantis-compose/`; sobreviven a la limpieza de la app de pruebas. Una ejecución normal no guarda capturas en almacenamiento compartido. La CI comprueba las cabeceras PNG antes de exportarlas.
+Para exportar las siete capturas sintéticas en un emulador desechable API 29+, añade `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` al comando Gradle. La prueba escribe únicamente sus PNG generados en `Download/chromantis-compose/`; sobreviven a la limpieza de la app de pruebas. Una ejecución normal no guarda capturas en almacenamiento compartido. La CI comprueba las cabeceras PNG antes de exportarlas.
 
 ## Firma un APK para distribuirlo en privado
 
