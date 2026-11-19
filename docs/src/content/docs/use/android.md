@@ -85,6 +85,21 @@ The full flow on a current physical phone is pending. The native client in `andr
 
 ## Build and install
 
+### Download the verified test APK
+
+Open the [Android verification workflow](https://github.com/42Azul/chromantis/actions/workflows/android.yml), choose the latest successful run on `main`, and download `chromantis-debug-<commit>` from **Artifacts**. GitHub requires a signed-in account to download workflow artifacts. The ZIP contains `Chromantis-debug.apk` and `SHA256SUMS.txt`; it expires after seven days.
+
+Verify the download before installing it:
+
+```bash
+sha256sum --check SHA256SUMS.txt
+adb install -r Chromantis-debug.apk
+```
+
+This APK is produced only after formatting, unit tests, lint and the emulator suite pass. It contains no NAS address, invitation, family metadata, photos or release key. It uses Android's standard debug signature and is only for private testing; build the signed release below for stable installation and updates.
+
+### Build it locally
+
 Build on a development computer with JDK 17 or 21, Gradle 8.13, Android SDK Platform 36 and Build Tools 36.0.0. Set `ANDROID_HOME` to the SDK directory. From the repository root:
 
 ```bash
@@ -104,7 +119,7 @@ gradle -p android connectedDebugAndroidTest
 
 Four instrumented tests exercise the actual Android Keystore provider: encrypted persistence with a non-exportable key, legacy preference migration, origin mismatch, and recovery after key deletion. Each test creates a random test-only key alias and preferences file and removes only those resources. No NAS, photos, family credentials or release signing keys are involved.
 
-The [Android verification workflow](https://github.com/42Azul/chromantis/actions/workflows/android.yml) runs these tests on an API 36 emulator, alongside Kotlin formatting, JVM tests, debug APK compilation and lint. It uses a standard public Linux runner with no artifact uploads or build caches, and skips execution if the repository becomes private. Emulator results validate the platform integration; they do not establish hardware-backed key protection or complete the physical-phone interaction drill above.
+The [Android verification workflow](https://github.com/42Azul/chromantis/actions/workflows/android.yml) runs these tests on an API 36 emulator, alongside Kotlin formatting, JVM tests, debug APK compilation and lint. After a successful push it retains only the debug APK and checksum for seven days; it uses no build cache and skips execution if the repository becomes private. Emulator results validate the platform integration; they do not establish hardware-backed key protection or complete the physical-phone interaction drill above.
 
 ### Native client over HTTPS
 
