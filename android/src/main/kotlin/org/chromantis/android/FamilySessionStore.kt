@@ -73,7 +73,10 @@ internal class FamilySessionStore(
     }
 }
 
-internal fun familySessionStore(settings: SharedPreferences) =
+internal fun familySessionStore(
+    settings: SharedPreferences,
+    keyAlias: String = "chromantis_family_session_v1",
+) =
     FamilySessionStore(
         read = { settings.getString(it, null) },
         write = { values ->
@@ -83,18 +86,18 @@ internal fun familySessionStore(settings: SharedPreferences) =
             }
             if (!editor.commit()) throw IOException("Could not persist family session.")
         },
-        key = ::deviceSessionKey,
+        key = { deviceSessionKey(keyAlias) },
     )
 
-private fun deviceSessionKey(): SecretKey {
+private fun deviceSessionKey(alias: String): SecretKey {
     val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-    (store.getKey("chromantis_family_session_v1", null) as? SecretKey)?.let {
+    (store.getKey(alias, null) as? SecretKey)?.let {
         return it
     }
     return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
         init(
             KeyGenParameterSpec.Builder(
-                    "chromantis_family_session_v1",
+                    alias,
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
                 )
                 .setKeySize(256)
