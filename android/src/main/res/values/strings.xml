@@ -139,5 +139,11 @@
     <string name="index_refresh">Actualizar estado</string>
     <string name="session_not_saved">No se pudo proteger la sesión en este dispositivo. Puedes continuar ahora; tras reiniciar la app necesitarás otro código familiar.</string>
     <string name="session_restore_failed">No se pudo recuperar la sesión protegida de este dispositivo. Pide otro código familiar para volver a entrar.</string>
+    <string name="library_title">Tu biblioteca</string>
+    <string name="library_by_year">Elige un año para explorar tus álbumes.</string>
+    <string name="library_review">Clasificar álbumes</string>
+    <string name="library_review_help">Añade personas y etiquetas, a tu ritmo.</string>
+    <string name="review_people_hint">Buscar nombre o alias</string>
+    <string name="review_people_help">Marca a quienes reconozcas. Puedes cambiarlo después.</string>
 </resources>
 

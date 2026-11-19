@@ -20,6 +20,8 @@ Do not merge code that adds a new workflow without also adding its command to th
 
 Use 4 spaces for Python and 2 spaces for JavaScript or JSON. Prefer descriptive, lowercase names for directories and files, for example `src/indexer/path_parser.py` or `src/bot/telegram-client.ts`. Use `snake_case` for Python modules and functions, `camelCase` for JavaScript or TypeScript variables, and `PascalCase` only for classes or React-style components. Add a formatter and linter with the first language runtime you introduce and run them before opening a PR.
 
+For interface changes, read `DESIGN.md`. Keep photo browsing and family curation native, visually coherent and concise. Inspect synthetic screenshots in light and dark mode before publishing UI changes.
+
 ## Testing Guidelines
 
 Place tests in `tests/` and name them after the behavior they cover, such as `test_path_parser.py` or `telegram-bot.search.spec.ts`. Prefer deterministic unit tests around path parsing, metadata normalization, and indexing because the project goal is traceable retrieval. Include regression coverage for any bug fix.

@@ -172,6 +172,7 @@ internal fun AlbumSearch(api: ChromantisApi, onExpired: () -> Unit, onOpen: (Ent
         }
         key(activeQuery) {
             EntryScreen(
+                folderApi = api,
                 load = { offset -> api.albums(activeQuery, offset, includeFilters = true) },
                 onExpired = onExpired,
                 onOpen = onOpen,

@@ -19,13 +19,19 @@ Album-search follow-ups also accept `con Ana y Luis` or names separated by comma
 
 ## A short walkthrough
 
-These screenshots show the production Compose screens in a disposable test host, using the synthetic archive with its photo source disconnected. They contain no family data. System bars and keyboard placement can differ on your phone.
+These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.
 
-1. **Open Folders.** Choose a year, then an album. The folder trail takes you back to the same level.
+1. **Open Folders.** The library shows years as tiles with indexed album counts. Choose a year, then an album. The three main destinations sit at the bottom, within thumb reach. The year library opens no photos.
 
 ![Android Folders in light mode, showing the synthetic indexed years.](../../../assets/screenshots/android-folders-light.png)
 
-2. **Tag an album.** Open **Tag this album**, select Ana by name or alias, and save. Search `Anita` from **Search** to find the album. This records an album link, not a person in every photo. Photos stay on demand.
+![Album cards with a visible cover, a readable folder title and date.](../../../assets/screenshots/android-albums-light.png)
+
+Covers load only for visible albums after opening a year or search result. They reuse the existing thumbnail cache and fall back to a folder tile if unavailable.
+
+![The photo gallery with rounded previews and selection controls.](../../../assets/screenshots/android-gallery-light.png)
+
+2. **Tag an album.** Open **Tag this album**, select a person by name or alias, and save. Selected people have a clear confirmation and the Save button stays visible while the form scrolls. Search `Anita` from **Search** to find the album. This records an album link, not a person in every photo. Photos stay on demand.
 
 ![Album review with the synthetic person Ana selected.](../../../assets/screenshots/android-review-light.png)
 
@@ -33,7 +39,7 @@ These screenshots show the production Compose screens in a disposable test host,
 
 ![The same Android folder list in dark mode.](../../../assets/screenshots/android-folders-dark.png)
 
-The Compose test presses the real controls for sign-in, navigation, saving, alias search and appearance. It does not yet verify the launcher's cold-start lifecycle or replace testing on a physical phone.
+The Compose test presses the real controls for sign-in, navigation, cover loading, saving without scrolling to the button, alias search and appearance. It does not yet verify the launcher's cold-start lifecycle or replace testing on a physical phone.
 
 ## Session protection
 
@@ -101,7 +107,7 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
 In another terminal, run `gradle -p android connectedDebugAndroidTest`. Restart the helper before each run to issue a fresh one-time code. The helper binds only to host loopback and prepares an ignored asset for the test APK. Only the test process trusts that generated certificate; hostname verification stays enabled and the app's certificate rules are unchanged. Ctrl+C removes the asset and temporary fixture. Without the generated asset, the client and Compose tests are skipped; the four Keystore tests still run. Use only disposable emulators and synthetic credentials.
 
 
-To export the three synthetic screenshots on a disposable API 29+ emulator, add `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` to the Gradle command. The test writes only its generated PNGs to `Download/chromantis-compose/`; they survive test-app cleanup. Ordinary test runs do not write screenshots to shared storage. CI validates the PNG headers before exporting them.
+To export the five synthetic screenshots on a disposable API 29+ emulator, add `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` to the Gradle command. The test writes only its generated PNGs to `Download/chromantis-compose/`; they survive test-app cleanup. Ordinary test runs do not write screenshots to shared storage. CI validates the PNG headers before exporting them.
 
 ## Sign a private release
 

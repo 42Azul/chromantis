@@ -13,6 +13,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -109,7 +111,7 @@ class FamilyComposeTest {
                         Column(Modifier.padding(16.dp)) {
                             val client = api.value
                             if (client == null)
-                                SignIn(config.getString("origin"), false) { api.value = it }
+                                SignIn(config.getString("ui_origin"), false) { api.value = it }
                             else
                                 Explorer(
                                     client,
@@ -133,14 +135,31 @@ class FamilyComposeTest {
             click("2023")
             val client = compose.runOnIdle { api.value!! }
             val album = runBlocking { client.albums("2023", 0).entries.single() }
-            await(album.title)
-            click(album.title)
+            await(albumDisplayTitle(album.title))
+            compose.waitUntil(15000) {
+                compose
+                    .onAllNodesWithTag("cover:${album.path}", useUnmergedTree = true)
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
+            capture("albums-light")
+            click(albumDisplayTitle(album.title))
             await(label(R.string.review_album))
+            val visiblePhotos = runBlocking { client.photos(album.path, 0).entries }
+            compose.waitUntil(15000) {
+                visiblePhotos.all { photo ->
+                    compose
+                        .onAllNodesWithTag("thumbnail:${photo.path}", useUnmergedTree = true)
+                        .fetchSemanticsNodes()
+                        .isNotEmpty()
+                }
+            }
+            capture("gallery-light")
             click(label(R.string.review_album))
             await("Ana")
             compose.onNodeWithText("Ana").performScrollTo().performClick()
             capture("review-light")
-            compose.onNodeWithText(label(R.string.save_album)).performScrollTo().performClick()
+            compose.onNodeWithText(label(R.string.save_album)).assertIsDisplayed().performClick()
             await(label(R.string.review_album))
             // Return through the folder trail, then use the real search form.
             click(label(R.string.folders))
@@ -151,9 +170,14 @@ class FamilyComposeTest {
             capture("folders-dark")
             click(label(R.string.search))
             compose.onNodeWithText(label(R.string.search_hint)).performTextInput("Anita")
-            compose.onAllNodesWithText(label(R.string.search)).onLast().performClick()
-            await(album.title)
-            compose.onNodeWithText(album.title).assertIsDisplayed()
+            compose
+                .onNode(
+                    hasText(label(R.string.search)) and
+                        SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
+                )
+                .performClick()
+            await(albumDisplayTitle(album.title))
+            compose.onNodeWithText(albumDisplayTitle(album.title)).assertIsDisplayed()
         } finally {
             api.value?.let { runBlocking { it.signOut() } }
             HttpsURLConnection.setDefaultSSLSocketFactory(previous)

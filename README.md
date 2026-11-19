@@ -36,4 +36,4 @@ npm --prefix docs run dev
 npm --prefix docs run check
 ```
 
-See [contributing and publishing](docs/src/content/docs/reference/contributing.md) for requirements and the static-site workflow.
+See [interface direction and design references](DESIGN.md), and [contributing and publishing](docs/src/content/docs/reference/contributing.md) for requirements and the static-site workflow.

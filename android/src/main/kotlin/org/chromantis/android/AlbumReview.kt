@@ -1,20 +1,30 @@
 package org.chromantis.android
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.text.Normalizer
 import java.util.Locale
@@ -133,182 +144,247 @@ private fun ReviewForm(
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     var openPhoto by remember { mutableStateOf<Entry?>(null) }
-    Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(album.title, style = MaterialTheme.typography.titleLarge)
-        album.date?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-        if (
-            onQuickReview != null &&
-                !busy &&
-                chosen == album.people &&
-                name.isBlank() &&
-                decisions.isEmpty()
+    val conflict = error?.hasStatus(409) == true
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            TextButton(onClick = onQuickReview) { Text(stringResource(R.string.quick_review)) }
-        }
-        if (!showPhotos)
-            TextButton(onClick = { showPhotos = true }) {
-                Text(stringResource(R.string.show_review_photos))
+            Text(
+                albumDisplayTitle(album.title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            (albumDisplayDate(album.path) ?: album.date)?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-        if (showPhotos)
-            LoadContent(onExpired, load = { api.reviewPhotos(album.path) }) { photos ->
-                if (photos.entries.isEmpty()) Text(stringResource(R.string.no_results))
-                else
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        photos.entries.forEach { photo ->
-                            Column(Modifier.weight(1f).clickable { openPhoto = photo }) {
-                                if (photos.hasThumbnails) Thumbnail(api, photo, onExpired)
-                                Text(photo.title, style = MaterialTheme.typography.bodySmall)
+            if (
+                onQuickReview != null &&
+                    !busy &&
+                    chosen == album.people &&
+                    name.isBlank() &&
+                    decisions.isEmpty()
+            ) {
+                TextButton(onClick = onQuickReview) { Text(stringResource(R.string.quick_review)) }
+            }
+            if (!showPhotos)
+                OutlinedButton(
+                    onClick = { showPhotos = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    LibraryIcon(R.drawable.ic_photo, Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.show_review_photos))
+                }
+            if (showPhotos)
+                LoadContent(onExpired, load = { api.reviewPhotos(album.path) }) { photos ->
+                    if (photos.entries.isEmpty()) Text(stringResource(R.string.no_results))
+                    else
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            photos.entries.forEach { photo ->
+                                Column(Modifier.weight(1f).clickable { openPhoto = photo }) {
+                                    if (photos.hasThumbnails) Thumbnail(api, photo, onExpired)
+                                    Text(photo.title, style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                         }
-                    }
-            }
-        Text(stringResource(R.string.people_in_album), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.album_people_explanation))
-        OutlinedTextField(
-            value = filter,
-            onValueChange = { filter = it },
-            singleLine = true,
-            label = { Text(stringResource(R.string.people_filter)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        val needle = searchableName(filter.trim())
-        val matching =
-            people.filter { person ->
-                searchableName(person.name).contains(needle) ||
-                    person.aliases.any { searchableName(it).contains(needle) }
-            }
-        val visible =
-            if (needle.isEmpty())
-                matching.filter { it.id in chosen } + matching.filter { it.id !in chosen }.take(12)
-            else matching.take(30)
-        visible.forEach { person ->
-            val checked = person.id in chosen
-            Row(
-                Modifier.fillMaxWidth()
-                    .toggleable(
-                        value = checked,
-                        enabled = !busy,
-                        role = Role.Checkbox,
-                        onValueChange = { selected ->
-                            chosen = if (selected) chosen + person.id else chosen - person.id
-                        },
-                    )
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Checkbox(checked, onCheckedChange = null, enabled = !busy)
-                Column {
-                    Text(person.name)
-                    if (person.aliases.isNotEmpty()) {
+                }
+            Text(
+                stringResource(R.string.people_in_album),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.review_people_help),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            OutlinedTextField(
+                value = filter,
+                onValueChange = { filter = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.review_people_hint)) },
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val needle = searchableName(filter.trim())
+            val matching =
+                people.filter { person ->
+                    searchableName(person.name).contains(needle) ||
+                        person.aliases.any { searchableName(it).contains(needle) }
+                }
+            val visible =
+                if (needle.isEmpty())
+                    matching.filter { it.id in chosen } +
+                        matching.filter { it.id !in chosen }.take(12)
+                else matching.take(30)
+            visible.forEach { person ->
+                val checked = person.id in chosen
+                Row(
+                    Modifier.fillMaxWidth()
+                        .toggleable(
+                            value = checked,
+                            enabled = !busy,
+                            role = Role.Checkbox,
+                            onValueChange = { selected ->
+                                chosen = if (selected) chosen + person.id else chosen - person.id
+                            },
+                        )
+                        .background(
+                            if (checked) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainer,
+                            RoundedCornerShape(20.dp),
+                        )
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        Modifier.size(42.dp)
+                            .background(MaterialTheme.colorScheme.surface, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Text(
-                            person.aliases.joinToString(", "),
-                            style = MaterialTheme.typography.bodySmall,
+                            person.name.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            person.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (person.aliases.isNotEmpty()) {
+                            Text(
+                                person.aliases.joinToString(", "),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                    Checkbox(checked, onCheckedChange = null, enabled = !busy)
+                }
+            }
+            if (visible.isEmpty() && needle.isNotEmpty()) Text(stringResource(R.string.no_results))
+            if (visible.size < matching.size) Text(stringResource(R.string.narrow_people))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { if (it.length <= 100) name = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.new_person_hint)) },
+                shape = RoundedCornerShape(16.dp),
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (album.suggestions.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.suggested_tags),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                album.suggestions.forEach { suggestion ->
+                    val selected =
+                        if (decisions.containsKey(suggestion.key)) decisions[suggestion.key]
+                        else suggestion.tag.takeIf { suggestion.state != "pending" }
+                    val pending =
+                        suggestion.state == "pending" && !decisions.containsKey(suggestion.key)
+                    Text(
+                        stringResource(
+                            R.string.suggestion_evidence,
+                            suggestion.label,
+                            suggestion.evidence,
+                        )
+                    )
+                    if (selected != null && selected != suggestion.key) {
+                        Text(stringResource(R.string.corrected_tag, selected))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = selected == suggestion.key,
+                            onClick = { decisions[suggestion.key] = suggestion.key },
+                            label = { Text(stringResource(R.string.accept_tag)) },
+                            enabled = !busy,
+                        )
+                        FilterChip(
+                            selected = !pending && selected == null,
+                            onClick = { decisions[suggestion.key] = null },
+                            label = { Text(stringResource(R.string.reject_tag)) },
+                            enabled = !busy,
                         )
                     }
                 }
             }
         }
-        if (visible.isEmpty() && needle.isNotEmpty()) Text(stringResource(R.string.no_results))
-        if (visible.size < matching.size) Text(stringResource(R.string.narrow_people))
-        OutlinedTextField(
-            value = name,
-            onValueChange = { if (it.length <= 100) name = it },
-            singleLine = true,
-            label = { Text(stringResource(R.string.new_person_hint)) },
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (album.suggestions.isNotEmpty()) {
-            Text(
-                stringResource(R.string.suggested_tags),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            album.suggestions.forEach { suggestion ->
-                val selected =
-                    if (decisions.containsKey(suggestion.key)) decisions[suggestion.key]
-                    else suggestion.tag.takeIf { suggestion.state != "pending" }
-                val pending =
-                    suggestion.state == "pending" && !decisions.containsKey(suggestion.key)
-                Text(
-                    stringResource(
-                        R.string.suggestion_evidence,
-                        suggestion.label,
-                        suggestion.evidence,
-                    )
-                )
-                if (selected != null && selected != suggestion.key) {
-                    Text(stringResource(R.string.corrected_tag, selected))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = selected == suggestion.key,
-                        onClick = { decisions[suggestion.key] = suggestion.key },
-                        label = { Text(stringResource(R.string.accept_tag)) },
-                        enabled = !busy,
-                    )
-                    FilterChip(
-                        selected = !pending && selected == null,
-                        onClick = { decisions[suggestion.key] = null },
-                        label = { Text(stringResource(R.string.reject_tag)) },
-                        enabled = !busy,
-                    )
-                }
-            }
-        }
-        val conflict = error?.hasStatus(409) == true
-        error?.let {
-            val label =
-                when {
-                    conflict -> R.string.review_conflict
-                    it.hasStatus(400) -> R.string.review_invalid
-                    else -> errorLabel(it)
-                }
-            Text(stringResource(label), color = MaterialTheme.colorScheme.error)
-        }
-        if (conflict)
-            TextButton(onClick = onReload) { Text(stringResource(R.string.reload_review)) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = {
-                    focus.clearFocus()
-                    busy = true
-                    error = null
-                    val changes = decisions.toMap()
-                    scope.launch {
-                        attempt { api.saveReview(album, chosen, name, changes) }
-                            .fold(
-                                onSuccess = { onSaved() },
-                                onFailure = {
-                                    if (it.hasStatus(401)) onExpired()
-                                    else {
-                                        error = it
-                                        busy = false
-                                    }
-                                },
-                            )
-                    }
-                },
-                enabled = !busy && !conflict,
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 1.dp,
+            shape = RoundedCornerShape(20.dp),
+        ) {
+            Column(
+                Modifier.padding(top = 12.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    stringResource(
+                error?.let {
+                    val label =
                         when {
-                            busy -> R.string.saving
-                            onQuickReview != null -> R.string.save_and_next
-                            else -> R.string.save_album
+                            conflict -> R.string.review_conflict
+                            it.hasStatus(400) -> R.string.review_invalid
+                            else -> errorLabel(it)
                         }
-                    )
-                )
-            }
-            TextButton(onClick = onSkip, enabled = !busy) {
-                Text(stringResource(R.string.skip_album))
+                    Text(stringResource(label), color = MaterialTheme.colorScheme.error)
+                }
+                if (conflict)
+                    TextButton(onClick = onReload) { Text(stringResource(R.string.reload_review)) }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Button(
+                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        onClick = {
+                            focus.clearFocus()
+                            busy = true
+                            error = null
+                            val changes = decisions.toMap()
+                            scope.launch {
+                                attempt { api.saveReview(album, chosen, name, changes) }
+                                    .fold(
+                                        onSuccess = { onSaved() },
+                                        onFailure = {
+                                            if (it.hasStatus(401)) onExpired()
+                                            else {
+                                                error = it
+                                                busy = false
+                                            }
+                                        },
+                                    )
+                            }
+                        },
+                        enabled = !busy && !conflict,
+                    ) {
+                        Text(
+                            stringResource(
+                                when {
+                                    busy -> R.string.saving
+                                    onQuickReview != null -> R.string.save_and_next
+                                    else -> R.string.save_album
+                                }
+                            )
+                        )
+                    }
+                    TextButton(onClick = onSkip, enabled = !busy) {
+                        Text(stringResource(R.string.skip_album))
+                    }
+                }
             }
         }
     }
