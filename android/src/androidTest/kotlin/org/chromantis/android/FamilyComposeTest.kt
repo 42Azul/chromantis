@@ -37,6 +37,53 @@ import org.junit.runner.RunWith
 class FamilyComposeTest {
     @get:Rule val compose = createComposeRule()
 
+    private fun capture(name: String) {
+        if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true") return
+        if (Build.VERSION.SDK_INT < 29) return
+        val values =
+            ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$name.png")
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+                put(
+                    MediaStore.MediaColumns.RELATIVE_PATH,
+                    "${Environment.DIRECTORY_DOWNLOADS}/chromantis-compose",
+                )
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val uri = requireNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
+        try {
+            requireNotNull(resolver.openOutputStream(uri)).use {
+                check(
+                    compose
+                        .onRoot()
+                        .captureToImage()
+                        .asAndroidBitmap()
+                        .compress(Bitmap.CompressFormat.PNG, 100, it)
+                )
+            }
+            values.clear()
+            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+        } catch (error: Exception) {
+            resolver.delete(uri, null, null)
+            throw error
+        }
+    }
+
+    @Test
+    fun rendersDarkSignIn() {
+        compose.setContent {
+            MaterialTheme(colorScheme = darkPalette) {
+                Surface(Modifier.fillMaxSize()) {
+                    Column(Modifier.padding(16.dp)) { SignIn("https://10.0.2.2:8444", false) {} }
+                }
+            }
+        }
+        compose.onNodeWithTag("chromantis-mark").assertIsDisplayed()
+        capture("sign-in-dark")
+    }
+
     @Test
     fun signInBrowseCurateAndFindAnaInBothAppearances() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -65,41 +112,6 @@ class FamilyComposeTest {
             }
         }
         fun click(text: String) = compose.onNodeWithText(text).performClick()
-        fun capture(name: String) {
-            if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true")
-                return
-            if (Build.VERSION.SDK_INT < 29) return
-            val values =
-                ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, "$name.png")
-                    put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-                    put(
-                        MediaStore.MediaColumns.RELATIVE_PATH,
-                        "${Environment.DIRECTORY_DOWNLOADS}/chromantis-compose",
-                    )
-                    put(MediaStore.MediaColumns.IS_PENDING, 1)
-                }
-            val resolver = context.contentResolver
-            val uri =
-                requireNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
-            try {
-                requireNotNull(resolver.openOutputStream(uri)).use {
-                    check(
-                        compose
-                            .onRoot()
-                            .captureToImage()
-                            .asAndroidBitmap()
-                            .compress(Bitmap.CompressFormat.PNG, 100, it)
-                    )
-                }
-                values.clear()
-                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                resolver.update(uri, values, null, null)
-            } catch (error: Exception) {
-                resolver.delete(uri, null, null)
-                throw error
-            }
-        }
         try {
             HttpsURLConnection.setDefaultSSLSocketFactory(tls.socketFactory)
             compose.setContent {
@@ -126,10 +138,13 @@ class FamilyComposeTest {
                     }
                 }
             }
+            compose.onNodeWithTag("chromantis-mark").assertIsDisplayed()
+            capture("sign-in-light")
             compose
                 .onNodeWithText(label(R.string.code_label))
+                .performScrollTo()
                 .performTextInput(config.getString("ui_code"))
-            click(label(R.string.sign_in))
+            compose.onNodeWithText(label(R.string.sign_in)).performScrollTo().performClick()
             await("2023")
             capture("folders-light")
             val client = compose.runOnIdle { api.value!! }
@@ -187,6 +202,9 @@ class FamilyComposeTest {
             await(albumDisplayTitle(album.title))
             compose.onNodeWithText(albumDisplayTitle(album.title)).assertIsDisplayed()
             capture("search-dark")
+            click(label(R.string.settings))
+            click(label(R.string.sign_out))
+            await(label(R.string.connect_title))
         } finally {
             api.value?.let { runBlocking { it.signOut() } }
             HttpsURLConnection.setDefaultSSLSocketFactory(previous)

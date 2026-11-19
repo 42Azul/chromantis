@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -30,9 +31,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -59,7 +63,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -68,6 +75,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -434,62 +442,139 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
     var error by remember { mutableStateOf<Int?>(if (expired) R.string.expired_session else null) }
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
-    Heading(stringResource(R.string.app_name))
-    Column(
-        Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(stringResource(R.string.connect_title), style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(
-            value = origin,
-            onValueChange = { origin = it },
-            label = { Text(stringResource(R.string.address_label)) },
-            placeholder = { Text(stringResource(R.string.address_hint)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            singleLine = true,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = code,
-            onValueChange = { code = it },
-            label = { Text(stringResource(R.string.code_label)) },
-            placeholder = { Text(stringResource(R.string.code_hint)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(
-            onClick = {
-                val endpoint =
-                    try {
-                        ChromantisApi(origin)
-                    } catch (_: IllegalArgumentException) {
-                        error = R.string.invalid_address
-                        return@Button
-                    }
-                focus.clearFocus()
-                busy = true
-                error = null
-                scope.launch {
-                    attempt { endpoint.signIn(code.trim()) }
-                        .fold(
-                            onSuccess = onConnected,
-                            onFailure = {
-                                error =
-                                    if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
-                                busy = false
-                            },
-                        )
-                }
-            },
-            enabled = code.isNotBlank() && !busy,
-        ) {
-            Text(stringResource(if (busy) R.string.connecting else R.string.sign_in))
+    val connect: () -> Unit = connect@{
+        val endpoint =
+            try {
+                ChromantisApi(origin)
+            } catch (_: IllegalArgumentException) {
+                error = R.string.invalid_address
+                return@connect
+            }
+        focus.clearFocus()
+        busy = true
+        error = null
+        scope.launch {
+            attempt { endpoint.signIn(code.trim()) }
+                .fold(
+                    onSuccess = onConnected,
+                    onFailure = {
+                        error = if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
+                        busy = false
+                    },
+                )
         }
-        error?.let { Text(stringResource(it)) }
+    }
+    Column(
+        Modifier.fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(top = 20.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ChromantisMark()
+            Column(Modifier.padding(start = 16.dp)) {
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    stringResource(R.string.connect_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        Text(
+            stringResource(R.string.connect_intro),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Card(
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
+            shape = RoundedCornerShape(24.dp),
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.address_step),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                OutlinedTextField(
+                    value = origin,
+                    onValueChange = { origin = it },
+                    label = { Text(stringResource(R.string.address_label)) },
+                    placeholder = { Text(stringResource(R.string.address_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    singleLine = true,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(R.string.code_step),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Text(
+                    stringResource(R.string.code_help),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it },
+                    label = { Text(stringResource(R.string.code_label)) },
+                    placeholder = { Text(stringResource(R.string.code_hint)) },
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done,
+                        ),
+                    keyboardActions = KeyboardActions(onDone = { if (!busy) connect() }),
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+                Button(
+                    onClick = connect,
+                    enabled = code.isNotBlank() && !busy,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    Text(stringResource(if (busy) R.string.connecting else R.string.sign_in))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChromantisMark() {
+    Surface(
+        modifier = Modifier.size(56.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF1D3430),
+        contentColor = Color(0xFFD5E9CB),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(30.dp).testTag("chromantis-mark")) {
+                drawArc(
+                    color = Color(0xFFD5E9CB),
+                    startAngle = 45f,
+                    sweepAngle = 270f,
+                    useCenter = false,
+                    style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
+                )
+            }
+        }
     }
 }
 

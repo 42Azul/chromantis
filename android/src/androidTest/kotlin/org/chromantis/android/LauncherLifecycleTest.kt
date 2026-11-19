@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -70,10 +72,10 @@ class LauncherLifecycleTest {
             settings.edit().putString("origin", config.getString("ui_origin")).commit()
             HttpsURLConnection.setDefaultSSLSocketFactory(tls.socketFactory)
             scenario = ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
-            compose
-                .onNodeWithText(label(R.string.code_label))
-                .performTextInput(config.getString("launcher_code"))
-            click(label(R.string.sign_in))
+            val codeField = compose.onNodeWithText(label(R.string.code_label))
+            codeField.performScrollTo()
+            codeField.performTextInput(config.getString("launcher_code"))
+            codeField.performImeAction()
             await("2023")
             compose.waitUntil(15000) { settings.contains("session_encrypted") }
             assertFalse(settings.contains("session"))

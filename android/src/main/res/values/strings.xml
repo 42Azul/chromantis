@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Chromantis</string>
-    <string name="connect_title">Conecta con tu archivo familiar</string>
-    <string name="address_label">Dirección HTTPS del NAS</string>
-    <string name="address_hint">https://nas.example</string>
+    <string name="connect_title">Tu archivo familiar, en casa</string>
+    <string name="connect_intro">Usa la dirección y el código que te ha dado el propietario. Las fotos se quedan en casa y la sesión queda protegida en este dispositivo.</string>
+    <string name="address_step">1 · Dirección privada HTTPS</string>
+    <string name="address_label">Dirección</string>
+    <string name="address_hint">https://fotos.casa</string>
+    <string name="code_step">2 · Código familiar</string>
+    <string name="code_help">Sirve una sola vez. Después puedes entrar desde este dispositivo sin repetirlo.</string>
     <string name="code_label">Código familiar</string>
     <string name="code_hint">Código de un solo uso</string>
     <string name="sign_in">Entrar</string>

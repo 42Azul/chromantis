@@ -5,7 +5,7 @@ description: Compila el APK nativo en Kotlin y Compose y pruébalo a través de 
 
 Chromantis para Android está en versión preliminar y requiere Android 8.0 o posterior. Se conecta a tu propio servidor de Chromantis por HTTPS privado y usa un [código de acceso familiar](../start/private-access.md#invita-a-un-familiar-sin-telegram).
 
-**Cómo conseguir el APK.** Compílalo desde el código fuente siguiendo estos pasos. Todavía no hay un APK público listo para descargar.
+**Cómo conseguir el APK.** Descarga el último APK de prueba verificado desde el artefacto del workflow o compílalo localmente siguiendo las instrucciones de abajo.
 
 ## Qué puedes hacer
 
@@ -21,17 +21,21 @@ Los seguimientos de una búsqueda de álbumes también admiten `con Ana y Luis` 
 
 Estas capturas muestran las pantallas Compose rediseñadas en una actividad de pruebas desechable, con fotos sintéticas. Otro ejemplo independiente comprueba que se puede buscar y etiquetar con el archivo desconectado. No contienen datos familiares. Las barras del sistema y la posición del teclado pueden variar en tu móvil.
 
-1. **Abre Carpetas.** La biblioteca muestra los años en tarjetas con su número de álbumes indexados. Elige un año y después un álbum. Las tres secciones principales están abajo, al alcance del pulgar. La biblioteca por años no abre fotos.
+1. **Conecta con el archivo familiar.** Escribe la dirección privada de Chromantis y el código de un solo uso que te dé el propietario. La pantalla explica que se exige HTTPS, que las fotos permanecen en el servidor doméstico y que la sesión posterior queda protegida en este dispositivo. Chromantis cifra esa sesión guardada con Android Keystore y el propietario puede revocarla.
+
+![Entrada de Android en modo claro, con dos pasos de conexión y la explicación de sesión protegida.](../../../../assets/screenshots/android-sign-in-light.png)
+
+2. **Abre Carpetas.** La biblioteca muestra los años en tarjetas con su número de álbumes indexados. Elige un año y después un álbum. Las tres secciones principales están abajo, al alcance del pulgar. La biblioteca por años no abre fotos.
 
 ![Carpetas de Android en modo claro con los años sintéticos indexados.](../../../../assets/screenshots/android-folders-light.png)
 
-2. **Clasifica una carpeta.** **Clasificar** presenta un álbum pendiente en una tarjeta centrada. La etiqueta propuesta explica qué texto del nombre de la carpeta la originó. El gesto es opcional: aceptar y dejar pendiente tienen botones grandes, y el editor completo de personas, fotos y etiquetas está a un toque.
+3. **Clasifica una carpeta.** **Clasificar** presenta un álbum pendiente en una tarjeta centrada. La etiqueta propuesta explica qué texto del nombre de la carpeta la originó. El gesto es opcional: aceptar y dejar pendiente tienen botones grandes, y el editor completo de personas, fotos y etiquetas está a un toque.
 
 ![Clasificación rápida de un álbum con sugerencia por nombre y acciones explícitas.](../../../../assets/screenshots/android-classify-light.png)
 
 Esta primera pasada usa solo el índice y el nombre de la carpeta. Las fotos se solicitan al abrir el editor detallado; la tarjeta rápida no abre imágenes ni consulta ningún modelo.
 
-3. **Abre un álbum.** Las tarjetas muestran un título legible, la fecha y una portada cuando está disponible.
+4. **Abre un álbum.** Las tarjetas muestran un título legible, la fecha y una portada cuando está disponible.
 
 ![Álbum con portada, nombre legible y fecha.](../../../../assets/screenshots/android-albums-light.png)
 
@@ -39,15 +43,15 @@ Las portadas se cargan solo para los álbumes visibles al abrir un año o un res
 
 ![Galería con miniaturas redondeadas y controles de selección.](../../../../assets/screenshots/android-gallery-light.png)
 
-4. **Etiqueta un álbum.** Abre **Etiquetar este álbum**, selecciona a una persona por su nombre o alias y guarda. La selección se confirma visualmente y el botón Guardar sigue visible mientras recorres el formulario. Busca `Anita` desde **Buscar** para encontrarlo. El vínculo se refiere al álbum, no confirma la presencia en cada foto. Las fotos siguen bajo demanda.
+5. **Etiqueta un álbum.** Abre **Etiquetar este álbum**, selecciona a una persona por su nombre o alias y guarda. La selección se confirma visualmente y el botón Guardar sigue visible mientras recorres el formulario. Busca `Anita` desde **Buscar** para encontrarlo. El vínculo se refiere al álbum, no confirma la presencia en cada foto. Las fotos siguen bajo demanda.
 
 ![Revisión de un álbum con la persona sintética Ana seleccionada.](../../../../assets/screenshots/android-review-light.png)
 
-5. **Elige la apariencia.** **Ajustes → Oscuro** cambia las mismas pantallas. También puedes elegir claro o seguir el sistema.
+6. **Elige la apariencia.** **Ajustes → Oscuro** cambia las mismas pantallas. También puedes elegir claro o seguir el sistema.
 
 ![La misma lista de carpetas de Android en modo oscuro.](../../../../assets/screenshots/android-folders-dark.png)
 
-6. **Pide un recuerdo.** **Buscar** comienza con ejemplos que puedes usar o sustituir. Tu petición permanece visible sobre los resultados. Añade un detalle en el mismo campo o quita un filtro de persona, año o álbum sin empezar de nuevo.
+7. **Pide un recuerdo.** **Buscar** comienza con ejemplos que puedes usar o sustituir. Tu petición permanece visible sobre los resultados. Añade un detalle en el mismo campo o quita un filtro de persona, año o álbum sin empezar de nuevo.
 
 ![Búsqueda conversacional de álbumes en modo oscuro con la petición y el resultado visibles.](../../../../assets/screenshots/android-search-dark.png)
 
@@ -136,7 +140,7 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
 En otra terminal, ejecuta `gradle -p android connectedDebugAndroidTest`. Reinicia el programa antes de cada ejecución para generar otro código de un solo uso. El programa solo escucha en loopback del anfitrión y prepara un recurso ignorado para el APK de pruebas. Solo el proceso de pruebas confía en ese certificado generado; se mantiene la verificación del nombre del servidor y no cambian las reglas de certificados de la app. Ctrl+C elimina el recurso y el ejemplo temporal. Sin ese recurso se omiten las pruebas del cliente y Compose; las cuatro de Keystore se siguen ejecutando. Usa únicamente emuladores desechables y credenciales sintéticas.
 
 
-Para exportar las siete capturas sintéticas en un emulador desechable API 29+, añade `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` al comando Gradle. La prueba escribe únicamente sus PNG generados en `Download/chromantis-compose/`; sobreviven a la limpieza de la app de pruebas. Una ejecución normal no guarda capturas en almacenamiento compartido. La CI comprueba las cabeceras PNG antes de exportarlas.
+Para exportar las nueve capturas sintéticas en un emulador desechable API 29+, añade `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` al comando Gradle. La prueba escribe únicamente sus PNG generados en `Download/chromantis-compose/`; sobreviven a la limpieza de la app de pruebas. Una ejecución normal no guarda capturas en almacenamiento compartido. La CI comprueba las cabeceras PNG antes de exportarlas.
 
 ## Firma un APK para distribuirlo en privado
 
