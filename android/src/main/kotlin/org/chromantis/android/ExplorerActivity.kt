@@ -669,7 +669,7 @@ internal fun Thumbnail(
     api: ChromantisApi,
     entry: Entry,
     onExpired: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth().height(100.dp),
+    modifier: Modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(16.dp)),
     contentScale: ContentScale = ContentScale.Crop,
     identity: String? = null,
     onReady: () -> Unit = {},

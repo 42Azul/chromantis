@@ -155,7 +155,13 @@ private fun ReviewForm(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            album.date?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            (albumDisplayDate(album.path) ?: album.date)?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (
                 onQuickReview != null &&
                     !busy &&
