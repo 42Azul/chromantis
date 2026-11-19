@@ -53,7 +53,7 @@ Las portadas se cargan solo para los álbumes visibles al abrir un año o un res
 
 Esta pantalla usa las reglas locales deterministas existentes. No indica que un modelo haya interpretado la petición. **Fotos por persona** sigue siendo una búsqueda exacta y separada por vínculos a fotos, disponible desde la pantalla inicial de Buscar.
 
-La prueba Compose pulsa los controles reales de entrada, navegación, carga de portadas, guardado sin desplazar la pantalla hasta el botón, búsqueda por alias y apariencia. Todavía no comprueba el inicio en frío de la actividad principal ni sustituye la prueba en un móvil físico.
+El recorrido Compose pulsa los controles reales de entrada, navegación, carga de portadas, guardado sin desplazar la pantalla hasta el botón, búsqueda por alias y apariencia. Otra prueba abre la actividad exportada, entra usando sus preferencias cifradas reales, visita un álbum, recrea la actividad, la cierra y lanza una actividad nueva. Después usa **Continuar en…** para volver al álbum y cierra la sesión. Esto cubre la recreación y un lanzamiento nuevo en el emulador; no simula la muerte completa del proceso ni sustituye la prueba en un móvil físico.
 
 ## Protección de la sesión
 

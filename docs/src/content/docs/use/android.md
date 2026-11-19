@@ -53,7 +53,7 @@ Covers load only for visible albums after opening a year or search result. They 
 
 This surface uses the existing deterministic local rules. It does not claim that a model interpreted the request. **Photos by person** remains a separate exact photo-level search from the empty Search screen.
 
-The Compose test presses the real controls for sign-in, navigation, cover loading, saving without scrolling to the button, alias search and appearance. It does not yet verify the launcher's cold-start lifecycle or replace testing on a physical phone.
+The Compose walkthrough presses the real controls for sign-in, navigation, cover loading, saving without scrolling to the button, alias search and appearance. A separate launcher test opens the exported activity, signs in with its production encrypted preferences, visits an album, recreates the activity, closes it and starts a fresh activity. It follows **Continue in…** back to that album and signs out. This covers activity recreation and a fresh launch on the emulator; it does not simulate full process death or replace testing on a physical phone.
 
 ## Session protection
 
