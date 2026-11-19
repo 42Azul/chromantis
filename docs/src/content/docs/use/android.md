@@ -68,6 +68,20 @@ Four instrumented tests exercise the actual Android Keystore provider: encrypted
 
 The [Android verification workflow](https://github.com/42Azul/chromantis/actions/workflows/android.yml) runs these tests on an API 36 emulator, alongside Kotlin formatting, JVM tests, debug APK compilation and lint. It uses a standard public Linux runner with no artifact uploads or build caches, and skips execution if the repository becomes private. Emulator results validate the platform integration; they do not establish hardware-backed key protection or complete the physical-phone interaction drill above.
 
+### Native client over HTTPS
+
+The CI suite also runs the Kotlin HTTP client against the real Python service with a disconnected synthetic archive. It checks one-time sign-in, encrypted session restoration, gallery paging, linking Ana, finding the album by alias, and rejection after sign-out. This is a client/service integration test; the visual interaction drill remains pending.
+
+To reproduce it on a disposable emulator, create the temporary certificate shown below, then run this helper instead of the interactive fixture:
+
+```bash
+PYTHONPATH=src python tests/android_instrumentation_fixture.py \
+  --cert "$fixture_dir/cert.pem" --key "$fixture_dir/key.pem" \
+  --config android/src/androidTest/assets/fixture.json
+```
+
+In another terminal, run `gradle -p android connectedDebugAndroidTest`. Restart the helper before each run to issue a fresh one-time code. The helper binds only to host loopback and prepares an ignored asset for the test APK. Only the test process trusts that generated certificate; hostname verification stays enabled and the app's certificate rules are unchanged. Ctrl+C removes the asset and temporary fixture. Without the generated asset, this one integration test is skipped; the four Keystore tests still run. Use only disposable emulators and synthetic credentials.
+
 ## Sign a private release
 
 For a private release APK, create a signing key once and keep it outside the repository. Copy `android/keystore.properties.example` to `android/keystore.properties`, use the absolute path to that key, and replace every placeholder. The local properties file, `.jks` files, and `.keystore` files are ignored by Git. Build and verify the signed artifact:
