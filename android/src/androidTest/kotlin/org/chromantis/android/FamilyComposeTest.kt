@@ -126,6 +126,7 @@ class FamilyComposeTest {
                     }
                 }
             }
+            capture("sign-in-light")
             compose
                 .onNodeWithText(label(R.string.code_label))
                 .performTextInput(config.getString("ui_code"))
@@ -187,6 +188,10 @@ class FamilyComposeTest {
             await(albumDisplayTitle(album.title))
             compose.onNodeWithText(albumDisplayTitle(album.title)).assertIsDisplayed()
             capture("search-dark")
+            click(label(R.string.settings))
+            click(label(R.string.sign_out))
+            await(label(R.string.connect_title))
+            capture("sign-in-dark")
         } finally {
             api.value?.let { runBlocking { it.signOut() } }
             HttpsURLConnection.setDefaultSSLSocketFactory(previous)

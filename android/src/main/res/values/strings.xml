@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Chromantis</string>
-    <string name="connect_title">Conecta con tu archivo familiar</string>
-    <string name="address_label">Dirección HTTPS del NAS</string>
-    <string name="address_hint">https://nas.example</string>
+    <string name="connect_title">Tu archivo familiar, en casa</string>
+    <string name="connect_intro">Usa la dirección y el código que te ha dado el propietario. Las fotos no salen de vuestro servidor.</string>
+    <string name="address_step">1 · Dirección de Chromantis</string>
+    <string name="address_help">La dirección privada de la casa. Solo se aceptan conexiones HTTPS.</string>
+    <string name="address_label">Dirección</string>
+    <string name="address_hint">https://fotos.casa</string>
+    <string name="code_step">2 · Código familiar</string>
+    <string name="code_help">Sirve una sola vez. Después puedes entrar desde este dispositivo sin repetirlo.</string>
     <string name="code_label">Código familiar</string>
     <string name="code_hint">Código de un solo uso</string>
     <string name="sign_in">Entrar</string>
@@ -11,6 +16,8 @@
     <string name="invalid_address">Escribe una dirección HTTPS válida del NAS.</string>
     <string name="invalid_code">El código es incorrecto, ya se usó o ha caducado.</string>
     <string name="connecting">Conectando…</string>
+    <string name="session_protected_title">Sesión protegida en este dispositivo</string>
+    <string name="session_protected_help">Se guarda cifrada con Android Keystore y puede revocarse desde Chromantis.</string>
     <string name="folders">Carpetas</string>
     <string name="resume_album">Continuar en %s</string>
     <string name="organize">Clasificar</string>

@@ -33,6 +33,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -434,62 +436,139 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
     var error by remember { mutableStateOf<Int?>(if (expired) R.string.expired_session else null) }
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
-    Heading(stringResource(R.string.app_name))
     Column(
-        Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        Modifier.fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(top = 24.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text(stringResource(R.string.connect_title), style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(
-            value = origin,
-            onValueChange = { origin = it },
-            label = { Text(stringResource(R.string.address_label)) },
-            placeholder = { Text(stringResource(R.string.address_hint)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            singleLine = true,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = code,
-            onValueChange = { code = it },
-            label = { Text(stringResource(R.string.code_label)) },
-            placeholder = { Text(stringResource(R.string.code_hint)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(
-            onClick = {
-                val endpoint =
-                    try {
-                        ChromantisApi(origin)
-                    } catch (_: IllegalArgumentException) {
-                        error = R.string.invalid_address
-                        return@Button
-                    }
-                focus.clearFocus()
-                busy = true
-                error = null
-                scope.launch {
-                    attempt { endpoint.signIn(code.trim()) }
-                        .fold(
-                            onSuccess = onConnected,
-                            onFailure = {
-                                error =
-                                    if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
-                                busy = false
-                            },
-                        )
-                }
-            },
-            enabled = code.isNotBlank() && !busy,
-        ) {
-            Text(stringResource(if (busy) R.string.connecting else R.string.sign_in))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painterResource(R.drawable.ic_chromantis),
+                contentDescription = null,
+                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
+            )
+            Column(Modifier.padding(start = 16.dp)) {
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    stringResource(R.string.connect_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
-        error?.let { Text(stringResource(it)) }
+        Text(
+            stringResource(R.string.connect_intro),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Card(
+            colors =
+                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            shape = RoundedCornerShape(24.dp),
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    stringResource(R.string.address_step),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.address_help),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = origin,
+                    onValueChange = { origin = it },
+                    label = { Text(stringResource(R.string.address_label)) },
+                    placeholder = { Text(stringResource(R.string.address_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    singleLine = true,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(R.string.code_step),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Text(
+                    stringResource(R.string.code_help),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it },
+                    label = { Text(stringResource(R.string.code_label)) },
+                    placeholder = { Text(stringResource(R.string.code_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                error?.let {
+                    Text(stringResource(it), color = MaterialTheme.colorScheme.error)
+                }
+                Button(
+                    onClick = {
+                        val endpoint =
+                            try {
+                                ChromantisApi(origin)
+                            } catch (_: IllegalArgumentException) {
+                                error = R.string.invalid_address
+                                return@Button
+                            }
+                        focus.clearFocus()
+                        busy = true
+                        error = null
+                        scope.launch {
+                            attempt { endpoint.signIn(code.trim()) }
+                                .fold(
+                                    onSuccess = onConnected,
+                                    onFailure = {
+                                        error =
+                                            if (it.hasStatus(401)) R.string.invalid_code
+                                            else errorLabel(it)
+                                        busy = false
+                                    },
+                                )
+                        }
+                    },
+                    enabled = code.isNotBlank() && !busy,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    Text(stringResource(if (busy) R.string.connecting else R.string.sign_in))
+                }
+            }
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(18.dp),
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(R.string.session_protected_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.session_protected_help),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
     }
 }
 
