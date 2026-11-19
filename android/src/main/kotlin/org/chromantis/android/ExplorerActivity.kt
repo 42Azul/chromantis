@@ -151,6 +151,7 @@ internal enum class Level {
     ALBUMS,
     SEARCH,
     CONFIRMED,
+    INDEX,
     PHOTOS,
     ORIGINAL,
     REVIEW,
@@ -181,6 +182,7 @@ private fun Explorer(
     val organize = stringResource(R.string.organize)
     val search = stringResource(R.string.search)
     val confirmedTitle = stringResource(R.string.confirmed_photo_search)
+    val indexTitle = stringResource(R.string.index_title)
     val reviewTitle = stringResource(R.string.review_albums)
     val workspaces =
         listOf(Page(Level.YEARS, folders), Page(Level.REVIEW, organize), Page(Level.ASK, search))
@@ -258,6 +260,10 @@ private fun Explorer(
             appearance,
             onAppearance,
             onClose = { showSettings = false },
+            onIndex = {
+                showSettings = false
+                pages = pages + Page(Level.INDEX, indexTitle)
+            },
             onSignOut = {
                 showSettings = false
                 signingOut = true
@@ -277,6 +283,7 @@ private fun Explorer(
     }
     savedScreens.SaveableStateProvider(screenKey) {
         when (page.level) {
+            Level.INDEX -> IndexStatusScreen(api, expire)
             Level.ASK -> {
                 TextButton(
                     onClick = {

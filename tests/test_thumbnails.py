@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -70,6 +71,25 @@ class ThumbnailTests(unittest.TestCase):
             return response.status, response.getheader("Content-Type"), response.read()
         finally:
             connection.close()
+
+    def test_family_index_status_survives_source_disconnect_and_failed_scan(self):
+        grant, code = self.app.family_access.invite("synthetic")
+        cookie = "chromantis_family=" + self.app.family_access.redeem(code)
+        previous = self.repository.archive_index_status()["indexed_at"]
+        self.archive.rename(self.root / "disconnected")
+        scan_id, _ = self.repository.begin_scan(incremental=True)
+        for state in ("running", "failed"):
+            if state == "failed":
+                self.repository.finish_scan(scan_id, "failed", error="SyntheticFailure")
+            status, _, body = self.request("/archive-status", token=None, cookie=cookie)
+            self.assertEqual(status, 200)
+            item = json.loads(body)["item"]
+            self.assertEqual(item["sync_status"], state)
+            self.assertEqual(item["indexed_at"], previous)
+        self.reader.assert_not_called()
+        self.assertFalse(self.cache_dir.exists())
+        self.app.family_access.revoke(grant)
+        self.assertEqual(self.request("/archive-status", token=None, cookie=cookie)[0], 401)
 
     def test_cache_auth_invalidation_budget_and_original(self):
         preview = "/thumbnail?" + urlencode({"path": IMAGE_PATH})

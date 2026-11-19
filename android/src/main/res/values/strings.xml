@@ -127,5 +127,15 @@
         <item quantity="one">%d álbum</item>
         <item quantity="other">%d álbumes</item>
     </plurals>
+    <string name="index_title">Estado del índice</string>
+    <string name="index_running">Buscando carpetas nuevas…</string>
+    <string name="index_succeeded">Última indexación completada</string>
+    <string name="index_failed">La última indexación falló</string>
+    <string name="index_unknown">Estado no disponible</string>
+    <string name="index_not_started">No hay una indexación registrada</string>
+    <string name="index_last_success">Última indexación correcta: %s</string>
+    <string name="index_no_success">Todavía no hay una indexación correcta registrada.</string>
+    <string name="index_explanation">El índice permite buscar y etiquetar sin abrir las fotos. El propietario puede buscar carpetas nuevas desde Administración en la web local.</string>
+    <string name="index_refresh">Actualizar estado</string>
 </resources>
 

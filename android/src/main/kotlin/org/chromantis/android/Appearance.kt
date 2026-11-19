@@ -69,12 +69,15 @@ internal fun SettingsDialog(
     onAppearance: (Appearance) -> Unit,
     onClose: () -> Unit,
     onSignOut: () -> Unit,
+    onIndex: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text(stringResource(R.string.appearance)) },
+        title = { Text(stringResource(R.string.settings)) },
         text = {
             Column(Modifier.selectableGroup()) {
+                TextButton(onClick = onIndex) { Text(stringResource(R.string.index_title)) }
+                Text(stringResource(R.string.appearance))
                 Appearance.entries.forEach { mode ->
                     Row(
                         Modifier.fillMaxWidth()

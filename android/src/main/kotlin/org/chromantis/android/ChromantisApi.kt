@@ -235,6 +235,8 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             }
         }
 
+    suspend fun indexStatus(): IndexStatus = indexStatus(json("/archive-status"))
+
     private suspend fun thumbnailsEnabled() =
         json("/archive-status").getJSONObject("item").optBoolean("thumbnails")
 

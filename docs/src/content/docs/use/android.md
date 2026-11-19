@@ -15,6 +15,12 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appearance. The choice is stored on the device.
 
+## Check the index
+
+Open **Settings → Index status** (*Ajustes → Estado del índice*). It shows whether the latest scan is running, completed or failed, and the last successful index date supplied by the server. **Refresh status** (*Actualizar estado*) checks again; the screen does not poll in the background or open photos. With no scan history it says so, and a failed scan does not replace the last successful date.
+
+The family app cannot start a scan. The owner can use **Administration → Find new folders** in the [local web panel](../operate/maintenance.md). Native owner controls remain planned; family curation permission stays limited.
+
 ## Tag individual photos
 
 1. Open a gallery and tap **Select photos** (*Seleccionar fotos*) or press and hold a photo. Select the photos on the current page.

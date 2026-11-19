@@ -15,6 +15,12 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elección se guarda en el dispositivo.
 
+## Comprobar el índice
+
+Abre **Ajustes → Estado del índice**. Muestra si la última indexación está en curso, completada o fallida y la fecha de la última indexación correcta que comunica el servidor. **Actualizar estado** vuelve a consultar; la pantalla no consulta en segundo plano ni abre fotos. Si no hay historial, lo indica. Un fallo no sustituye la fecha de la última indexación correcta.
+
+La app familiar no permite iniciar una indexación. El propietario puede usar **Administración → Buscar carpetas nuevas** en el [panel web local](../operate/maintenance.md). Los controles nativos de propietario siguen pendientes; el permiso familiar de etiquetado conserva su alcance.
+
 ## Etiqueta fotos individuales
 
 1. Abre una galería y pulsa **Seleccionar fotos** o mantén pulsada una foto. Marca las fotos de la página actual.
