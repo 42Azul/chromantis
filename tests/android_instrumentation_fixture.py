@@ -8,6 +8,8 @@ from pathlib import Path
 from threading import Thread
 
 from android_fixture import open_fixture
+from chromantis.app import ApplicationService
+from chromantis.db.repository import Repository
 
 
 def interrupt(*_):
@@ -25,7 +27,10 @@ def main():
     signal.signal(signal.SIGTERM, interrupt)
     try:
         with open_fixture(args.cert, args.key, index_only=True) as (server, _, _, invite):
-            with open_fixture(args.cert, args.key, port=8444) as (ui_server, _, _, ui_invite):
+            with open_fixture(args.cert, args.key, port=8444) as (ui_server, ui_db, _, ui_invite):
+                _, launcher_invite = ApplicationService(Repository(ui_db)).family_access.invite(
+                    "Android launcher fixture"
+                )
                 worker = Thread(target=ui_server.serve_forever, daemon=True)
                 worker.start()
                 config.write_text(json.dumps({
@@ -33,6 +38,7 @@ def main():
                     'code': invite,
                     'ui_origin': 'https://10.0.2.2:8444',
                     'ui_code': ui_invite,
+                    'launcher_code': launcher_invite,
                     'certificate': Path(args.cert).read_text(),
                 }))
                 print('Synthetic index-only and visual HTTPS fixtures ready.', flush=True)
