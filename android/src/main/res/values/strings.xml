@@ -137,5 +137,7 @@
     <string name="index_no_success">Todavía no hay una indexación correcta registrada.</string>
     <string name="index_explanation">El índice permite buscar y etiquetar sin abrir las fotos. El propietario puede buscar carpetas nuevas desde Administración en la web local.</string>
     <string name="index_refresh">Actualizar estado</string>
+    <string name="session_not_saved">No se pudo proteger la sesión en este dispositivo. Puedes continuar ahora; tras reiniciar la app necesitarás otro código familiar.</string>
+    <string name="session_restore_failed">No se pudo recuperar la sesión protegida de este dispositivo. Pide otro código familiar para volver a entrar.</string>
 </resources>
 

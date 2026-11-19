@@ -15,6 +15,14 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appearance. The choice is stored on the device.
 
+## Session protection
+
+The app encrypts its saved family session with AES-GCM using a device key in [Android Keystore](https://developer.android.com/privacy-and-security/keystore). The encryption authenticates the NAS origin too. Existing saved sessions migrate on first launch; the old plaintext preference is removed after encryption. Session preferences remain excluded from backup and device transfer.
+
+If the device key is unavailable or the saved envelope is damaged, request a new family code. The app does not fall back to plaintext storage. If saving a newly issued session fails, it warns you and lets you continue for that app instance. Signing out or session revocation clears the saved session and album shortcut. Server-side expiry and revocation still apply.
+
+This protects the saved value, not a compromised device or app process. It adds no biometric prompt, external service or NAS workload. Device-backed key creation and recovery still need a physical-device check. On the synthetic fixture, sign in, restart and check that the session resumes; sign out and verify that another code is needed. With a debug build and synthetic data only, inspect the app's preferences: `session_encrypted` should exist, with no `session` plaintext value. Repeat after an in-place upgrade, signed with the same key, from a build that saved the legacy `session` value. Never copy real session credentials into reports.
+
 ## Check the index
 
 Open **Settings → Index status** (*Ajustes → Estado del índice*). It shows whether the latest scan is running, completed or failed, and the last successful index date supplied by the server. **Refresh status** (*Actualizar estado*) checks again; the screen does not poll in the background or open photos. With no scan history it says so, and a failed scan does not replace the last successful date.

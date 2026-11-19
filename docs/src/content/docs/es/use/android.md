@@ -15,6 +15,14 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elección se guarda en el dispositivo.
 
+## Protección de la sesión
+
+La app cifra la sesión familiar guardada con AES-GCM y una clave del dispositivo en [Android Keystore](https://developer.android.com/privacy-and-security/keystore). El cifrado también autentica la dirección del NAS. Las sesiones existentes se migran al abrir la app y se elimina la preferencia anterior en texto plano tras cifrarla. Estas preferencias siguen excluidas de las copias de seguridad y de la transferencia entre dispositivos.
+
+Si la clave no está disponible o el contenido guardado está dañado, pide otro código familiar. No se usa almacenamiento en texto plano como alternativa. Si falla el guardado de una sesión nueva, la app avisa y permite continuar durante esa ejecución. Cerrar sesión o recibir una revocación elimina la sesión guardada y el acceso al último álbum. La caducidad y revocación del servidor siguen aplicándose.
+
+Esto protege el valor guardado, no un dispositivo o proceso comprometido. No añade peticiones biométricas, servicios externos ni carga al NAS. La creación y recuperación de claves en Keystore aún requieren comprobación en un dispositivo físico. Con el ejemplo sintético, entra, reinicia y comprueba que se recupera la sesión; cierra sesión y verifica que hace falta otro código. Solo con datos sintéticos y una compilación de depuración, inspecciona las preferencias de la app: debe existir `session_encrypted`, sin un valor `session` en texto plano. Repite tras actualizar, sin desinstalar y con la misma clave de firma, una versión que guardara el valor antiguo `session`. No copies credenciales reales a los informes.
+
 ## Comprobar el índice
 
 Abre **Ajustes → Estado del índice**. Muestra si la última indexación está en curso, completada o fallida y la fecha de la última indexación correcta que comunica el servidor. **Actualizar estado** vuelve a consultar; la pantalla no consulta en segundo plano ni abre fotos. Si no hay historial, lo indica. Un fallo no sustituye la fecha de la última indexación correcta.

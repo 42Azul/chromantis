@@ -75,7 +75,9 @@ class ExplorerActivity : ComponentActivity() {
         enableEdgeToEdge()
         val settings = getSharedPreferences("family_session", MODE_PRIVATE)
         val address = settings.getString("origin", "").orEmpty()
-        val secret = settings.getString("session", null)
+        val hadSavedSession = settings.contains("session") || settings.contains("session_encrypted")
+        val sessionStore = familySessionStore(settings)
+        val secret = sessionStore.restore(address)
         val savedSession = secret?.let { runCatching { ChromantisApi(address, it) }.getOrNull() }
         setContent {
             var appearance by remember {
@@ -92,6 +94,10 @@ class ExplorerActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var api by remember { mutableStateOf(savedSession) }
                     var expired by remember { mutableStateOf(false) }
+                    var sessionSaved by remember { mutableStateOf(true) }
+                    var restoreFailed by remember {
+                        mutableStateOf(hadSavedSession && savedSession == null)
+                    }
                     var resumeAlbum by remember {
                         mutableStateOf(
                             if (savedSession == null) null
@@ -101,15 +107,18 @@ class ExplorerActivity : ComponentActivity() {
                     Column(Modifier.systemBarsPadding().imePadding().padding(horizontal = 16.dp)) {
                         val active = api
                         if (active == null) {
+                            if (restoreFailed) Text(stringResource(R.string.session_restore_failed))
                             SignIn(settings.getString("origin", address).orEmpty(), expired) {
-                                settings.edit {
-                                    putString("origin", it.origin)
-                                    putString("session", it.secret)
-                                    remove("resume_album")
-                                }
+                                restoreFailed = false
+                                sessionSaved =
+                                    it.secret?.let { secret ->
+                                        sessionStore.save(it.origin, secret)
+                                    } == true
+                                settings.edit { remove("resume_album") }
                                 api = it
                             }
                         } else {
+                            if (!sessionSaved) Text(stringResource(R.string.session_not_saved))
                             key(active.origin) {
                                 Explorer(
                                     active,
@@ -128,10 +137,8 @@ class ExplorerActivity : ComponentActivity() {
                                         }
                                     },
                                 ) { sessionExpired ->
-                                    settings.edit {
-                                        remove("session")
-                                        remove("resume_album")
-                                    }
+                                    sessionStore.clear()
+                                    settings.edit { remove("resume_album") }
                                     resumeAlbum = null
                                     expired = sessionExpired
                                     api = null
