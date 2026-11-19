@@ -234,8 +234,7 @@ internal fun Explorer(
                 .fold(
                     onSuccess = onConnected,
                     onFailure = {
-                        error =
-                            if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
+                        error = if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
                         busy = false
                     },
                 )
