@@ -85,6 +85,21 @@ Falta probar el recorrido completo en un teléfono físico actual. El cliente na
 
 ## Compila e instala
 
+### Descarga el APK de prueba verificado
+
+Abre el [flujo de verificación de Android](https://github.com/42Azul/chromantis/actions/workflows/android.yml), elige la última ejecución correcta de `main` y descarga `chromantis-debug-<commit>` en **Artifacts**. GitHub exige iniciar sesión para descargar artefactos de los workflows. El ZIP contiene `Chromantis-debug.apk` y `SHA256SUMS.txt` y caduca a los siete días.
+
+Comprueba la descarga antes de instalarla:
+
+```bash
+sha256sum --check SHA256SUMS.txt
+adb install -r Chromantis-debug.apk
+```
+
+Este APK solo se genera después de superar formato, pruebas unitarias, lint y la suite del emulador. No contiene la dirección del NAS, invitaciones, metadatos familiares, fotos ni la clave de distribución. Usa la firma de depuración estándar de Android y sirve únicamente para pruebas privadas; compila la versión firmada descrita más abajo para una instalación y actualizaciones estables.
+
+### Compílalo localmente
+
 En tu ordenador necesitas JDK 17 o 21, Gradle 8.13, Android SDK Platform 36 y Build Tools 36.0.0. Apunta `ANDROID_HOME` al SDK. Desde la raíz del repositorio:
 
 ```bash
@@ -104,7 +119,7 @@ gradle -p android connectedDebugAndroidTest
 
 Cuatro pruebas instrumentadas usan el proveedor real de Android Keystore: persistencia cifrada con una clave no exportable, migración de preferencias antiguas, rechazo de otro origen y recuperación tras borrar la clave. Cada prueba crea un alias y un archivo de preferencias aleatorios exclusivos y elimina solo esos recursos. No necesitan NAS, fotos, credenciales familiares ni claves de firma de distribución.
 
-El [flujo de verificación de Android](https://github.com/42Azul/chromantis/actions/workflows/android.yml) ejecuta estas pruebas en un emulador API 36 junto con formato Kotlin, pruebas JVM, compilación de los APK de depuración y lint. Usa un ejecutor Linux estándar para repositorios públicos, sin subir artefactos ni guardar cachés, y se omite si el repositorio pasa a privado. El emulador comprueba la integración con la plataforma; no demuestra protección de claves por hardware ni sustituye el recorrido en un teléfono físico descrito arriba.
+El [flujo de verificación de Android](https://github.com/42Azul/chromantis/actions/workflows/android.yml) ejecuta estas pruebas en un emulador API 36 junto con formato Kotlin, pruebas JVM, compilación de los APK de depuración y lint. Tras un `push` correcto conserva únicamente el APK de depuración y su checksum durante siete días; no usa caché de compilación y se omite si el repositorio pasa a privado. El emulador comprueba la integración con la plataforma; no demuestra protección de claves por hardware ni sustituye el recorrido en un teléfono físico descrito arriba.
 
 ### Cliente nativo por HTTPS
 

@@ -97,6 +97,26 @@ jobs:
             echo
             echo "CHROMANTIS_SCREENSHOT_END:$name"
           done
+      - name: Prepare verified test APK
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p "$RUNNER_TEMP/chromantis-apk"
+          cp android/build/outputs/apk/debug/Chromantis-debug.apk \
+            "$RUNNER_TEMP/chromantis-apk/Chromantis-debug.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose \
+            "$RUNNER_TEMP/chromantis-apk/Chromantis-debug.apk"
+          cd "$RUNNER_TEMP/chromantis-apk"
+          sha256sum Chromantis-debug.apk > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+      - name: Upload verified test APK
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chromantis-debug-${{ github.sha }}
+          path: ${{ runner.temp }}/chromantis-apk
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
       - name: Summarize test results
         if: always()
         run: |

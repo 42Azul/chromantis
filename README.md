@@ -2,7 +2,7 @@
 
 Turn an existing photo archive into a searchable family library. Chromantis indexes local or FTP folders in SQLite, keeps originals read-only, and offers a browser, a Telegram bot, and an Android preview.
 
-**[Documentation](https://42azul.github.io/chromantis/)** · [Español](https://42azul.github.io/chromantis/es/) · [Installation](docs/src/content/docs/start/install.md) · [Family guide](docs/src/content/docs/use/family.md) · [Roadmap](PLANNING.md)
+**[Documentation](https://42azul.github.io/chromantis/)** · [Español](https://42azul.github.io/chromantis/es/) · [Installation](docs/src/content/docs/start/install.md) · [Android APK](docs/src/content/docs/use/android.md) · [Family guide](docs/src/content/docs/use/family.md) · [Roadmap](PLANNING.md)
 
 ## What you can do
 
