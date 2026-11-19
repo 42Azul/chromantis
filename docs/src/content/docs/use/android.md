@@ -17,6 +17,24 @@ Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appea
 
 Album-search follow-ups also accept `con Ana y Luis` or names separated by commas. The updated local service requires both people to be linked to the album, resolves saved aliases, and keeps the previous search if any name is unknown. Each person remains a separate removable filter.
 
+## A short walkthrough
+
+These screenshots show the production Compose screens in a disposable test host, using the synthetic archive with its photo source disconnected. They contain no family data. System bars and keyboard placement can differ on your phone.
+
+1. **Open Folders.** Choose a year, then an album. The folder trail takes you back to the same level.
+
+![Android Folders in light mode, showing the synthetic indexed years.](../../../assets/screenshots/android-folders-light.png)
+
+2. **Tag an album.** Open **Tag this album**, select Ana by name or alias, and save. Search `Anita` from **Search** to find the album. This records an album link, not a person in every photo. Photos stay on demand.
+
+![Album review with the synthetic person Ana selected.](../../../assets/screenshots/android-review-light.png)
+
+3. **Choose an appearance.** **Settings → Dark** changes the same screens. Light and system appearance are available too.
+
+![The same Android folder list in dark mode.](../../../assets/screenshots/android-folders-dark.png)
+
+The Compose test presses the real controls for sign-in, navigation, saving, alias search and appearance. It does not yet verify the launcher's cold-start lifecycle or replace testing on a physical phone.
+
 ## Session protection
 
 The app encrypts its saved family session with AES-GCM using a device key in [Android Keystore](https://developer.android.com/privacy-and-security/keystore). The encryption authenticates the NAS origin too. Existing saved sessions migrate on first launch; the old plaintext preference is removed after encryption. Session preferences remain excluded from backup and device transfer.
@@ -80,7 +98,10 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
   --config android/src/androidTest/assets/fixture.json
 ```
 
-In another terminal, run `gradle -p android connectedDebugAndroidTest`. Restart the helper before each run to issue a fresh one-time code. The helper binds only to host loopback and prepares an ignored asset for the test APK. Only the test process trusts that generated certificate; hostname verification stays enabled and the app's certificate rules are unchanged. Ctrl+C removes the asset and temporary fixture. Without the generated asset, this one integration test is skipped; the four Keystore tests still run. Use only disposable emulators and synthetic credentials.
+In another terminal, run `gradle -p android connectedDebugAndroidTest`. Restart the helper before each run to issue a fresh one-time code. The helper binds only to host loopback and prepares an ignored asset for the test APK. Only the test process trusts that generated certificate; hostname verification stays enabled and the app's certificate rules are unchanged. Ctrl+C removes the asset and temporary fixture. Without the generated asset, the client and Compose tests are skipped; the four Keystore tests still run. Use only disposable emulators and synthetic credentials.
+
+
+To export the three synthetic screenshots on a disposable API 29+ emulator, add `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` to the Gradle command. The test writes only its generated PNGs to `Download/chromantis-compose/`; they survive test-app cleanup. Ordinary test runs do not write screenshots to shared storage. CI validates the PNG headers before exporting them.
 
 ## Sign a private release
 

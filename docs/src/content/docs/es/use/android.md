@@ -17,6 +17,24 @@ En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elecc
 
 Los seguimientos de una búsqueda de álbumes también admiten `con Ana y Luis` o nombres separados por comas. El servicio local actualizado exige vínculos de ambas personas al álbum, resuelve sus alias y conserva la búsqueda anterior si algún nombre no existe. Cada persona mantiene un filtro independiente para quitarlo.
 
+## Un recorrido breve
+
+Estas capturas muestran las pantallas Compose de producción en una actividad de pruebas desechable, con el archivo sintético desconectado. No contienen datos familiares. Las barras del sistema y la posición del teclado pueden variar en tu móvil.
+
+1. **Abre Carpetas.** Elige un año y después un álbum. La ruta de navegación permite volver al mismo nivel.
+
+![Carpetas de Android en modo claro con los años sintéticos indexados.](../../../../assets/screenshots/android-folders-light.png)
+
+2. **Etiqueta un álbum.** Abre **Etiquetar este álbum**, selecciona a Ana por nombre o alias y guarda. Busca `Anita` desde **Buscar** para encontrarlo. El vínculo se refiere al álbum, no confirma la presencia en cada foto. Las fotos siguen bajo demanda.
+
+![Revisión de un álbum con la persona sintética Ana seleccionada.](../../../../assets/screenshots/android-review-light.png)
+
+3. **Elige la apariencia.** **Ajustes → Oscuro** cambia las mismas pantallas. También puedes elegir claro o seguir el sistema.
+
+![La misma lista de carpetas de Android en modo oscuro.](../../../../assets/screenshots/android-folders-dark.png)
+
+La prueba Compose pulsa los controles reales de entrada, navegación, guardado, búsqueda por alias y apariencia. Todavía no comprueba el inicio en frío de la actividad principal ni sustituye la prueba en un móvil físico.
+
 ## Protección de la sesión
 
 La app cifra la sesión familiar guardada con AES-GCM y una clave del dispositivo en [Android Keystore](https://developer.android.com/privacy-and-security/keystore). El cifrado también autentica la dirección del NAS. Las sesiones existentes se migran al abrir la app y se elimina la preferencia anterior en texto plano tras cifrarla. Estas preferencias siguen excluidas de las copias de seguridad y de la transferencia entre dispositivos.
@@ -80,7 +98,10 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
   --config android/src/androidTest/assets/fixture.json
 ```
 
-En otra terminal, ejecuta `gradle -p android connectedDebugAndroidTest`. Reinicia el programa antes de cada ejecución para generar otro código de un solo uso. El programa solo escucha en loopback del anfitrión y prepara un recurso ignorado para el APK de pruebas. Solo el proceso de pruebas confía en ese certificado generado; se mantiene la verificación del nombre del servidor y no cambian las reglas de certificados de la app. Ctrl+C elimina el recurso y el ejemplo temporal. Sin ese recurso se omite esta prueba de integración; las cuatro de Keystore se siguen ejecutando. Usa únicamente emuladores desechables y credenciales sintéticas.
+En otra terminal, ejecuta `gradle -p android connectedDebugAndroidTest`. Reinicia el programa antes de cada ejecución para generar otro código de un solo uso. El programa solo escucha en loopback del anfitrión y prepara un recurso ignorado para el APK de pruebas. Solo el proceso de pruebas confía en ese certificado generado; se mantiene la verificación del nombre del servidor y no cambian las reglas de certificados de la app. Ctrl+C elimina el recurso y el ejemplo temporal. Sin ese recurso se omiten las pruebas del cliente y Compose; las cuatro de Keystore se siguen ejecutando. Usa únicamente emuladores desechables y credenciales sintéticas.
+
+
+Para exportar las tres capturas sintéticas en un emulador desechable API 29+, añade `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` al comando Gradle. La prueba escribe únicamente sus PNG generados en `Download/chromantis-compose/`; sobreviven a la limpieza de la app de pruebas. Una ejecución normal no guarda capturas en almacenamiento compartido. La CI comprueba las cabeceras PNG antes de exportarlas.
 
 ## Firma un APK para distribuirlo en privado
 
