@@ -218,28 +218,6 @@ internal fun Explorer(
     val screenKey = "${workspace.level.name}:$depth"
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
-    val connect: () -> Unit = connect@{
-        val endpoint =
-            try {
-                ChromantisApi(origin)
-            } catch (_: IllegalArgumentException) {
-                error = R.string.invalid_address
-                return@connect
-            }
-        focus.clearFocus()
-        busy = true
-        error = null
-        scope.launch {
-            attempt { endpoint.signIn(code.trim()) }
-                .fold(
-                    onSuccess = onConnected,
-                    onFailure = {
-                        error = if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
-                        busy = false
-                    },
-                )
-        }
-    }
     var signingOut by remember { mutableStateOf(false) }
     var signOutError by remember { mutableStateOf<Throwable?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
@@ -460,6 +438,28 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
     var error by remember { mutableStateOf<Int?>(if (expired) R.string.expired_session else null) }
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
+    val connect: () -> Unit = connect@{
+        val endpoint =
+            try {
+                ChromantisApi(origin)
+            } catch (_: IllegalArgumentException) {
+                error = R.string.invalid_address
+                return@connect
+            }
+        focus.clearFocus()
+        busy = true
+        error = null
+        scope.launch {
+            attempt { endpoint.signIn(code.trim()) }
+                .fold(
+                    onSuccess = onConnected,
+                    onFailure = {
+                        error = if (it.hasStatus(401)) R.string.invalid_code else errorLabel(it)
+                        busy = false
+                    },
+                )
+        }
+    }
     Column(
         Modifier.fillMaxSize()
             .verticalScroll(rememberScrollState())
