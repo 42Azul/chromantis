@@ -29,6 +29,8 @@ python -m unittest discover -s tests -v
 node tests/test_album_review_ui.cjs
 node tests/test_confirmed_photo_ui.cjs
 node tests/test_photo_review_ui.cjs
+gradle -p android spotlessCheck testDebugUnitTest assembleDebug assembleDebugAndroidTest lintDebug
+gradle -p android connectedDebugAndroidTest # requires a running emulator or test device
 npm --prefix docs ci
 npm --prefix docs run dev
 npm --prefix docs run check

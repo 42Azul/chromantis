@@ -56,6 +56,18 @@ adb install -r android/build/outputs/apk/debug/Chromantis-debug.apk
 
 El APK de depuración se firma con la clave de depuración local. Ábrelo con una dirección HTTPS privada a la que llegue el móvil y un código familiar. Si usas un proxy inverso HTTPS, sigue la [configuración de acceso privado](../start/private-access.md). HTTP sin cifrar está desactivado. El APK de depuración admite certificados instalados por el usuario para las pruebas locales. El APK de distribución usa los certificados de confianza del sistema. Para formatear el código Kotlin con la versión fijada de ktfmt, ejecuta `gradle -p android spotlessApply`.
 
+## Prueba Android Keystore
+
+Con un emulador desechable o dispositivo de pruebas conectado mediante `adb`, ejecuta:
+
+```bash
+gradle -p android connectedDebugAndroidTest
+```
+
+Cuatro pruebas instrumentadas usan el proveedor real de Android Keystore: persistencia cifrada con una clave no exportable, migración de preferencias antiguas, rechazo de otro origen y recuperación tras borrar la clave. Cada prueba crea un alias y un archivo de preferencias aleatorios exclusivos y elimina solo esos recursos. No necesitan NAS, fotos, credenciales familiares ni claves de firma de distribución.
+
+El [flujo de verificación de Android](https://github.com/42Azul/chromantis/actions/workflows/android.yml) ejecuta estas pruebas en un emulador API 36 junto con formato Kotlin, pruebas JVM, compilación de los APK de depuración y lint. Usa un ejecutor Linux estándar para repositorios públicos, sin subir artefactos ni guardar cachés, y se omite si el repositorio pasa a privado. El emulador comprueba la integración con la plataforma; no demuestra protección de claves por hardware ni sustituye el recorrido en un teléfono físico descrito arriba.
+
 ## Firma un APK para distribuirlo en privado
 
 Crea una clave de firma una sola vez y guárdala fuera del repositorio. Copia `android/keystore.properties.example` a `android/keystore.properties`. Indica la ruta absoluta de la clave y sustituye los valores de ejemplo. Git ignora el archivo de configuración y los archivos `.jks` y `.keystore`. Compila y verifica el resultado:

@@ -56,6 +56,18 @@ adb install -r android/build/outputs/apk/debug/Chromantis-debug.apk
 
 The debug APK is signed by the local debug key. Open it with a private HTTPS origin reachable by the device and a family code. For an HTTPS reverse proxy, follow the [private access settings](../start/private-access.md). Plain HTTP is disabled. The debug build also trusts certificates installed by the Android user for local fixtures. Release builds use the platform trust store. Run `gradle -p android spotlessApply` to format Kotlin with the pinned ktfmt version.
 
+## Test Android Keystore
+
+With a disposable Android emulator or test device connected through `adb`, run:
+
+```bash
+gradle -p android connectedDebugAndroidTest
+```
+
+Four instrumented tests exercise the actual Android Keystore provider: encrypted persistence with a non-exportable key, legacy preference migration, origin mismatch, and recovery after key deletion. Each test creates a random test-only key alias and preferences file and removes only those resources. No NAS, photos, family credentials or release signing keys are involved.
+
+The [Android verification workflow](https://github.com/42Azul/chromantis/actions/workflows/android.yml) runs these tests on an API 36 emulator, alongside Kotlin formatting, JVM tests, debug APK compilation and lint. It uses a standard public Linux runner with no artifact uploads or build caches, and skips execution if the repository becomes private. Emulator results validate the platform integration; they do not establish hardware-backed key protection or complete the physical-phone interaction drill above.
+
 ## Sign a private release
 
 For a private release APK, create a signing key once and keep it outside the repository. Copy `android/keystore.properties.example` to `android/keystore.properties`, use the absolute path to that key, and replace every placeholder. The local properties file, `.jks` files, and `.keystore` files are ignored by Git. Build and verify the signed artifact:
