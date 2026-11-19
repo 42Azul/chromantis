@@ -13,11 +13,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -26,16 +29,18 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,12 +58,15 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -219,154 +227,201 @@ internal fun Explorer(
     }
     val expire = { endSession(true) }
     BackHandler(enabled = depth > 0 || workspace.level != Level.YEARS) { goBack() }
-    if (depth == 0) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = { showSettings = true }, enabled = !signingOut) {
-                Text(stringResource(R.string.settings))
-            }
-        }
-        PrimaryTabRow(selectedTabIndex = workspaces.indexOfFirst { it.level == workspace.level }) {
-            workspaces.forEach { tab ->
-                Tab(
+    val destinations: @Composable () -> Unit = {
+        val icons = listOf(R.drawable.ic_library, R.drawable.ic_organize, R.drawable.ic_search)
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            modifier = Modifier.clip(RoundedCornerShape(26.dp)),
+        ) {
+            workspaces.forEachIndexed { index, tab ->
+                NavigationBarItem(
                     selected = workspace.level == tab.level,
                     onClick = {
                         focus.clearFocus()
                         pages = listOf(tab)
                     },
-                    text = { Text(tab.title) },
+                    icon = { LibraryIcon(icons[index]) },
+                    label = { Text(tab.title) },
                 )
             }
         }
-        if (signingOut) Text(stringResource(R.string.closing_session))
-        signOutError?.let { Text(stringResource(errorLabel(it))) }
-    } else {
-        val ancestors = folderAncestors(pages)
-        if (ancestors.isEmpty()) {
-            Heading(page.title, ::goBack)
-        } else {
+    }
+    Column(Modifier.fillMaxSize()) {
+        if (depth == 0) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                ancestors.forEachIndexed { index, ancestor ->
-                    TextButton(
-                        onClick = { goToAncestor(index) },
-                        modifier = Modifier.weight(1f, fill = false),
-                    ) {
-                        Text(ancestor.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { showSettings = true }, enabled = !signingOut) {
+                    LibraryIcon(R.drawable.ic_settings, Modifier.size(18.dp))
+                    Spacer(Modifier.size(6.dp))
+                    Text(stringResource(R.string.settings))
                 }
             }
-            Heading(page.title)
+            if (signingOut) Text(stringResource(R.string.closing_session))
+            signOutError?.let { Text(stringResource(errorLabel(it))) }
+        } else {
+            val ancestors = folderAncestors(pages)
+            if (ancestors.isEmpty()) {
+                Heading(page.title, ::goBack)
+            } else {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    ancestors.forEachIndexed { index, ancestor ->
+                        TextButton(
+                            onClick = { goToAncestor(index) },
+                            modifier = Modifier.weight(1f, fill = false),
+                        ) {
+                            Text(ancestor.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+                Heading(page.title)
+            }
         }
-    }
-    if (showSettings) {
-        SettingsDialog(
-            appearance,
-            onAppearance,
-            onClose = { showSettings = false },
-            onIndex = {
-                showSettings = false
-                pages = pages + Page(Level.INDEX, indexTitle)
-            },
-            onSignOut = {
-                showSettings = false
-                signingOut = true
-                signOutError = null
-                scope.launch {
-                    attempt { api.signOut() }
-                        .fold(
-                            onSuccess = { endSession(false) },
-                            onFailure = {
-                                signOutError = it
-                                signingOut = false
+        if (showSettings) {
+            SettingsDialog(
+                appearance,
+                onAppearance,
+                onClose = { showSettings = false },
+                onIndex = {
+                    showSettings = false
+                    pages = pages + Page(Level.INDEX, indexTitle)
+                },
+                onSignOut = {
+                    showSettings = false
+                    signingOut = true
+                    signOutError = null
+                    scope.launch {
+                        attempt { api.signOut() }
+                            .fold(
+                                onSuccess = { endSession(false) },
+                                onFailure = {
+                                    signOutError = it
+                                    signingOut = false
+                                },
+                            )
+                    }
+                },
+            )
+        }
+        Column(Modifier.weight(1f)) {
+            savedScreens.SaveableStateProvider(screenKey) {
+                when (page.level) {
+                    Level.INDEX -> IndexStatusScreen(api, expire)
+                    Level.ASK -> {
+                        TextButton(
+                            onClick = {
+                                focus.clearFocus()
+                                pages = pages + Page(Level.CONFIRMED, confirmedTitle)
+                            }
+                        ) {
+                            Text(confirmedTitle)
+                        }
+                        AlbumSearch(api, expire) {
+                            galleryStartOffset = 0
+                            pages = pages + Page(Level.PHOTOS, it.title, it.path)
+                        }
+                    }
+                    Level.CONFIRMED ->
+                        ConfirmedPhotoSearch(api, expire) {
+                            pages = pages + Page(Level.ORIGINAL, it.title, it.path)
+                        }
+                    Level.YEARS -> {
+                        if (resumeAlbum != null) {
+                            TextButton(
+                                onClick = {
+                                    galleryStartOffset = resumeAlbum.offset
+                                    pages =
+                                        listOf(
+                                            workspaces.first(),
+                                            resumeAlbum.year,
+                                            resumeAlbum.album,
+                                        )
+                                }
+                            ) {
+                                Text(
+                                    stringResource(
+                                        R.string.resume_album,
+                                        albumDisplayTitle(resumeAlbum.album.title),
+                                    )
+                                )
+                            }
+                        }
+                        LoadContent(expire, load = { api.years() }) { years ->
+                            LibraryYears(
+                                years,
+                                onOpen = { pages = pages + Page(Level.ALBUMS, it.title, it.path) },
+                                onOrganize = { pages = listOf(workspaces[1]) },
+                            )
+                        }
+                    }
+                    Level.ALBUMS,
+                    Level.SEARCH -> {
+                        EntryScreen(
+                            folderApi = api,
+                            load = { offset ->
+                                if (page.level == Level.YEARS) api.years()
+                                else api.albums(page.path.orEmpty(), offset)
+                            },
+                            onExpired = expire,
+                            onOpen = { entry ->
+                                val level =
+                                    if (page.level == Level.YEARS) Level.ALBUMS else Level.PHOTOS
+                                galleryStartOffset = 0
+                                pages = pages + Page(level, entry.title, entry.path)
                             },
                         )
-                }
-            },
-        )
-    }
-    savedScreens.SaveableStateProvider(screenKey) {
-        when (page.level) {
-            Level.INDEX -> IndexStatusScreen(api, expire)
-            Level.ASK -> {
-                TextButton(
-                    onClick = {
-                        focus.clearFocus()
-                        pages = pages + Page(Level.CONFIRMED, confirmedTitle)
                     }
-                ) {
-                    Text(confirmedTitle)
-                }
-                AlbumSearch(api, expire) {
-                    galleryStartOffset = 0
-                    pages = pages + Page(Level.PHOTOS, it.title, it.path)
-                }
-            }
-            Level.CONFIRMED ->
-                ConfirmedPhotoSearch(api, expire) {
-                    pages = pages + Page(Level.ORIGINAL, it.title, it.path)
-                }
-            Level.YEARS,
-            Level.ALBUMS,
-            Level.SEARCH -> {
-                if (page.level == Level.YEARS && resumeAlbum != null) {
-                    TextButton(
-                        onClick = {
-                            galleryStartOffset = resumeAlbum.offset
-                            pages = listOf(workspaces.first(), resumeAlbum.year, resumeAlbum.album)
+                    Level.PHOTOS -> {
+                        Text(page.path.orEmpty(), style = MaterialTheme.typography.bodySmall)
+                        TextButton(
+                            onClick = { pages = pages + Page(Level.REVIEW, reviewTitle, page.path) }
+                        ) {
+                            Text(stringResource(R.string.review_album))
                         }
-                    ) {
-                        Text(
-                            stringResource(R.string.resume_album, resumeAlbum.album.title),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
+                        EntryScreen(
+                            load = { api.photos(requireNotNull(page.path), it) },
+                            onExpired = expire,
+                            onOpen = { pages = pages + Page(Level.ORIGINAL, it.title, it.path) },
+                            photoApi = api,
+                            allowPhotoEdits = true,
+                            initialOffset = galleryStartOffset,
+                            onPageLoaded = { offset ->
+                                albumResume(pages, offset)?.let(onAlbumVisited)
+                            },
                         )
                     }
+                    Level.ORIGINAL ->
+                        OriginalPhoto(api, requireNotNull(page.path), page.title, expire)
+                    Level.REVIEW -> AlbumReview(api, page.path, expire, ::goBack)
                 }
-                EntryScreen(
-                    load = { offset ->
-                        if (page.level == Level.YEARS) api.years()
-                        else api.albums(page.path.orEmpty(), offset)
-                    },
-                    onExpired = expire,
-                    onOpen = { entry ->
-                        val level = if (page.level == Level.YEARS) Level.ALBUMS else Level.PHOTOS
-                        galleryStartOffset = 0
-                        pages = pages + Page(level, entry.title, entry.path)
-                    },
-                )
             }
-            Level.PHOTOS -> {
-                Text(page.path.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                TextButton(
-                    onClick = { pages = pages + Page(Level.REVIEW, reviewTitle, page.path) }
-                ) {
-                    Text(stringResource(R.string.review_album))
-                }
-                EntryScreen(
-                    load = { api.photos(requireNotNull(page.path), it) },
-                    onExpired = expire,
-                    onOpen = { pages = pages + Page(Level.ORIGINAL, it.title, it.path) },
-                    photoApi = api,
-                    allowPhotoEdits = true,
-                    initialOffset = galleryStartOffset,
-                    onPageLoaded = { offset -> albumResume(pages, offset)?.let(onAlbumVisited) },
-                )
-            }
-            Level.ORIGINAL -> OriginalPhoto(api, requireNotNull(page.path), page.title, expire)
-            Level.REVIEW -> AlbumReview(api, page.path, expire, ::goBack)
         }
+        if (depth == 0) destinations()
     }
 }
 
 @Composable
 private fun Heading(title: String, back: (() -> Unit)? = null) {
     Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (back != null) TextButton(onClick = back) { Text(stringResource(R.string.back)) }
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        if (back != null) {
+            FilledTonalIconButton(onClick = back, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    painterResource(R.drawable.ic_back),
+                    contentDescription = stringResource(R.string.back),
+                )
+            }
+            Spacer(Modifier.size(12.dp))
+        }
+        Text(
+            albumDisplayTitle(title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -443,6 +498,7 @@ internal fun EntryScreen(
     onExpired: () -> Unit,
     onOpen: (Entry) -> Unit,
     photoApi: ChromantisApi? = null,
+    folderApi: ChromantisApi? = null,
     allowPhotoEdits: Boolean = false,
     initialOffset: Int = 0,
     onPageLoaded: ((Int) -> Unit)? = null,
@@ -533,33 +589,28 @@ internal fun EntryScreen(
                                 } else {
                                     Modifier.clickable { onOpen(entry) }
                                 }
-                            Column(tile.padding(4.dp)) {
+                            Column(
+                                tile.padding(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
                                 if (selection != null) Checkbox(checked, onCheckedChange = null)
                                 if (page.hasThumbnails) Thumbnail(photoApi, entry, onExpired)
-                                Text(entry.title, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    entry.title,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                         }
                     }
                 } else {
-                    LazyColumn(Modifier.weight(1f)) {
+                    LazyColumn(
+                        Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         items(page.entries, key = { it.path }) { entry ->
-                            Column(
-                                Modifier.fillMaxWidth()
-                                    .clickable { onOpen(entry) }
-                                    .padding(vertical = 12.dp)
-                            ) {
-                                Text(entry.title, style = MaterialTheme.typography.titleMedium)
-                                if (entry.path != entry.title) {
-                                    Text(entry.path, style = MaterialTheme.typography.bodySmall)
-                                }
-                                entry.albumCount?.let { count ->
-                                    Text(
-                                        pluralStringResource(R.plurals.album_count, count, count),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                            }
-                            HorizontalDivider()
+                            AlbumFolderCard(entry, folderApi, onExpired) { onOpen(entry) }
                         }
                     }
                 }
