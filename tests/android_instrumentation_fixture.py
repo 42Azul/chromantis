@@ -7,6 +7,8 @@ import signal
 from pathlib import Path
 
 from android_fixture import open_fixture
+from chromantis.app import ApplicationService
+from chromantis.db.repository import Repository
 
 
 def interrupt(*_):
@@ -23,10 +25,12 @@ def main():
     config.parent.mkdir(parents=True, exist_ok=True)
     signal.signal(signal.SIGTERM, interrupt)
     try:
-        with open_fixture(args.cert, args.key, index_only=True) as (server, _, _, invite):
+        with open_fixture(args.cert, args.key, index_only=True) as (server, db, _, invite):
+            _, ui_invite = ApplicationService(Repository(db)).family_access.invite("Compose fixture")
             config.write_text(json.dumps({
                 'origin': 'https://10.0.2.2:8443',
                 'code': invite,
+                'ui_code': ui_invite,
                 'certificate': Path(args.cert).read_text(),
             }))
             print('Synthetic index-only HTTPS fixture ready.', flush=True)

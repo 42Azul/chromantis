@@ -87,6 +87,14 @@ jobs:
           test "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1
           adb shell input keyevent 82
           gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest
+      - name: Print synthetic Compose screenshots
+        run: |
+          for name in folders-light review-light folders-dark; do
+            echo "CHROMANTIS_SCREENSHOT_BEGIN:$name"
+            adb exec-out run-as org.chromantis.android cat "cache/compose-screens/$name.png" | base64
+            echo
+            echo "CHROMANTIS_SCREENSHOT_END:$name"
+          done
       - name: Summarize test results
         if: always()
         run: |

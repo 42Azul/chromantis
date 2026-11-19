@@ -177,7 +177,7 @@ internal val explorerPagesSaver =
     )
 
 @Composable
-private fun Explorer(
+internal fun Explorer(
     api: ChromantisApi,
     appearance: Appearance,
     onAppearance: (Appearance) -> Unit,
@@ -371,7 +371,7 @@ private fun Heading(title: String, back: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisApi) -> Unit) {
+internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisApi) -> Unit) {
     var origin by rememberSaveable { mutableStateOf(address) }
     var code by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
