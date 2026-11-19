@@ -39,7 +39,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
   const start = source.indexOf("async function loadAlbumReview(");
   const end = source.indexOf("\nfunction albumContextEditor(", start);
   const photoDialogStart = source.indexOf('$("photo-tags").addEventListener("close"');
-  const galleryStart = source.indexOf("function albumPhotoGallery(");
+  const galleryStart = source.indexOf("function photoSelectionControls(");
   const resultsStart = source.indexOf("function openAlbumFromResults(");
   const resultsEnd = source.indexOf("\nfunction renderBatch(", resultsStart);
   assert(start >= 0 && end > start && resultsStart >= 0 && resultsEnd > resultsStart,
@@ -238,7 +238,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
   selectValues(resultEditor)[0].value = "rejected";
   const [, , gallery] = content.children.at(-2).children;
   const [toggle, status, panel] = gallery.children;
-  const [selectPhotos, grid, editSelection, navigation] = panel.children;
+  const [toolbar, grid, navigation] = panel.children;
+  const [selectPhotos, selectPage, editSelection] = toolbar.children;
   const [previous, next] = navigation.children;
   assert(panel.hidden && photoOffsets.length === 0, "Opening the album must not load photo metadata");
   await toggle.listeners.click();
@@ -263,6 +264,14 @@ async function verifyBatchReview(source, failedReloads = 0) {
     "The last page replaces the earlier cards and cancels pending previews");
   assert(editSelection.hidden && editSelection.disabled && selectPhotos.textContent === "Seleccionar fotos",
     "Changing pages should clear the selection");
+  checks[0].checked = true;
+  checks[0].listeners.change();
+  assert(editSelection.disabled, "A stale checkbox event from the previous page must be ignored");
+  selectPhotos.listeners.click();
+  selectPage.listeners.click();
+  editSelection.listeners.click();
+  assert(selections.at(-1).map(item => item.path).join() === "Photo-7.jpg",
+    "Select this page must never include photos from an earlier page");
   await previous.listeners.click();
   await toggle.listeners.click();
   assert(photoOffsets.join() === "0,6,6,0" && panel.hidden && grid.children.length === 0,

@@ -31,6 +31,8 @@ Si tienes permiso para etiquetar, pulsa **Etiquetar foto** para añadir o quitar
 
 Para buscar una etiqueta manual de foto, elige **Fotos por etiqueta** y escribe una etiqueta como `romería`. La búsqueda compara la palabra entera e ignora las tildes y las mayúsculas. Si quitas la etiqueta de un resultado, esa foto sale de la lista.
 
+Para clasificar varios resultados juntos, pulsa **Seleccionar fotos**, marca las que quieras o usa **Seleccionar esta página** y desmarca las dudosas. **Etiquetar fotos** abre el mismo editor por lotes que la galería. Puedes mezclar álbumes; cada resultado muestra su álbum y el editor incluye las rutas para distinguir fotos con el mismo nombre. Guarda una sola vez para añadir o quitar personas y etiquetas manuales. La búsqueda conserva la persona, la etiqueta y la página; si los cambios vacían esa página, vuelve a una anterior. Cancelar o cambiar de página borra la selección sin guardar. El flujo funciona desde el índice con las miniaturas desactivadas y el archivo desconectado.
+
 Pulsa **Ver álbum** en una foto de los resultados para abrir el álbum al que pertenece. Con **Volver a resultados** o **Guardar y volver a resultados** recuperas la misma búsqueda y la misma página.
 
 ## Etiqueta tu primer álbum

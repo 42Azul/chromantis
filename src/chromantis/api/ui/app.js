@@ -88,6 +88,9 @@ function resetPhotos() {
   photoRequests = new AbortController();
   for (const url of photoURLs) URL.revokeObjectURL(url);
   photoURLs.clear();
+  $("photo-results-tools").replaceChildren();
+  $("photo-results-tools").hidden = true;
+  $("results").classList.remove("selecting-photos");
   if ($("lightbox").open) $("lightbox").close();
   if ($("photo-tags").open) $("photo-tags").close();
 }
@@ -554,10 +557,16 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
   message("results-title", title);
   message("result-count", String(page.items.length));
   message("archive-status", page.items.length ? "" : tag ? "No hay fotos con esa persona y esa etiqueta manual." : empty);
+  const signal = photoRequests.signal;
+  const selection = photoSelectionControls($("results"), () => signal, refresh);
+  const tools = $("photo-results-tools");
+  tools.replaceChildren(selection.toggle, selection.all, selection.edit);
+  tools.hidden = !canCurateAlbums || !page.items.length;
   $("results").replaceChildren(...page.items.map(item => {
     const card = photoCard(item, photoRequests.signal, {
-      spanish: true, originalOnClick: true, editTags: canCurateAlbums, onTagsSaved: refresh,
+      spanish: true, originalOnClick: true, showAlbum: true, editTags: canCurateAlbums, onTagsSaved: refresh,
     });
+    if (canCurateAlbums) selection.append(card, item);
     if (canCurateAlbums && item.folder_path) {
       const album = button("Ver álbum", () => openAlbumFromResults(item.folder_path, () => {
         $("query").value = term;
@@ -689,7 +698,7 @@ $("lightbox").addEventListener("close", () => {
 });
 
 function photoCard(item, signal, {
-  urls = photoURLs, spanish = false, originalOnClick = false, editTags = false, onTagsSaved,
+  urls = photoURLs, spanish = false, originalOnClick = false, showAlbum = false, editTags = false, onTagsSaved,
 } = {}) {
   const filename = item.path.split("/").at(-1);
   const isThumbnail = !!indexStatus?.thumbnails;
@@ -701,6 +710,7 @@ function photoCard(item, signal, {
   frame.setAttribute("aria-label", `${spanish ? "Abrir" : "Open"} ${filename}`);
   const card = element("article", { class: "photo-card" }, frame,
     element("div", { class: "card-caption" }, element("h3", {}, filename),
+      ...(spanish && showAlbum && item.folder_path ? [element("p", {}, item.folder_path)] : []),
       ...(spanish ? [] : [element("p", {}, item.folder_path || String(item.year)), element("p", {}, item.reason)])),
     ...(isOwner() ? [collectionButton("image", item.path, filename,
       spanish ? "album-review-status" : "archive-status")] : []));
@@ -972,7 +982,8 @@ async function openPhotoTags(items, signal, onSaved) {
   cancel.disabled = false;
   dialog.oncancel = event => { if (cancel.disabled) event.preventDefault(); };
   message("photo-tags-title", batch ? `Etiquetar ${items.length} fotos` : "Etiquetar esta foto");
-  message("photo-tags-file", items.map(item => item.path.split("/").at(-1)).join(", "));
+  const mixedAlbums = new Set(items.map(item => item.path.slice(0, item.path.lastIndexOf("/")))).size > 1;
+  message("photo-tags-file", items.map(item => mixedAlbums ? item.path : item.path.split("/").at(-1)).join(", "));
   content.replaceChildren(panel);
   if (!dialog.open) dialog.showModal();
   try {
@@ -1028,7 +1039,7 @@ async function openPhotoTags(items, signal, onSaved) {
       } catch (error) {
         if (!current()) return;
         if (error.status === 409 && batch) {
-          status.textContent = "Una foto ha cambiado. Cierra y vuelve a abrir la galería para revisar la selección.";
+          status.textContent = "Una foto ha cambiado. Cierra el editor, actualiza las fotos y revisa la selección.";
           panel.replaceChildren(status);
         } else if (error.status === 409) {
           retry("La foto ha cambiado. Vuelve a cargarla antes de editar.");
@@ -1191,25 +1202,85 @@ async function openPhotoReview(items, signal) {
   }
 }
 
+function photoSelectionControls(grid, signal, onSaved) {
+  const selected = new Set();
+  let candidates = [];
+  let selecting = false;
+  const toggle = button("Seleccionar fotos", () => setSelecting(!selecting));
+  const edit = button("", () => {
+    if (!selected.size || signal().aborted) return;
+    return openPhotoTags([...selected], signal(), async () => {
+      setSelecting(false);
+      await onSaved?.();
+    });
+  }, "primary");
+  const all = button("Seleccionar esta página", () => {
+    if (!selecting || toggle.disabled || signal().aborted) return;
+    for (const item of candidates) selected.add(item);
+    for (const checkbox of grid.querySelectorAll(".photo-selection input")) checkbox.checked = true;
+    update();
+  });
+
+  function update() {
+    edit.textContent = `Etiquetar fotos (${selected.size})`;
+    edit.disabled = toggle.disabled || !selected.size;
+    all.disabled = toggle.disabled || selected.size === candidates.length;
+  }
+
+  function setSelecting(active) {
+    selecting = active;
+    grid.classList.toggle("selecting-photos", active);
+    toggle.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
+    edit.hidden = all.hidden = !active;
+    if (!active) {
+      selected.clear();
+      for (const checkbox of grid.querySelectorAll(".photo-selection input")) checkbox.checked = false;
+    }
+    update();
+  }
+
+  function append(card, item) {
+    const entrySignal = signal();
+    candidates.push(item);
+    const checkbox = element("input", { type: "checkbox", "aria-label": `Seleccionar ${item.path}` });
+    checkbox.addEventListener("change", () => {
+      if (!selecting || toggle.disabled || entrySignal.aborted || signal().aborted) return;
+      if (checkbox.checked) selected.add(item);
+      else selected.delete(item);
+      update();
+    });
+    card.append(element("label", { class: "photo-selection" }, checkbox, "Seleccionar"));
+    update();
+  }
+
+  function beginPage() {
+    setSelecting(false);
+    candidates = [];
+  }
+  setSelecting(false);
+  return { toggle, edit, all, append, setSelecting, update, beginPage };
+}
+
 function albumPhotoGallery(path) {
   const limit = 6;
   let offset = 0;
   let nextOffset = null;
   const grid = element("div", { class: "photo-grid" });
   const status = element("p", { class: "message", "aria-live": "polite", tabindex: "-1" });
-  const selection = new Set();
-  let selecting = false;
-  const selectPhotos = button("Seleccionar fotos", () => setSelecting(!selecting));
+  const controls = photoSelectionControls(grid, () => albumPhotoRequests.signal, () => {
+    message("album-review-status", "Se han guardado los cambios de las fotos.");
+  });
+  const selectPhotos = controls.toggle;
+  const editSelection = controls.edit;
+  const setSelecting = controls.setSelecting;
+  const updateSelection = controls.update;
   const reviewPhotos = button("Revisar foto a foto", () => openPhotoReview(pageItems, albumPhotoRequests.signal));
   let pageItems = [];
-  const editSelection = button("", () => openPhotoTags([...selection], albumPhotoRequests.signal, () => {
-    setSelecting(false);
-    message("album-review-status", "Se han guardado los cambios de las fotos.");
-  }), "primary");
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const panel = element("div", { hidden: "" }, selectPhotos, grid, editSelection, navigation, reviewPhotos);
+  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, editSelection);
+  const panel = element("div", { hidden: "" }, toolbar, grid, navigation, reviewPhotos);
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);
     resetAlbumPhotos();
@@ -1222,25 +1293,6 @@ function albumPhotoGallery(path) {
   });
   toggle.setAttribute("aria-expanded", "false");
 
-  function updateSelection() {
-    editSelection.textContent = `Etiquetar fotos (${selection.size})`;
-    editSelection.disabled = selectPhotos.disabled || !selection.size;
-  }
-
-  function setSelecting(active) {
-    selecting = active;
-    grid.classList.toggle("selecting-photos", active);
-    selectPhotos.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
-    editSelection.hidden = !active;
-    if (!active) {
-      selection.clear();
-      for (const checkbox of grid.querySelectorAll(".photo-selection input")) checkbox.checked = false;
-    }
-    updateSelection();
-  }
-
-  setSelecting(false);
-
   async function load(start) {
     const { signal } = albumPhotoRequests;
     const paging = !panel.hidden;
@@ -1250,7 +1302,7 @@ function albumPhotoGallery(path) {
       const { items, next_offset } = await api("/album-images" + queryParams({ path, limit, offset: start }), { signal });
       if (signal.aborted) return;
       resetAlbumPhotos();
-      setSelecting(false);
+      controls.beginPage();
       offset = start;
       nextOffset = next_offset;
       pageItems = items;
@@ -1260,13 +1312,7 @@ function albumPhotoGallery(path) {
           onTagsSaved: () => message("album-review-status", "Se han guardado los cambios de la foto."),
         });
         if (canCurateAlbums) {
-          const checkbox = element("input", { type: "checkbox", "aria-label": `Seleccionar ${item.path.split("/").at(-1)}` });
-          checkbox.addEventListener("change", () => {
-            if (checkbox.checked) selection.add(item);
-            else selection.delete(item);
-            updateSelection();
-          });
-          card.append(element("label", { class: "photo-selection" }, checkbox, "Seleccionar"));
+          controls.append(card, item);
         }
         return card;
       }));

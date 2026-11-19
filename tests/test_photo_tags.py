@@ -90,6 +90,36 @@ class PhotoTagTests(unittest.TestCase):
             contents[path.name] = (path.read_bytes(), stat.st_mtime_ns, stat.st_mode)
         return contents
 
+    def test_family_batch_from_different_albums_is_atomic_and_works_offline(self):
+        other = "2023/2023-10-05_excursion/synthetic_1.jpg"
+        (self.archive / other).parent.mkdir(parents=True)
+        (self.archive / other).write_bytes(b"Another synthetic original")
+        self.scanner.scan(incremental=True)
+        first, second = self.tags(PHOTO_PATH, other)
+        _, code = self.app.family_access.invite("Synthetic curator")
+        secret = self.app.family_access.redeem(code)
+        self.archive.rename(self.archive.with_name("disconnected"))
+        photos = [{"path": photo["path"], "identity": photo["identity"]} for photo in (first, second)]
+        status, _ = self.request("PATCH", "/photo-tags", {
+            "photos": photos, "add_people": [self.ana.id], "manual_add": ["romería"],
+        }, cookie=secret)
+        self.assertEqual(status, 200)
+        self.assertEqual(set(self.find("confirmed-images", person="Anita", tag="ROMERIA")), {PHOTO_PATH, other})
+        stale = [photos[0], {**photos[1], "identity": "0" * 32}]
+        status, _ = self.request("PATCH", "/photo-tags", {
+            "photos": stale, "remove_people": [self.ana.id], "manual_remove": ["romeria"],
+        }, cookie=secret)
+        self.assertEqual(status, 409)
+        self.assertEqual(set(self.find("confirmed-images", person="Ana", tag="romeria")), {PHOTO_PATH, other})
+        status, _ = self.request("PATCH", "/photo-tags", {
+            "photos": photos, "remove_people": [self.ana.id], "manual_remove": ["romeria"],
+        }, cookie=secret)
+        self.assertEqual(status, 200)
+        self.assertEqual(self.find("confirmed-images", person="Ana", tag="romeria"), [])
+        self.assertEqual(self.tags(SECOND_PATH)[0]["people"], [])
+        self.assertEqual(self.tags(THIRD_PATH)[0]["manual_tags"], [])
+        self.scanner.source.read_bytes.assert_not_called()
+
     def test_manual_people_and_tags_survive_reindex_without_changing_originals(self):
         album_dir = self.archive / ALBUM
         for path in PHOTOS:

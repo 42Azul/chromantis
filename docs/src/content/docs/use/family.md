@@ -31,6 +31,8 @@ With a curator account, choose **Etiquetar foto** to add or remove people on tha
 
 For a manual photo tag, choose **Fotos por etiqueta** and enter one exact tag such as `romería`. The search matches the whole tag and ignores accents and case. If you remove the tag from a result, that photo leaves the list.
 
+To classify several search results together, choose **Seleccionar fotos**, mark only the photos you want, or use **Seleccionar esta página** and uncheck doubtful photos. **Etiquetar fotos** opens the same batch editor as the gallery. The batch can span albums; each result shows its album path and the editor includes paths to distinguish repeated filenames. Save once to add or remove people and manual tags. The search keeps its person, tag and page, returning to an earlier page if edits empty the current one. Canceling or changing pages clears the selection without saving. This flow also works from the index with previews disabled and the archive disconnected.
+
 Choose **Ver álbum** on a photo result to open its album. **Volver a resultados** and **Guardar y volver a resultados** restore the same search and page.
 
 ## Tag your first album
