@@ -21,6 +21,8 @@ Arranca el bot con la [instalación en el NAS](../start/install.md#configura-un-
 
 Las tandas de fotos indican si incluyen varias carpetas y ofrecen un botón para elegir una. El progreso y el historial se guardan por chat entre reinicios. La ficha de una persona puede mostrar fotos de álbumes vinculados. El motivo `album_person="Name"` señala un vínculo con el álbum.
 
+Tras una búsqueda, envía `con Ana y Luis` o `/refine con Ana y Luis` para exigir vínculos de ambas personas al álbum. Admite alias y nombres separados por comas. Si algún nombre no existe, la búsqueda anterior se conserva.
+
 ## Comandos de propietario y administrador
 
 ```text

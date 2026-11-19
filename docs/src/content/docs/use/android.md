@@ -15,6 +15,8 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appearance. The choice is stored on the device.
 
+Album-search follow-ups also accept `con Ana y Luis` or names separated by commas. The updated local service requires both people to be linked to the album, resolves saved aliases, and keeps the previous search if any name is unknown. Each person remains a separate removable filter.
+
 ## Session protection
 
 The app encrypts its saved family session with AES-GCM using a device key in [Android Keystore](https://developer.android.com/privacy-and-security/keystore). The encryption authenticates the NAS origin too. Existing saved sessions migrate on first launch; the old plaintext preference is removed after encryption. Session preferences remain excluded from backup and device transfer.

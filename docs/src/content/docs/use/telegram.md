@@ -21,6 +21,8 @@ Run the bot as part of [NAS setup](../start/install.md#set-up-a-nas-with-telegra
 
 Photo batches identify mixed folders and offer a **Folders** button for choosing one. Browse progress and search history persist per chat across restarts. People cards can show photos from linked albums. The result reason `album_person="Name"` describes album-level evidence.
 
+After a search, send `con Ana y Luis` or `/refine with Ana and Luis` to require both album links. Saved aliases and comma-separated names work too. An unknown name leaves the previous search unchanged.
+
 ## Owner and admin commands
 
 ```text

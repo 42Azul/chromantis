@@ -118,7 +118,7 @@ Para iniciar un escaneo, envía una solicitud sin cuerpo o con `{}` y un token d
 
 `GET /api/v1/folders` admite `sort=timeline`, `place`, `date_from` y `date_to`, además de `q`, `offset` y `limit`. El intervalo incluye ambas fechas. `POST /api/v1/refine` acepta `{"q":"playa","text":"antes de 2020"}` y devuelve una consulta acotada u opciones si hay ambigüedad.
 
-Para combinar filtros en español, usa `fotos de la playa con Ana antes de 2020` como `q`. El año indicado se excluye y la persona debe estar vinculada al álbum. Usa la `q` original para acotar los resultados. Si el nombre o alias no existe, se devuelve 400 con `code: person`.
+Para combinar filtros en español, usa `fotos de la playa con Ana antes de 2020` como `q`. El año indicado se excluye y la persona debe estar vinculada al álbum. Usa la `q` original para acotar los resultados. Si el nombre o alias no existe, se devuelve 400 con `code: person`. Las listas como `Ana y Luis` o `Ana, Luis` resuelven todos los nombres o rechazan la petición con `code: person`; todas las personas deben tener vínculo al álbum. Un alias completo guardado tiene prioridad sobre los separadores. La misma sintaxis funciona al acotar con `con` o `with`.
 
 Añade `filters=1` a `GET /api/v1/folders` para recibir `filters.q` (consulta para seguir acotando), `filters.text` (texto de búsqueda) y `filters.active`. Cada filtro incluye `kind`, `label` y la siguiente consulta `q` al retirarlo (`without`). Se muestran los filtros explícitos y los de persona y año de una consulta combinada.
 

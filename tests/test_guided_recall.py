@@ -64,6 +64,49 @@ class GuidedRecallTests(unittest.TestCase):
         with self.assertRaises(RefinementError):
             self.app.refine_query(chosen, "with Unknown")
 
+    def test_person_lists_intersect_links_and_reuse_aliases_without_partial_filters(self):
+        luis = self.app.create_person("Luis")
+        self.app.add_person_alias(luis.id, "Lucho")
+        self.app.add_person_alias(luis.id, "tío Luis")
+        self.app.link_person_to_folder(luis.id, OLD)
+        self.app.link_person_to_folder(luis.id, UNLINKED)
+        self.archive.rename(self.archive.with_name("disconnected"))
+        for request in ("con Ani y Lucho", "with Ana and Luis", "con Ana, Lucho", "con Ana e Luis", "con Ana y tío Luis"):
+            with self.subTest(request=request):
+                query = self.app.refine_query("playa", request).query
+                self.assertEqual({item.path for item in self.app.search_folders(query)}, {OLD})
+                self.assertEqual({item.folder_path for item in self.app.search_images(query)}, {OLD})
+                self.assertEqual(len(split_recall(query)[1].people), 2)
+                self.assertEqual(self.app.refine_query(query, "con Lucho y Ana").query, query)
+        duplicate = self.app.refine_query("playa", "con Ana, Luis y Lucho").query
+        self.assertEqual(len(split_recall(duplicate)[1].people), 2)
+        spoken = "fotos de la playa con Ani y Lucho antes de 2020"
+        self.assertEqual({item.path for item in self.app.search_folders(spoken)}, {OLD})
+        for invalid in ("con Ana y Unknown", "con Ana,,Luis", "con Ana o Luis"):
+            with self.subTest(request=invalid), self.assertRaises(RefinementError):
+                self.app.refine_query("playa", invalid)
+        with self.assertRaisesRegex(RefinementError, "Unknown"):
+            self.app.search_folders("fotos de la playa con Ana y Unknown antes de 2020")
+        bot = TelegramBotService(self.app)
+        self.app.set_chat_language(1, "es", actor_chat_id=1)
+        bot.handle_command("/folders playa", chat_id=1)
+        reply = bot.handle_text_input("con Ani y Lucho", chat_id=1)
+        self.assertIn(OLD, reply.text)
+        self.assertNotIn(SECOND, reply.text)
+        self.assertNotIn(UNLINKED, reply.text)
+        saved = self.repository.list_saved_searches(1, limit=1)[0].query
+        bot.handle_text_input("con Ana y Unknown", chat_id=1)
+        self.assertEqual(self.repository.list_saved_searches(1, limit=1)[0].query, saved)
+
+
+    def test_an_exact_alias_containing_a_list_separator_stays_one_person(self):
+        person = self.app.create_person("María")
+        self.app.add_person_alias(person.id, "María y compañía")
+        self.app.link_person_to_folder(person.id, SECOND)
+        query = self.app.refine_query("playa", "con María y compañía").query
+        self.assertEqual(split_recall(query)[1].people, (person.id,))
+        self.assertEqual([item.path for item in self.app.search_folders(query)], [SECOND])
+
     def test_refinement_layer_cannot_bypass_person_filters_with_an_exact_alias(self):
         item = self.app.get_album_review(1, path=UNLINKED)
         self.app.edit_album_context(1, UNLINKED, item["id"], item["context_revision"],
@@ -134,6 +177,18 @@ class GuidedRecallTests(unittest.TestCase):
         self.assertEqual((person["kind"], person["label"]), ("person", "Ana"))
         self.assertEqual(filtered(year["without"])[0], {OLD, SECOND, BOUNDARY})
         self.assertEqual(filtered(person["without"])[0], {OLD, SECOND, UNLINKED})
+
+        luis = self.app.create_person("Luis")
+        self.app.add_person_alias(luis.id, "Lucho")
+        self.app.link_person_to_folder(luis.id, OLD)
+        status, together = request("POST", "/refine", {"q": "playa", "text": "con Ani y Lucho"})
+        self.assertEqual(status, 200)
+        together_paths, together_filters = filtered(together["q"])
+        self.assertEqual(together_paths, {OLD})
+        self.assertEqual([item["label"] for item in together_filters["active"]], ["Ana", "Luis"])
+        self.assertEqual(filtered(together_filters["active"][1]["without"])[0], {OLD, SECOND, BOUNDARY})
+        status, error = request("POST", "/refine", {"q": "playa", "text": "con Ana y Unknown"})
+        self.assertEqual((status, error["code"]), (400, "person"))
 
         narrowed = self.app.refine_query(spoken_query, f"álbum {OLD}").query
         paths, selected = filtered(narrowed)

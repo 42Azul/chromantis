@@ -15,6 +15,8 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elección se guarda en el dispositivo.
 
+Los seguimientos de una búsqueda de álbumes también admiten `con Ana y Luis` o nombres separados por comas. El servicio local actualizado exige vínculos de ambas personas al álbum, resuelve sus alias y conserva la búsqueda anterior si algún nombre no existe. Cada persona mantiene un filtro independiente para quitarlo.
+
 ## Protección de la sesión
 
 La app cifra la sesión familiar guardada con AES-GCM y una clave del dispositivo en [Android Keystore](https://developer.android.com/privacy-and-security/keystore). El cifrado también autentica la dirección del NAS. Las sesiones existentes se migran al abrir la app y se elimina la preferencia anterior en texto plano tras cifrarla. Estas preferencias siguen excluidas de las copias de seguridad y de la transferencia entre dispositivos.
