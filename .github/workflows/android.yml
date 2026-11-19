@@ -2,7 +2,7 @@ name: Android verification
 
 on:
   push:
-    branches: [main, verify/android-keystore]
+    branches: [main, 'verify/android-*']
     paths: ['android/**', '.github/workflows/android.yml']
   pull_request:
     paths: ['android/**', '.github/workflows/android.yml']
@@ -51,11 +51,28 @@ jobs:
             --package 'system-images;android-36;google_apis;x86_64'
           test -f "$ANDROID_AVD_HOME/chromantis.ini"
           "$ANDROID_HOME/platform-tools/adb" version
+      - name: Start synthetic index-only HTTPS service
+        run: |
+          python3 -m venv "$RUNNER_TEMP/fixture-venv"
+          "$RUNNER_TEMP/fixture-venv/bin/pip" install '.[thumbnails]'
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=Chromantis-Fixture \
+            -addext 'subjectAltName=IP:10.0.2.2' \
+            -keyout "$RUNNER_TEMP/fixture-key.pem" -out "$RUNNER_TEMP/fixture-cert.pem"
+          PYTHONPATH=src "$RUNNER_TEMP/fixture-venv/bin/python" tests/android_instrumentation_fixture.py \
+            --cert "$RUNNER_TEMP/fixture-cert.pem" --key "$RUNNER_TEMP/fixture-key.pem" \
+            --config android/src/androidTest/assets/fixture.json > "$RUNNER_TEMP/fixture.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/fixture.pid"
+          for attempt in {1..30}; do
+            kill -0 "$(cat "$RUNNER_TEMP/fixture.pid")" || { cat "$RUNNER_TEMP/fixture.log"; exit 1; }
+            if [ -s android/src/androidTest/assets/fixture.json ]; then break; fi
+            sleep 1
+          done
+          test -s android/src/androidTest/assets/fixture.json
       - name: Check Kotlin, unit tests, debug APKs and lint
         run: >-
           gradle -p android --no-daemon --max-workers=2
           spotlessCheck testDebugUnitTest assembleDebug assembleDebugAndroidTest lintDebug
-      - name: Boot emulator and test Android Keystore
+      - name: Boot emulator and test Android integration
         run: |
           test -r /dev/kvm && test -w /dev/kvm || sudo chmod 666 /dev/kvm
           "$ANDROID_HOME/emulator/emulator" -avd chromantis -no-window -no-audio \
@@ -78,7 +95,7 @@ jobs:
           import os
           import xml.etree.ElementTree as ET
           lines = ["## Android verification"]
-          for label, folder in [("JVM", "test-results/testDebugUnitTest"), ("Android Keystore", "outputs/androidTest-results/connected/debug")]:
+          for label, folder in [("JVM", "test-results/testDebugUnitTest"), ("Android integration", "outputs/androidTest-results/connected/debug")]:
               reports = [ET.parse(p).getroot() for p in Path("android/build", folder).rglob("TEST-*.xml")]
               counts = {key: sum(int(r.get(key, "0")) for r in reports) for key in ["tests", "failures", "errors", "skipped"]}
               lines.append(f"- {label}: " + ", ".join(f"{key}={value}" for key, value in counts.items()))
@@ -94,4 +111,6 @@ jobs:
           find android/build/outputs/androidTest-results -name '*.xml' -exec cat {} + 2>/dev/null || true
       - name: Stop disposable emulator
         if: always()
-        run: adb emu kill || true
+        run: |
+          adb emu kill || true
+          if [ -f "$RUNNER_TEMP/fixture.pid" ]; then kill "$(cat "$RUNNER_TEMP/fixture.pid")" || true; fi

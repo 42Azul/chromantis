@@ -68,6 +68,20 @@ Cuatro pruebas instrumentadas usan el proveedor real de Android Keystore: persis
 
 El [flujo de verificación de Android](https://github.com/42Azul/chromantis/actions/workflows/android.yml) ejecuta estas pruebas en un emulador API 36 junto con formato Kotlin, pruebas JVM, compilación de los APK de depuración y lint. Usa un ejecutor Linux estándar para repositorios públicos, sin subir artefactos ni guardar cachés, y se omite si el repositorio pasa a privado. El emulador comprueba la integración con la plataforma; no demuestra protección de claves por hardware ni sustituye el recorrido en un teléfono físico descrito arriba.
 
+### Cliente nativo por HTTPS
+
+La CI también prueba el cliente HTTP Kotlin contra el servicio Python real con un archivo sintético desconectado. Comprueba el código de un solo uso, la recuperación de la sesión cifrada, la paginación, el vínculo con Ana, la búsqueda por alias y el rechazo tras cerrar sesión. Es una prueba de integración entre cliente y servicio; el recorrido visual sigue pendiente.
+
+Para repetirla en un emulador desechable, crea el certificado temporal indicado más abajo y ejecuta este programa en lugar del ejemplo interactivo:
+
+```bash
+PYTHONPATH=src python tests/android_instrumentation_fixture.py \
+  --cert "$fixture_dir/cert.pem" --key "$fixture_dir/key.pem" \
+  --config android/src/androidTest/assets/fixture.json
+```
+
+En otra terminal, ejecuta `gradle -p android connectedDebugAndroidTest`. El programa solo escucha en loopback del anfitrión y prepara un recurso ignorado para el APK de pruebas. Solo el proceso de pruebas confía en ese certificado generado; se mantiene la verificación del nombre del servidor y no cambian las reglas de certificados de la app. Ctrl+C elimina el recurso y el ejemplo temporal. Sin ese recurso se omite esta prueba de integración; las cuatro de Keystore se siguen ejecutando. Usa únicamente emuladores desechables y credenciales sintéticas.
+
 ## Firma un APK para distribuirlo en privado
 
 Crea una clave de firma una sola vez y guárdala fuera del repositorio. Copia `android/keystore.properties.example` a `android/keystore.properties`. Indica la ruta absoluta de la clave y sustituye los valores de ejemplo. Git ignora el archivo de configuración y los archivos `.jks` y `.keystore`. Compila y verifica el resultado:
