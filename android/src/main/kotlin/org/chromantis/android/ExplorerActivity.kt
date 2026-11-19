@@ -62,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -685,7 +686,13 @@ internal fun Thumbnail(
     }
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant) {
         val bitmap = result?.getOrNull()
-        if (bitmap != null) Image(bitmap.asImageBitmap(), null, contentScale = contentScale)
+        if (bitmap != null)
+            Image(
+                bitmap.asImageBitmap(),
+                null,
+                contentScale = contentScale,
+                modifier = Modifier.testTag("thumbnail:${entry.path}"),
+            )
         else if (result?.isFailure == true) {
             Box(contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.thumbnail_unavailable), Modifier.padding(4.dp))

@@ -135,11 +135,21 @@ class FamilyComposeTest {
             val album = runBlocking { client.albums("2023", 0).entries.single() }
             await(albumDisplayTitle(album.title))
             compose.waitUntil(15000) {
-                compose.onAllNodesWithTag("cover:${album.path}").fetchSemanticsNodes().isNotEmpty()
+                compose
+                    .onAllNodesWithTag("cover:${album.path}", useUnmergedTree = true)
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
             }
             capture("albums-light")
             click(albumDisplayTitle(album.title))
             await(label(R.string.review_album))
+            val firstPhoto = runBlocking { client.photos(album.path, 0).entries.first() }
+            compose.waitUntil(15000) {
+                compose
+                    .onAllNodesWithTag("thumbnail:${firstPhoto.path}", useUnmergedTree = true)
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
             capture("gallery-light")
             click(label(R.string.review_album))
             await("Ana")
