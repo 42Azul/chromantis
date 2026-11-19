@@ -95,6 +95,8 @@ class LauncherLifecycleTest {
             click(resume)
             compose.onNodeWithText(label(R.string.review_album)).assertIsDisplayed()
 
+            click(label(R.string.folders))
+            await("2023")
             click(label(R.string.settings))
             click(label(R.string.sign_out))
             await(label(R.string.connect_title))
