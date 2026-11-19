@@ -439,14 +439,14 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
     Column(
         Modifier.fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top = 24.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+            .padding(top = 20.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painterResource(R.drawable.ic_chromantis),
                 contentDescription = null,
-                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
+                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)),
             )
             Column(Modifier.padding(start = 16.dp)) {
                 Text(
@@ -474,18 +474,13 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
             shape = RoundedCornerShape(24.dp),
         ) {
             Column(
-                Modifier.fillMaxWidth().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
                     stringResource(R.string.address_step),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    stringResource(R.string.address_help),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     value = origin,
@@ -501,7 +496,7 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
                     stringResource(R.string.code_step),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 8.dp),
+                    modifier = Modifier.padding(top = 4.dp),
                 )
                 Text(
                     stringResource(R.string.code_help),

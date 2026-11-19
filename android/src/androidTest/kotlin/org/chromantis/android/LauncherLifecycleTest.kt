@@ -72,8 +72,9 @@ class LauncherLifecycleTest {
             scenario = ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
             compose
                 .onNodeWithText(label(R.string.code_label))
+                .performScrollTo()
                 .performTextInput(config.getString("launcher_code"))
-            click(label(R.string.sign_in))
+            compose.onNodeWithText(label(R.string.sign_in)).performScrollTo().performClick()
             await("2023")
             compose.waitUntil(15000) { settings.contains("session_encrypted") }
             assertFalse(settings.contains("session"))

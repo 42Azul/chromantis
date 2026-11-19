@@ -3,8 +3,7 @@
     <string name="app_name">Chromantis</string>
     <string name="connect_title">Tu archivo familiar, en casa</string>
     <string name="connect_intro">Usa la dirección y el código que te ha dado el propietario. Las fotos no salen de vuestro servidor.</string>
-    <string name="address_step">1 · Dirección de Chromantis</string>
-    <string name="address_help">La dirección privada de la casa. Solo se aceptan conexiones HTTPS.</string>
+    <string name="address_step">1 · Dirección privada HTTPS</string>
     <string name="address_label">Dirección</string>
     <string name="address_hint">https://fotos.casa</string>
     <string name="code_step">2 · Código familiar</string>

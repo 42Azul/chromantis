@@ -129,8 +129,9 @@ class FamilyComposeTest {
             capture("sign-in-light")
             compose
                 .onNodeWithText(label(R.string.code_label))
+                .performScrollTo()
                 .performTextInput(config.getString("ui_code"))
-            click(label(R.string.sign_in))
+            compose.onNodeWithText(label(R.string.sign_in)).performScrollTo().performClick()
             await("2023")
             capture("folders-light")
             val client = compose.runOnIdle { api.value!! }
