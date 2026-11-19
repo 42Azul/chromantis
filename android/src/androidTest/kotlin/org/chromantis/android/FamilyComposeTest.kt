@@ -145,12 +145,14 @@ class FamilyComposeTest {
             capture("albums-light")
             click(albumDisplayTitle(album.title))
             await(label(R.string.review_album))
-            val firstPhoto = runBlocking { client.photos(album.path, 0).entries.first() }
+            val visiblePhotos = runBlocking { client.photos(album.path, 0).entries }
             compose.waitUntil(15000) {
-                compose
-                    .onAllNodesWithTag("thumbnail:${firstPhoto.path}", useUnmergedTree = true)
-                    .fetchSemanticsNodes()
-                    .isNotEmpty()
+                visiblePhotos.all { photo ->
+                    compose
+                        .onAllNodesWithTag("thumbnail:${photo.path}", useUnmergedTree = true)
+                        .fetchSemanticsNodes()
+                        .isNotEmpty()
+                }
             }
             capture("gallery-light")
             click(label(R.string.review_album))

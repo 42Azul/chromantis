@@ -36,6 +36,11 @@ internal enum class Appearance(@get:StringRes val label: Int) {
 internal val lightPalette =
     lightColorScheme(
         primary = Color(0xff315c4c),
+        secondary = Color(0xff466155),
+        onSecondary = Color.White,
+        onSecondaryContainer = Color(0xff153d30),
+        outline = Color(0xff768078),
+        outlineVariant = Color(0xffd2d8d1),
         tertiaryContainer = Color(0xffeee0ce),
         onTertiaryContainer = Color(0xff453a2c),
         secondaryContainer = Color(0xffdfe7e5),
@@ -54,6 +59,11 @@ internal val lightPalette =
 internal val darkPalette =
     darkColorScheme(
         primary = Color(0xffa5d4bf),
+        secondary = Color(0xffbacdc1),
+        onSecondary = Color(0xff20372b),
+        onSecondaryContainer = Color(0xffd7f2e4),
+        outline = Color(0xff8c9890),
+        outlineVariant = Color(0xff404c44),
         tertiaryContainer = Color(0xff3f382d),
         onTertiaryContainer = Color(0xffede0ce),
         secondaryContainer = Color(0xff2c3833),
