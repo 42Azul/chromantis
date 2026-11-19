@@ -183,14 +183,10 @@ class FamilyComposeTest {
             capture("folders-dark")
             click(label(R.string.search))
             compose.onNodeWithText(label(R.string.search_hint)).performTextInput("Anita")
-            compose
-                .onNode(
-                    hasText(label(R.string.search)) and
-                        SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
-                )
-                .performClick()
+            compose.onNodeWithContentDescription(label(R.string.search)).performClick()
             await(albumDisplayTitle(album.title))
             compose.onNodeWithText(albumDisplayTitle(album.title)).assertIsDisplayed()
+            capture("search-dark")
         } finally {
             api.value?.let { runBlocking { it.signOut() } }
             HttpsURLConnection.setDefaultSSLSocketFactory(previous)

@@ -27,6 +27,13 @@
     <string name="search_hint">Buscar álbumes</string>
     <string name="search">Buscar</string>
     <string name="results">Resultados</string>
+    <string name="search_title">Encuentra un recuerdo</string>
+    <string name="search_intro">Describe lo que recuerdas: una persona, un lugar o una fecha.</string>
+    <string name="search_try">Prueba con</string>
+    <string name="search_example_person">Ana</string>
+    <string name="search_example_place">playa 2024</string>
+    <string name="search_example_date">excursión antes de 2020</string>
+    <string name="search_results_title">Resultados en tu archivo</string>
     <string name="start_search_help">Prueba «playa 2024» o el nombre de una persona. Se busca en tu archivo.</string>
     <string name="refine_search_help">Acota los resultados con «antes de 2020» o «con» y un nombre.</string>
     <string name="refine_hint">Afinar búsqueda</string>
