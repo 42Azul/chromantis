@@ -468,7 +468,9 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
         )
         Card(
             colors =
-                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
             shape = RoundedCornerShape(24.dp),
         ) {
             Column(
@@ -517,9 +519,7 @@ internal fun SignIn(address: String, expired: Boolean, onConnected: (ChromantisA
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                error?.let {
-                    Text(stringResource(it), color = MaterialTheme.colorScheme.error)
-                }
+                error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
                 Button(
                     onClick = {
                         val endpoint =
