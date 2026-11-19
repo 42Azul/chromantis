@@ -38,8 +38,7 @@ class FamilyComposeTest {
     @get:Rule val compose = createComposeRule()
 
     private fun capture(name: String) {
-        if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true")
-            return
+        if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true") return
         if (Build.VERSION.SDK_INT < 29) return
         val values =
             ContentValues().apply {
@@ -77,9 +76,7 @@ class FamilyComposeTest {
         compose.setContent {
             MaterialTheme(colorScheme = darkPalette) {
                 Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.padding(16.dp)) {
-                        SignIn("https://10.0.2.2:8444", false) {}
-                    }
+                    Column(Modifier.padding(16.dp)) { SignIn("https://10.0.2.2:8444", false) {} }
                 }
             }
         }
