@@ -562,7 +562,12 @@ private fun ChromantisMark() {
         contentColor = Color(0xFFD5E9CB),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text("C", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "C",
+                color = Color(0xFFD5E9CB),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }
