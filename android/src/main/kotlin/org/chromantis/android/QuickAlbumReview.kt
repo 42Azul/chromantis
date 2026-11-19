@@ -100,27 +100,32 @@ internal fun QuickAlbumReview(
             skipHint = R.string.release_to_skip,
         ) {
             Column(
-                Modifier.fillMaxWidth().heightIn(min = 220.dp).padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                Modifier.fillMaxWidth().heightIn(min = 196.dp).padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.size(48.dp),
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        LibraryIcon(R.drawable.ic_folder, Modifier.size(24.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            LibraryIcon(R.drawable.ic_folder, Modifier.size(22.dp))
+                        }
                     }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         stringResource(R.string.pending_album),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         albumDisplayTitle(album.title),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
                     (albumDisplayDate(album.path) ?: album.date)?.let {
