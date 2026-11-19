@@ -25,17 +25,25 @@ Estas capturas muestran las pantallas Compose rediseñadas en una actividad de p
 
 ![Carpetas de Android en modo claro con los años sintéticos indexados.](../../../../assets/screenshots/android-folders-light.png)
 
+2. **Clasifica una carpeta.** **Clasificar** presenta un álbum pendiente en una tarjeta centrada. La etiqueta propuesta explica qué texto del nombre de la carpeta la originó. El gesto es opcional: aceptar y dejar pendiente tienen botones grandes, y el editor completo de personas, fotos y etiquetas está a un toque.
+
+![Clasificación rápida de un álbum con sugerencia por nombre y acciones explícitas.](../../../../assets/screenshots/android-classify-light.png)
+
+Esta primera pasada usa solo el índice y el nombre de la carpeta. Las fotos se solicitan al abrir el editor detallado; la tarjeta rápida no abre imágenes ni consulta ningún modelo.
+
+3. **Abre un álbum.** Las tarjetas muestran un título legible, la fecha y una portada cuando está disponible.
+
 ![Álbum con portada, nombre legible y fecha.](../../../../assets/screenshots/android-albums-light.png)
 
 Las portadas se cargan solo para los álbumes visibles al abrir un año o un resultado de búsqueda. Reutilizan la caché de miniaturas; si no están disponibles, aparece una carpeta.
 
 ![Galería con miniaturas redondeadas y controles de selección.](../../../../assets/screenshots/android-gallery-light.png)
 
-2. **Etiqueta un álbum.** Abre **Etiquetar este álbum**, selecciona a una persona por su nombre o alias y guarda. La selección se confirma visualmente y el botón Guardar sigue visible mientras recorres el formulario. Busca `Anita` desde **Buscar** para encontrarlo. El vínculo se refiere al álbum, no confirma la presencia en cada foto. Las fotos siguen bajo demanda.
+4. **Etiqueta un álbum.** Abre **Etiquetar este álbum**, selecciona a una persona por su nombre o alias y guarda. La selección se confirma visualmente y el botón Guardar sigue visible mientras recorres el formulario. Busca `Anita` desde **Buscar** para encontrarlo. El vínculo se refiere al álbum, no confirma la presencia en cada foto. Las fotos siguen bajo demanda.
 
 ![Revisión de un álbum con la persona sintética Ana seleccionada.](../../../../assets/screenshots/android-review-light.png)
 
-3. **Elige la apariencia.** **Ajustes → Oscuro** cambia las mismas pantallas. También puedes elegir claro o seguir el sistema.
+5. **Elige la apariencia.** **Ajustes → Oscuro** cambia las mismas pantallas. También puedes elegir claro o seguir el sistema.
 
 ![La misma lista de carpetas de Android en modo oscuro.](../../../../assets/screenshots/android-folders-dark.png)
 
@@ -107,7 +115,7 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
 En otra terminal, ejecuta `gradle -p android connectedDebugAndroidTest`. Reinicia el programa antes de cada ejecución para generar otro código de un solo uso. El programa solo escucha en loopback del anfitrión y prepara un recurso ignorado para el APK de pruebas. Solo el proceso de pruebas confía en ese certificado generado; se mantiene la verificación del nombre del servidor y no cambian las reglas de certificados de la app. Ctrl+C elimina el recurso y el ejemplo temporal. Sin ese recurso se omiten las pruebas del cliente y Compose; las cuatro de Keystore se siguen ejecutando. Usa únicamente emuladores desechables y credenciales sintéticas.
 
 
-Para exportar las cinco capturas sintéticas en un emulador desechable API 29+, añade `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` al comando Gradle. La prueba escribe únicamente sus PNG generados en `Download/chromantis-compose/`; sobreviven a la limpieza de la app de pruebas. Una ejecución normal no guarda capturas en almacenamiento compartido. La CI comprueba las cabeceras PNG antes de exportarlas.
+Para exportar las seis capturas sintéticas en un emulador desechable API 29+, añade `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` al comando Gradle. La prueba escribe únicamente sus PNG generados en `Download/chromantis-compose/`; sobreviven a la limpieza de la app de pruebas. Una ejecución normal no guarda capturas en almacenamiento compartido. La CI comprueba las cabeceras PNG antes de exportarlas.
 
 ## Firma un APK para distribuirlo en privado
 

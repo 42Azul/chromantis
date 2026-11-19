@@ -50,9 +50,14 @@
     <string name="review_album">Etiquetar este álbum</string>
     <string name="review_albums">Etiquetar álbumes</string>
     <string name="quick_review">Volver a la tarjeta</string>
-    <string name="no_tag_suggestion">Sin etiquetas sugeridas.</string>
-    <string name="swipe_album_help">Izquierda para dejar pendiente, derecha para aceptar esta etiqueta.</string>
-    <string name="swipe_skip_album">Desliza a la izquierda para dejar pendiente.</string>
+    <string name="quick_review_title">Clasificar álbumes</string>
+    <string name="quick_review_help">Una carpeta cada vez. Puedes cambiar cualquier decisión después.</string>
+    <string name="pending_album">Álbum pendiente</string>
+    <string name="no_tag_suggestion">Sin una sugerencia clara</string>
+    <string name="no_tag_suggestion_help">Déjalo pendiente o abre los detalles para clasificarlo a mano.</string>
+    <string name="suggestion_source">Sugerida por «%s» en el nombre de la carpeta</string>
+    <string name="swipe_album_help">También puedes deslizar la tarjeta.</string>
+    <string name="swipe_skip_album">También puedes deslizar la tarjeta.</string>
     <string name="release_to_skip">Suelta para dejar pendiente.</string>
     <string name="release_to_accept">Suelta para aceptar la etiqueta.</string>
     <string name="leave_pending">Dejar pendiente</string>

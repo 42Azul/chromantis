@@ -17,6 +17,9 @@ family interface is Spanish. Use the same service, people and permission model.
   paths in the gallery, and retain stable identities for edits.
 - Treat people as selectable rows with initials, names and saved aliases. Do not
   introduce face identification into manual tagging.
+- Present quick classification as one calm folder card. Explain the exact source
+  of a suggestion, keep swipe gestures optional, and provide equally clear buttons
+  for accepting, leaving pending and opening the full editor.
 - Keep Save visible outside the scrolling review form, including conflict feedback.
 - Use warm neutral surfaces, forest-green actions and restrained clay accents. Dark
   mode must preserve the same hierarchy. Avoid gradients, arbitrary arrows, emoji

@@ -25,17 +25,25 @@ These screenshots show the redesigned production Compose screens in a disposable
 
 ![Android Folders in light mode, showing the synthetic indexed years.](../../../assets/screenshots/android-folders-light.png)
 
+2. **Classify one folder.** **Organize** presents one pending album as a focused card. The proposed tag names the folder text that produced it. Swipe is optional: the same accept and leave-pending actions are large buttons, and the full people, photo and tag editor stays one tap away.
+
+![Quick album classification with a name-based suggestion and explicit actions.](../../../assets/screenshots/android-classify-light.png)
+
+This first pass uses only the existing index and folder name. Opening the detailed editor is what requests photo previews; the quick card does not open an image or contact a model.
+
+3. **Open an album.** Album cards show a readable title, date and a cover when one is available.
+
 ![Album cards with a visible cover, a readable folder title and date.](../../../assets/screenshots/android-albums-light.png)
 
 Covers load only for visible albums after opening a year or search result. They reuse the existing thumbnail cache and fall back to a folder tile if unavailable.
 
 ![The photo gallery with rounded previews and selection controls.](../../../assets/screenshots/android-gallery-light.png)
 
-2. **Tag an album.** Open **Tag this album**, select a person by name or alias, and save. Selected people have a clear confirmation and the Save button stays visible while the form scrolls. Search `Anita` from **Search** to find the album. This records an album link, not a person in every photo. Photos stay on demand.
+4. **Tag an album.** Open **Tag this album**, select a person by name or alias, and save. Selected people have a clear confirmation and the Save button stays visible while the form scrolls. Search `Anita` from **Search** to find the album. This records an album link, not a person in every photo. Photos stay on demand.
 
 ![Album review with the synthetic person Ana selected.](../../../assets/screenshots/android-review-light.png)
 
-3. **Choose an appearance.** **Settings → Dark** changes the same screens. Light and system appearance are available too.
+5. **Choose an appearance.** **Settings → Dark** changes the same screens. Light and system appearance are available too.
 
 ![The same Android folder list in dark mode.](../../../assets/screenshots/android-folders-dark.png)
 
@@ -107,7 +115,7 @@ PYTHONPATH=src python tests/android_instrumentation_fixture.py \
 In another terminal, run `gradle -p android connectedDebugAndroidTest`. Restart the helper before each run to issue a fresh one-time code. The helper binds only to host loopback and prepares an ignored asset for the test APK. Only the test process trusts that generated certificate; hostname verification stays enabled and the app's certificate rules are unchanged. Ctrl+C removes the asset and temporary fixture. Without the generated asset, the client and Compose tests are skipped; the four Keystore tests still run. Use only disposable emulators and synthetic credentials.
 
 
-To export the five synthetic screenshots on a disposable API 29+ emulator, add `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` to the Gradle command. The test writes only its generated PNGs to `Download/chromantis-compose/`; they survive test-app cleanup. Ordinary test runs do not write screenshots to shared storage. CI validates the PNG headers before exporting them.
+To export the six synthetic screenshots on a disposable API 29+ emulator, add `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true` to the Gradle command. The test writes only its generated PNGs to `Download/chromantis-compose/`; they survive test-app cleanup. Ordinary test runs do not write screenshots to shared storage. CI validates the PNG headers before exporting them.
 
 ## Sign a private release
 

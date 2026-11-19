@@ -132,8 +132,21 @@ class FamilyComposeTest {
             click(label(R.string.sign_in))
             await("2023")
             capture("folders-light")
-            click("2023")
             val client = compose.runOnIdle { api.value!! }
+            val pending = runBlocking { client.review(null, 0)!! }
+            compose
+                .onNode(
+                    hasText(label(R.string.organize)) and
+                        SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+                )
+                .performClick()
+            await(albumDisplayTitle(pending.title))
+            compose.onNodeWithText(label(R.string.leave_pending)).assertIsDisplayed()
+            compose.onNodeWithText(label(R.string.edit_review_details)).assertIsDisplayed()
+            capture("classify-light")
+            click(label(R.string.folders))
+            await("2023")
+            click("2023")
             val album = runBlocking { client.albums("2023", 0).entries.single() }
             await(albumDisplayTitle(album.title))
             compose.waitUntil(15000) {

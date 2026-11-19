@@ -5,7 +5,9 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,10 +68,22 @@ internal fun SwipeReviewCard(
         }
     ) {
         Card(
-            Modifier.fillMaxWidth().graphicsLayer {
-                val maxRight = if (canAccept) 36.dp.toPx() else 0f
-                translationX = (drag * 0.45f).coerceIn(-36.dp.toPx(), maxRight)
-            },
+            modifier =
+                Modifier.fillMaxWidth().graphicsLayer {
+                    val maxRight = if (canAccept) 42.dp.toPx() else 0f
+                    translationX = (drag * 0.45f).coerceIn(-42.dp.toPx(), maxRight)
+                    rotationZ =
+                        (drag / maxOf(size.width, 1f) * 5f).coerceIn(
+                            -2.5f,
+                            if (canAccept) 2.5f else 0f,
+                        )
+                },
+            shape = RoundedCornerShape(28.dp),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             content = content,
         )
     }
