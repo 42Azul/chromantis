@@ -21,6 +21,8 @@ En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elecc
 2. Pulsa **Etiquetar fotos**. Elige **Añadir** o **Quitar** y selecciona una persona existente por su nombre o alias, escribe una etiqueta de una sola palabra o haz ambas cosas. Confirma para aplicar el cambio a la selección. Puedes salir con Atrás antes de guardar.
 3. En **Buscar → Fotos por persona**, escribe un nombre o alias. Aparecerán las fotos en las que se haya confirmado esa persona. La búsqueda de álbumes sigue incluyendo los vínculos al álbum.
 
+Para acotar las fotos confirmadas, escribe una etiqueta manual de una palabra en **Etiqueta manual opcional** y busca. Por ejemplo, usa `Anita` y `romería`. Borra la etiqueta y vuelve a buscar para ver todas las fotos confirmadas de esa persona. Al cambiar la persona o la etiqueta se empieza por la primera página de resultados. Este filtro requiere el servicio local actualizado que admite `person` junto con `tag`.
+
 Para editar necesitas permiso de etiquetado. Si una foto indexada cambia durante la edición, actualiza la galería y vuelve a seleccionar las fotos.
 
 Con las miniaturas activadas, **Revisar foto a foto** te deja elegir a una persona y recorrer la página actual de la galería. Desliza a la derecha para marcar la foto o a la izquierda para saltarla. Los botones hacen lo mismo. **Deshacer última decisión** vuelve a la foto anterior. **Guardar** aplica los vínculos nuevos en un solo lote. Salir de la revisión descarta el borrador. Si una miniatura falla, puedes saltar la foto.
@@ -72,7 +74,9 @@ En **Clasificar**, desliza la primera tarjeta a la izquierda y usa **Volver al p
 
 Repite con un ejemplo nuevo en modo `--index-only`. Desliza a la derecha sobre una etiqueta sugerida. La app muestra la siguiente sugerencia del mismo álbum o pasa al siguiente cuando terminas. Abre el álbum desde **Carpetas** y comprueba la decisión en **Etiquetar este álbum**. Prueba los botones y los gestos con el archivo sintético desconectado.
 
-Para comprobar el etiquetado individual, selecciona las fotos 1 y 3 del álbum de 2024 y añade a Ana. Busca `Anita` en **Fotos por persona** y comprueba que salen exactamente esas dos. Quita a Ana de la primera y repite la búsqueda. Solo debería aparecer la tercera. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
+Para comprobar el etiquetado individual, selecciona las fotos 1 y 3 del álbum de 2024 y añade a Ana. Busca `Anita` en **Fotos por persona** y comprueba que salen exactamente esas dos.
+
+Añade la etiqueta manual `romería` a las fotos 2 y 3. Busca `Anita` con `ROMERIA` en el campo de etiqueta opcional y comprueba que solo aparece la foto 3: la primera tiene a Ana sin esa etiqueta y la segunda tiene la etiqueta sin Ana. Cambia la etiqueta por `unknown` y comprueba que el resultado está vacío. Borra la etiqueta y busca de nuevo para recuperar las fotos 1 y 3. Quita a Ana de la primera y repite la búsqueda; solo debería aparecer la tercera. Pulsa Ctrl+C para eliminar el índice temporal y las fotos sintéticas.
 
 Para probar los gestos, arranca un ejemplo nuevo con el archivo sintético conectado. En **Revisar foto a foto**, elige a Ana, marca la foto 1, salta la 2, marca la 3, deshaz la última decisión y salta la 3. Guarda y comprueba que la búsqueda confirmada devuelve solo la foto 1. Repite con el editor por lotes y compara el tiempo y los errores de selección.
 

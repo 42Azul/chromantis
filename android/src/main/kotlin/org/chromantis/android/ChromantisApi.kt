@@ -111,8 +111,10 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
         return imagePage("/album-images?path=${encode(path)}", offset)
     }
 
-    suspend fun confirmedPhotos(person: String, offset: Int): EntryPage =
-        imagePage("/confirmed-images?person=${encode(person)}", offset)
+    suspend fun confirmedPhotos(person: String, offset: Int, tag: String = ""): EntryPage {
+        val filter = if (tag.isBlank()) "" else "&tag=${encode(tag.trim())}"
+        return imagePage("/confirmed-images?person=${encode(person)}$filter", offset)
+    }
 
     private suspend fun imagePage(route: String, offset: Int): EntryPage {
         val response = json("$route&limit=$pageSize&offset=$offset")

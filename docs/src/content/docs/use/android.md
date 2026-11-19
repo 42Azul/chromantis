@@ -21,6 +21,8 @@ Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appea
 2. Tap **Tag photos** (*Etiquetar fotos*). Choose **Add** (*Añadir*) or **Remove** (*Quitar*), then choose an existing person by name or alias, enter a one-word tag, or do both. Confirm to apply the change to the selection. Back exits selection before any change is saved.
 3. Open **Search → Photos by person** (*Buscar → Fotos por persona*) and enter a name or alias. These results use confirmations recorded on individual photos. The album search still includes people linked to an album.
 
+To narrow the confirmed photos, enter a one-word manual photo tag in **Etiqueta manual opcional**, then search. For example, use `Anita` and `romería`. Clear the tag field and search again to see all confirmed photos for that person. Changing the person or tag starts from the first results page. This combined filter requires the updated local service that supports `person` together with `tag`.
+
 Photo edits require curation permission. If an indexed photo changes during editing, refresh the gallery and select the photos again.
 
 With thumbnails enabled, **Review photo by photo** (*Revisar foto a foto*) lets you choose one person for a pass through the current gallery page. Swipe right to mark a photo or left to skip it. The buttons do the same. Use **Undo last decision** (*Deshacer última decisión*) to go back one photo. **Save** applies the new links in one batch. Closing the review discards its draft. If a preview is unavailable, you can skip the photo.
@@ -72,7 +74,9 @@ From **Organize**, swipe left on the first card, then use **Start again** (*Volv
 
 On a fresh fixture with `--index-only`, swipe right on a suggested tag. The app shows the next suggestion for that album, or advances when all suggestions are decided. Open the tagged album from **Folders** and check the decision in **Tag this album**. Try the buttons and the swipes with the synthetic archive disconnected.
 
-To check individual tagging, select photos 1 and 3 in the 2024 album and add Ana. Search for `Anita` under **Photos by person** and check that exactly those two appear. Remove Ana from photo 1 and search again. Photo 3 should be the only result. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and photos.
+To check individual tagging, select photos 1 and 3 in the 2024 album and add Ana. Search for `Anita` under **Photos by person** and check that exactly those two appear.
+
+Add the manual tag `romería` to photos 2 and 3. Search `Anita` with `ROMERIA` in the optional tag field and confirm that photo 3 is the only result: photo 1 has Ana but no tag, and photo 2 has the tag but no Ana. Change the tag to `unknown` and confirm the empty result. Clear the tag and search again to restore photos 1 and 3. Remove Ana from photo 1 and search again; only photo 3 should remain. Press Ctrl+C in the fixture terminal to remove its temporary SQLite index and photos.
 
 To try reviewing by gesture, run a fresh fixture with the synthetic archive connected. In **Review photo by photo**, choose Ana, mark photo 1, skip photo 2, mark photo 3, undo and skip photo 3. Save and check that the confirmed search returns just photo 1. Repeat with the batch editor and compare time and missed or incorrect selections.
 

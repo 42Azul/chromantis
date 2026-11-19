@@ -26,12 +26,15 @@ internal fun ConfirmedPhotoSearch(
     onOpen: (Entry) -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
+    var draftTag by rememberSaveable { mutableStateOf("") }
     var person by rememberSaveable { mutableStateOf("") }
+    var tag by rememberSaveable { mutableStateOf("") }
     val focus = LocalFocusManager.current
     fun submit() {
         if (draft.isBlank()) return
         focus.clearFocus()
         person = draft.trim()
+        tag = draftTag.trim()
     }
     Text(stringResource(R.string.confirmed_photo_explanation))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -48,11 +51,21 @@ internal fun ConfirmedPhotoSearch(
             Text(stringResource(R.string.search))
         }
     }
+    OutlinedTextField(
+        value = draftTag,
+        onValueChange = { if (it.length <= 40) draftTag = it },
+        label = { Text(stringResource(R.string.confirmed_photo_tag)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { submit() }),
+        modifier = Modifier.fillMaxWidth(),
+    )
     if (person.isNotEmpty()) {
         Text(stringResource(R.string.confirmed_photo_results, person))
-        key(person) {
+        if (tag.isNotEmpty()) Text(stringResource(R.string.confirmed_photo_tag_result, tag))
+        key(person, tag) {
             EntryScreen(
-                load = { api.confirmedPhotos(person, it) },
+                load = { api.confirmedPhotos(person, it, tag) },
                 onExpired = onExpired,
                 onOpen = onOpen,
                 photoApi = api,
