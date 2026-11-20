@@ -222,10 +222,8 @@ class FamilyComposeTest {
             click(label(R.string.search))
             await(context.getString(R.string.confirmed_photo_results, "Anita"))
             visiblePhotos.forEach { photo ->
-                compose.onNodeWithText(photo.title).assertIsDisplayed()
-            }
-            compose.waitUntil(15000) {
-                visiblePhotos.all { photo ->
+                compose.onNodeWithText(photo.title).performScrollTo().assertIsDisplayed()
+                compose.waitUntil(15000) {
                     compose
                         .onAllNodesWithTag("thumbnail:${photo.path}", useUnmergedTree = true)
                         .fetchSemanticsNodes()
