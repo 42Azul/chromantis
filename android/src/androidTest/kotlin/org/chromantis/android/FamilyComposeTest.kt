@@ -190,9 +190,7 @@ class FamilyComposeTest {
             click(label(R.string.tag_photos))
             await("Ana · Anita")
             click("Ana · Anita")
-            compose
-                .onNodeWithText(label(R.string.manual_photo_tag))
-                .performTextInput("excursion")
+            compose.onNodeWithText(label(R.string.manual_photo_tag)).performTextInput("excursion")
             capture("photo-batch-light")
             compose.onNodeWithTag("save-photo-tags").performClick()
             await(label(R.string.photo_tags_saved))
@@ -218,9 +216,7 @@ class FamilyComposeTest {
             click(label(R.string.new_search))
             click(label(R.string.confirmed_photo_search))
             await(label(R.string.confirmed_photo_explanation))
-            compose
-                .onNodeWithText(label(R.string.people_filter))
-                .performTextInput("Anita")
+            compose.onNodeWithText(label(R.string.people_filter)).performTextInput("Anita")
             compose
                 .onNodeWithText(label(R.string.confirmed_photo_tag))
                 .performTextInput("excursion")
