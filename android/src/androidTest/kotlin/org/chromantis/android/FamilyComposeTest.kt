@@ -37,7 +37,7 @@ import org.junit.runner.RunWith
 class FamilyComposeTest {
     @get:Rule val compose = createComposeRule()
 
-    private fun capture(name: String) {
+    private fun capture(name: String, tag: String? = null) {
         if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true") return
         if (Build.VERSION.SDK_INT < 29) return
         val values =
@@ -55,8 +55,7 @@ class FamilyComposeTest {
         try {
             requireNotNull(resolver.openOutputStream(uri)).use {
                 check(
-                    compose
-                        .onRoot()
+                    (if (tag == null) compose.onRoot() else compose.onNodeWithTag(tag))
                         .captureToImage()
                         .asAndroidBitmap()
                         .compress(Bitmap.CompressFormat.PNG, 100, it)
@@ -191,7 +190,7 @@ class FamilyComposeTest {
             await("Ana · Anita")
             click("Ana · Anita")
             compose.onNodeWithText(label(R.string.manual_photo_tag)).performTextInput("excursion")
-            capture("photo-batch-light")
+            capture("photo-batch-light", "photo-tag-dialog")
             compose.onNodeWithTag("save-photo-tags").performClick()
             await(label(R.string.photo_tags_saved))
             click(label(R.string.review_album))

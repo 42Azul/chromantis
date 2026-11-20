@@ -46,6 +46,7 @@ internal fun PhotoTagDialog(
     val scope = rememberCoroutineScope()
     val conflict = error?.hasStatus(409) == true
     AlertDialog(
+        modifier = Modifier.testTag("photo-tag-dialog"),
         onDismissRequest = { if (!busy) onClose() },
         title = { Text(stringResource(R.string.tag_photos)) },
         text = {
