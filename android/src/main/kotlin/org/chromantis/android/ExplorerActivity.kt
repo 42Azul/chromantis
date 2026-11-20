@@ -592,6 +592,12 @@ internal fun EntryScreen(
 ) {
     var offset by rememberSaveable { mutableIntStateOf(initialOffset) }
     var reload by remember { mutableIntStateOf(0) }
+    var selected by rememberSaveable(offset, reload) { mutableStateOf<List<String>?>(null) }
+    var edit by remember(offset, reload) { mutableStateOf(false) }
+    var review by remember(offset, reload) { mutableStateOf(false) }
+    var saved by rememberSaveable(offset, reload) { mutableStateOf(false) }
+    val selection = selected
+    BackHandler(selection != null && !edit) { selected = null }
     key(offset, reload) {
         LoadContent(onExpired, load = { load(offset) }) { page ->
             if (onPageLoaded != null) {
@@ -600,12 +606,6 @@ internal fun EntryScreen(
                     else if (page.entries.isNotEmpty()) onPageLoaded(offset)
                 }
             }
-            var selected by rememberSaveable { mutableStateOf<List<String>?>(null) }
-            var edit by remember { mutableStateOf(false) }
-            var review by remember { mutableStateOf(false) }
-            var saved by rememberSaveable { mutableStateOf(false) }
-            val selection = selected
-            BackHandler(selection != null && !edit) { selected = null }
             Column(Modifier.fillMaxSize()) {
                 header(page)
                 if (page.entries.isEmpty()) Text(stringResource(R.string.no_results))
