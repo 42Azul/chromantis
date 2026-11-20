@@ -676,7 +676,7 @@ internal fun EntryScreen(
                                     Modifier.clickable { onOpen(entry) }
                                 }
                             Column(
-                                tile.padding(4.dp),
+                                tile.testTag("photo:${entry.path}").padding(4.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 if (selection != null) Checkbox(checked, onCheckedChange = null)

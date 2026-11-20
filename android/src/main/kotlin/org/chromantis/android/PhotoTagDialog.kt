@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -155,6 +156,7 @@ internal fun PhotoTagDialog(
                         }
                     },
                     enabled = !busy && selection != null && (person != null || tag.isNotBlank()),
+                    modifier = Modifier.testTag("save-photo-tags"),
                 ) {
                     Text(
                         stringResource(
