@@ -19,7 +19,7 @@ From a checkout on a NAS with a local archive and a Telegram bot token:
 bash scripts/setup_nas.sh
 ```
 
-For a browser-only installation, FTP, or a synthetic first run, follow the [installation guide](docs/src/content/docs/start/install.md). See also [Telegram](docs/src/content/docs/use/telegram.md), [Android](docs/src/content/docs/use/android.md), [maintenance](docs/src/content/docs/operate/maintenance.md), and the [local API](docs/src/content/docs/reference/api.md).
+For a browser-only installation, FTP, or a synthetic first run, follow the [installation guide](docs/src/content/docs/start/install.md). See also [Telegram](docs/src/content/docs/use/telegram.md), [Android](docs/src/content/docs/use/android.md), [maintenance](docs/src/content/docs/operate/maintenance.md), the [local API](docs/src/content/docs/reference/api.md), and [optional MCP folder curation](docs/src/content/docs/reference/mcp.md).
 
 ## Development
 
@@ -34,6 +34,13 @@ gradle -p android connectedDebugAndroidTest # requires a running emulator or tes
 npm --prefix docs ci
 npm --prefix docs run dev
 npm --prefix docs run check
+```
+
+To exercise the optional MCP stdio transport with Python 3.11 or newer:
+
+```bash
+python -m pip install '.[mcp]'
+python -m unittest tests.test_folder_curation_mcp -v
 ```
 
 See [interface direction and design references](DESIGN.md), and [contributing and publishing](docs/src/content/docs/reference/contributing.md) for requirements and the static-site workflow.

@@ -37,6 +37,7 @@ Chromantis currently provides:
 - revocable, expiring browser links that grant read-only access to one album
 - consistent, locally verifiable SQLite backup and fresh-path recovery
 - a transport-neutral read-only MCP tool trial scoped by a revocable one-album grant
+- optional OpenCode MCP folder curation over stdio, with explicit album selection and operator-approved SQLite edits
 
 Not implemented yet:
 
@@ -509,6 +510,15 @@ Current architecture map:
 
 The trial confirmed that the authorization boundary can stay in the application layer without a transport or SDK. The tool core returns no archive paths or original URLs and checks expiry or revocation on every call. Current official documentation says ChatGPT needs public HTTPS or a Secure MCP Tunnel rather than a direct local process, so no endpoint or tunnel was enabled.
 
+### Folder Curation MCP — Local Transport and Review
+
+**Status:** `Done` for the synthetic stdio trial. The NAS and hosted-model evaluation are opt-in follow-ups.
+
+- Inspect one explicitly selected album at a time from a batch of up to 20. Expose folder-name evidence, current metadata, known tag evidence and unambiguous matches to existing people. No photos, photo filenames, album-share tokens or whole-directory enumeration.
+- Propose a display title, full folder-derived date, named place, album tags and existing person links. Leave ambiguous dates and people unresolved. Never replace curated titles, dates, places or reviewed tag decisions.
+- Stage proposals in private files without writing SQLite. One terminal approval applies a selected batch atomically with stale-state checks and an audit record. Keep the web API, Android app and original files unchanged.
+- Synthetic transport tests use the official MCP client, a private scope file and a disconnected archive. OpenCode 2.3.2 also connected to the synthetic server after explicit registration in the running service. The [operator guide](docs/src/content/docs/reference/mcp.md) covers NAS-side album selection, SSH setup, and applying proposals. The place-only test verifies an approved label is searchable without adding a general tag or building the future map.
+
 ## Ready Next
 
 ### Phone-test follow-up — pick in this order
@@ -654,20 +664,30 @@ These are the next automation picks from the physical Android test against the N
 
 **Acceptance:** Process a bounded synthetic batch, interrupt and resume it, review a proposed match and reject an unknown or lookalike without creating a confirmed link. A wrong suggestion can be corrected and derived data can be removed. Reindexing alone never runs the model or alters originals.
 
-### Optional remote MCP transport
+### Optional remote MCP transport and hosted-model evaluation
 
-**Case:** Query one explicitly granted album from a supported MCP client when that is materially easier than the family web.
+**Case:** Evaluate how accurately a hosted model proposes folder curation, then decide whether OpenCode over local stdio (including over SSH) is sufficient or a separate remote connector is justified.
 
-**Scope:** Wrap the existing read-only tool core in an authenticated transport. Trial [OpenCode V2](https://opencode.ai/docs/mcp-servers) with GPT‑6.2 Sol on one synthetic album first: connect using local stdio or private Streamable HTTP, inspect folder metadata and date evidence, and propose tags one album at a time. Keep grants revocable and confined to the selected album. Suggestions include their evidence and require owner review in Chromantis; the MCP tool cannot commit tags. Leave the adapter disabled when unused.
+**Scope:** Trial [OpenCode V2](https://opencode.ai/docs/mcp-servers) with GPT‑6.2 Sol using the shipped stdio tools on synthetic folders. A direct remote connector would be separate work: use authenticated, revocable, narrowly scoped access, and leave the adapter disabled when unused. The MCP tool cannot commit tags.
 
 **Dependencies:** OpenCode must be able to reach the chosen transport; the existing Chromantis HTTPS endpoint is not an MCP endpoint. Verify what tool output goes to the configured model provider. Real family metadata stays out of a hosted model unless the owner explicitly approves the specific data. Trial visual tagging with synthetic images or local inference first; use only explicitly selected, small previews if an owner approves a hosted image trial. Never grant the model unrestricted archive access or send originals by default.
 
-**Validation:** OpenCode completes tool discovery, scoped list/search and live revocation against synthetic data; requests for another album, mutation and original bytes fail. Compare suggestions against the existing folder-name rules before testing image-based suggestions. Measure idle memory and request latency on representative NAS hardware before deployment.
+**Validation:** Compare synthetic model proposals with known correct dates, acceptable titles, ambiguous people and existing tag rules. Before shipping any remote connector, verify discovery and live revocation and reject out-of-scope albums, database writes and original bytes. Measure idle memory and request latency on representative NAS hardware before deployment.
 
 ### Optional visual curation
 
-- Consider a local batch of suggested visual tags for otherwise unlabeled albums if there is a sufficiently varied evaluation set with Spanish paraphrases and wrong-attribute examples.
-- Reuse the optional enrichment adapter and evaluate on a separate set before choosing a model or deploying it. Measure CPU and memory on the intended machine and check that the suggestions can be corrected.
+- Try a second pass only for albums whose folder names provide little evidence. Start with synthetic images and local inference. Pick a small, representative sample of low-resolution previews from one operator-selected album; use it to propose reviewable scene, activity or object tags, not exact dates or identities.
+- Compare folder-only results with folder plus visual evidence on a separate evaluation set. Measure useful tags, unsupported guesses, CPU and memory. Keep visual provenance distinct from folder-name evidence and require approval before applying a suggestion. Don't send family images to a hosted model without explicit approval of the specific preview sample.
+
+### Browse albums by place and map
+
+**Case:** A family member opens **Lugares** in the Android library, chooses a place, and browses its albums across years. A map offers another way into the same list.
+
+**Scope:** Build the place list first using the existing curated album labels and permissions. MCP may propose a label explicitly named in the folder, but must not guess coordinates. Let a curator confirm an optional map point at city, town, or region precision, and reuse it across albums that share that place. Keep unresolved or text-only places searchable without putting them on the map.
+
+**Privacy:** Do not request the phone's location or extract photo GPS for this feature. Keep album-to-place links and confirmed coordinates private. Before selecting a map or geocoding provider, check what requests disclose to third parties, and keep the place list usable without that provider.
+
+**Acceptance:** Two albums labeled Madrid in different years appear under one confirmed marker and in the place list. An ambiguous name stays off the map until a curator resolves it. Opening a place and returning from an album restores the previous map or list position.
 
 ### Optional EXIF GPS
 
