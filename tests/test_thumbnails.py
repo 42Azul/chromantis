@@ -94,6 +94,15 @@ class ThumbnailTests(unittest.TestCase):
         self.app.family_access.revoke(grant)
         self.assertEqual(self.request(route, token=None, cookie=cookie)[0], 401)
 
+    def test_album_cover_skips_oversized_photos_before_limiting_candidates(self):
+        for number in range(12):
+            with (self.photo.parent / f"00-{number:02}.jpg").open("wb") as file:
+                file.truncate(SOURCE_BYTES + 1)
+        self.scanner.scan(incremental=True)
+        route = "/album-cover?" + urlencode({"path": self.photo.parent.relative_to(self.archive)})
+        self.assertEqual(self.request(route), (200, "image/jpeg", b"synthet"))
+        self.reader.assert_called_once_with(IMAGE_PATH, max_bytes=SOURCE_BYTES)
+
     def test_family_index_status_survives_source_disconnect_and_failed_scan(self):
         grant, code = self.app.family_access.invite("synthetic")
         cookie = "chromantis_family=" + self.app.family_access.redeem(code)

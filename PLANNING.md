@@ -557,6 +557,8 @@ These are the next automation picks from the physical Android test against the N
 
 **Cover API increment:** The private API now serves a JPEG cover using the existing thumbnail budget. It ranks up to 12 indexed entries by a stable path hash and tries up to three candidates. A missing or unpreviewable candidate can fall back to another, and a source outage stops the attempt. Client integration and phone validation remain pending.
 
+Cover selection excludes photos whose indexed size exceeds the renderer limit before choosing its 12 candidates. A regression with 12 oversized entries before a small photo verifies that the cover is still returned and only the small photo is opened. Entries with unknown size still use the existing bounded reader.
+
 #### 2. Save and share one photo or a selection (Android and browser)
 
 - Add visible **Guardar/Descargar** and **Compartir** actions to the photo viewer and gallery selection toolbar. Keep selection for export distinct from tagging. Support a single photo, a multi-photo selection, and an explicit **Descargar álbum** action for saving everything, not just the currently loaded page.

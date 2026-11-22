@@ -16,7 +16,7 @@ from pathlib import Path
 from ssl import SSLSocket
 from urllib.parse import parse_qs, unquote, urlparse
 
-from chromantis.api.thumbnails import ThumbnailCache
+from chromantis.api.thumbnails import SOURCE_BYTES, ThumbnailCache
 from chromantis.app import ApplicationService, AuthOperationError
 from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
@@ -638,11 +638,11 @@ def _read_album_cover(
     if thumbnails is None:
         return 404, {"error": "Thumbnails are disabled"}
 
-    candidates = app.images_in_folder(path, limit=12)
+    candidates = app.repository.cover_candidate_paths(path, max_bytes=SOURCE_BYTES, limit=12)
     # A stable shuffle of a bounded window avoids scanning the whole album per card.
-    candidates.sort(key=lambda item: sha256(item.path.encode()).digest())
+    candidates.sort(key=lambda path: sha256(path.encode()).digest())
     for candidate in candidates[:3]:
-        status, payload = _read_thumbnail(candidate.path, app, thumbnails)
+        status, payload = _read_thumbnail(candidate, app, thumbnails)
         if status in {200, 502}:
             return status, payload
     return 404, {"error": "No album cover available"}

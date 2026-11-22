@@ -206,6 +206,16 @@ class Repository:
             ).fetchone()
         return dict(row)
 
+    def cover_candidate_paths(self, folder_path: str, *, max_bytes: int, limit: int) -> list[str]:
+        with self.session() as connection:
+            rows = connection.execute(
+                """SELECT i.file_path FROM images i JOIN folders f ON f.id = i.folder_id
+                   WHERE f.folder_path = ? AND (i.file_size IS NULL OR i.file_size <= ?)
+                   ORDER BY i.file_path LIMIT ?""",
+                (folder_path, max_bytes, limit),
+            ).fetchall()
+        return [row["file_path"] for row in rows]
+
     def indexed_image_fingerprint(self, path: str) -> tuple[str, int | None, str | None] | None:
         with self.session() as connection:
             row = connection.execute(
