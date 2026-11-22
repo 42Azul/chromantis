@@ -13,10 +13,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from chromantis.app.folder_curation import FolderCuration
-from chromantis.app.mcp_curation import MAX_ALBUMS, TOOL_SCHEMAS, FolderCurationTools, read_proposal, read_scope
+from chromantis.app.mcp_curation import DEFAULT_PROPOSALS, MAX_ALBUMS, FolderCurationTools, read_proposal, read_scope
 
 
-async def serve(curation: FolderCuration, albums: list[str], output: Path) -> None:
+async def serve(
+    curation: FolderCuration, albums: list[str] | None, output: Path, *,
+    allow_apply: bool, max_proposals: int,
+) -> None:
     try:
         from mcp.server import Server
         from mcp.server.stdio import stdio_server
@@ -24,14 +27,16 @@ async def serve(curation: FolderCuration, albums: list[str], output: Path) -> No
     except ImportError:
         raise ValueError("Install '.[mcp]' with Python 3.11 or later before starting the server.") from None
 
-    tools = FolderCurationTools(curation, albums, output)
+    tools = FolderCurationTools(
+        curation, albums, output, allow_apply=allow_apply, max_proposals=max_proposals,
+    )
 
     async def list_tools(_context, _params):
         return ListToolsResult(tools=[
             Tool(name=name, description=description, input_schema=schema, annotations=ToolAnnotations(
                 read_only_hint=readonly, destructive_hint=False, idempotent_hint=readonly, open_world_hint=False,
             ))
-            for name, description, schema, readonly in TOOL_SCHEMAS
+            for name, description, schema, readonly in tools.schemas()
         ])
 
     async def call_tool(_context, params):
@@ -56,7 +61,11 @@ async def serve(curation: FolderCuration, albums: list[str], output: Path) -> No
             "When a location is explicitly named, use the album place field rather than only a general tag. "
             "Propose concise display titles, directly supported tags, and only existing person candidates "
             "when the folder context supports linking them to the album. Skip uncertain fields. "
-            "This server has no images and cannot apply proposals."
+            "This server has no images. "
+            + (
+                "The apply tool writes only index metadata. Follow the host's policy for write actions."
+                if allow_apply else "This server cannot apply proposals."
+            )
         ),
         on_list_tools=list_tools, on_call_tool=call_tool,
     )
@@ -77,7 +86,13 @@ def main() -> None:
     scope = server.add_mutually_exclusive_group(required=True)
     scope.add_argument("--album", action="append", help="Exact indexed path: year/folder. Repeatable.")
     scope.add_argument("--scope-file", type=Path, help="Private JSON array of exact indexed album paths.")
+    scope.add_argument("--all-albums", action="store_true", help="Allow browsing the whole live SQLite index.")
     server.add_argument("--proposals", required=True, type=Path, help="Private output directory for review.")
+    server.add_argument("--max-proposals", type=int, default=DEFAULT_PROPOSALS, help="Proposal budget per process.")
+    server.add_argument(
+        "--allow-apply", action="store_true",
+        help="Expose the SQLite apply tool. Only enable for a trusted client; it controls approvals.",
+    )
     review = commands.add_parser("review")
     review.add_argument("proposals", nargs="+", type=Path)
     review.add_argument("--apply", action="store_true", help="Prompt at a local terminal before applying.")
@@ -96,7 +111,10 @@ def main() -> None:
             return
         if args.command == "serve":
             albums = read_scope(args.scope_file) if args.scope_file is not None else args.album
-            asyncio.run(serve(curation, albums, args.proposals))
+            asyncio.run(serve(
+                curation, albums, args.proposals,
+                allow_apply=args.allow_apply, max_proposals=args.max_proposals,
+            ))
             return
         if len(args.proposals) > MAX_ALBUMS:
             raise ValueError(f"Review at most {MAX_ALBUMS} albums at a time.")

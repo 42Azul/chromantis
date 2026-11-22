@@ -55,7 +55,7 @@ Chromantis currently provides:
 - revocable, expiring browser links that grant read-only access to one album
 - consistent, locally verifiable SQLite backup and fresh-path recovery
 - a transport-neutral read-only MCP tool trial scoped by a revocable one-album grant
-- optional OpenCode MCP folder curation over stdio, with explicit album selection and operator-approved SQLite edits
+- optional OpenCode MCP folder curation over stdio, with live whole-library or selected-album browsing and opt-in SQLite edits
 
 Not implemented yet:
 
@@ -533,9 +533,9 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Status:** `Done` for the synthetic stdio trial. The NAS and hosted-model evaluation are opt-in follow-ups.
 
-- Inspect one explicitly selected album at a time from a batch of up to 20. Expose folder-name evidence, current metadata, known tag evidence and unambiguous matches to existing people. No photos, photo filenames, album-share tokens or whole-directory enumeration.
+- Browse selected albums or opt into paging the whole live SQLite index, optionally filtered by indexed year or missing place. Expose folder-name evidence, current metadata, known tag evidence, linked people and unambiguous matches to existing people. No photos, photo filenames, album-share tokens, or raw SQL.
 - Propose a display title, full folder-derived date, named place, album tags and existing person links. Leave ambiguous dates and people unresolved. Never replace curated titles, dates, places or reviewed tag decisions.
-- Stage proposals in private files without writing SQLite. One terminal approval applies a selected batch atomically with stale-state checks and an audit record. Keep the web API, Android app and original files unchanged.
+- Stage proposals in private files without writing SQLite. Apply a selected batch from a terminal or opt into exposing the MCP write tool, with the host deciding whether to require approval. Reject stale or superseded proposals, apply atomically and record the write channel. Keep the web API, Android app and original files unchanged.
 - Synthetic transport tests use the official MCP client, a private scope file and a disconnected archive. OpenCode 2.3.2 also connected to the synthetic server after explicit registration in the running service. The [operator guide](docs/src/content/docs/reference/mcp.md) covers NAS-side album selection, SSH setup, and applying proposals. The place-only test verifies an approved label is searchable without adding a general tag or building the future map.
 
 ## Active MVPs
@@ -716,7 +716,7 @@ These are the next automation picks from the physical Android test against the N
 
 **Case:** Evaluate how accurately a hosted model proposes folder curation, then decide whether OpenCode over local stdio (including over SSH) is sufficient or a separate remote connector is justified.
 
-**Scope:** Trial [OpenCode V2](https://opencode.ai/docs/mcp-servers) with GPT‑6.2 Sol using the shipped stdio tools on synthetic folders. A direct remote connector would be separate work: use authenticated, revocable, narrowly scoped access, and leave the adapter disabled when unused. The MCP tool cannot commit tags.
+**Scope:** Trial [OpenCode V2](https://opencode.ai/docs/mcp-servers) with GPT‑6.2 Sol using the shipped stdio tools on synthetic folders. A direct remote connector would be separate work: use authenticated, revocable, narrowly scoped access, keep it proposal-only by default, and leave the adapter disabled when unused.
 
 **Dependencies:** OpenCode must be able to reach the chosen transport; the existing Chromantis HTTPS endpoint is not an MCP endpoint. Verify what tool output goes to the configured model provider. Real family metadata stays out of a hosted model unless the owner explicitly approves the specific data. Trial visual tagging with synthetic images or local inference first; use only explicitly selected, small previews if an owner approves a hosted image trial. Never grant the model unrestricted archive access or send originals by default.
 

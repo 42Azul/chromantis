@@ -216,6 +216,47 @@ class FolderCurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "JSON array"):
             read_scope(scope)
 
+    def test_live_library_pagination_filters_and_default_write_denial(self) -> None:
+        self.tools = FolderCurationTools(self.curation, None, self.output)
+        first = self.tools.call("list_curation_albums", {"limit": 1})
+        after = first["next_after"]
+        self.assertIsNotNone(after)
+        rest = self.tools.call("list_curation_albums", {"after": after})
+        self.assertEqual(len(rest["albums"]), 2)
+        self.assertIsNone(rest["next_after"])
+        self.assertNotIn(after, [album["album"] for album in rest["albums"]])
+        self.assertEqual(self._inspect(first["albums"][0]["album"])["folder_name"], OUTSIDE.split("/")[1])
+        year = self.tools.call("list_curation_albums", {"year": 2021, "missing_place": True})
+        self.assertEqual(len(year["albums"]), 2)
+        for arguments in ({"limit": 21}, {"year": True}, {"after": "album-9999999999999999999"}, {"sql": "SELECT 1"}):
+            with self.subTest(arguments=arguments), self.assertRaises(ValueError):
+                self.tools.call("list_curation_albums", arguments)
+        with self.assertRaisesRegex(ValueError, "Unknown"):
+            self.tools.call("apply_curation_proposals", {})
+
+    def test_apply_only_current_run_proposals_and_recheck_current_database_state(self) -> None:
+        self.tools = FolderCurationTools(self.curation, [ALBUM, SECOND], self.output, allow_apply=True)
+        original = self._queue(self._good_changes()).name
+        revised = self.tools.call("propose_curation_album", {
+            "album": "album-1", "version": self._inspect()["version"], "replaces": original,
+            "changes": {"place": {"value": "Madrid", "evidence": "Madrid"}},
+        })["proposal_file"]
+        second = self._queue({"title": {"value": "Paseo de verano", "evidence": "Paseo"}}, "album-2").name
+        item = self.app.get_album_review(1, path=SECOND)
+        self.app.edit_album_context(1, SECOND, item["id"], item["context_revision"], {"note": "Just edited"})
+        with self.assertRaisesRegex(ValueError, "changed"):
+            self.tools.call("apply_curation_proposals", {"proposals": [revised, second]})
+        self.assertIsNone(self._inspect()["place"])
+        for filenames in ([original], ["../outside.json"], [revised, revised]):
+            with self.subTest(filenames=filenames), self.assertRaisesRegex(ValueError, "current proposal"):
+                self.tools.call("apply_curation_proposals", {"proposals": filenames})
+        self.tools.call("apply_curation_proposals", {"proposals": [revised]})
+        self.assertEqual(self._inspect()["place"], "Madrid")
+        audit = json.loads(self.repository.list_audit_events(limit=1)[0].details_json)
+        self.assertEqual(audit["write_channel"], "mcp_client")
+        with self.assertRaisesRegex(ValueError, "current proposal"):
+            self.tools.call("apply_curation_proposals", {"proposals": [revised]})
+
     @unittest.skipUnless(os.name == "posix", "requires a terminal device")
     def test_operator_can_approve_from_a_terminal(self) -> None:
         import pty
@@ -277,6 +318,38 @@ class FolderCurationTests(unittest.TestCase):
                 self.assertFalse(self._inspect()["title_is_curated"])
 
         asyncio.run(asyncio.wait_for(exercise(), timeout=15))
+
+    @unittest.skipUnless(importlib.util.find_spec("mcp"), "install optional .[mcp] to test stdio")
+    def test_official_client_can_apply_over_stdio_in_live_library_mode(self) -> None:
+        from mcp import Client, StdioServerParameters
+
+        async def exercise():
+            params = StdioServerParameters(command=sys.executable, args=[
+                str(SCRIPT), "--database", str(self.database), "serve",
+                "--all-albums", "--allow-apply", "--proposals", str(self.output),
+            ])
+            async with Client(params, mode="legacy") as client:
+                self.assertIn("apply_curation_proposals", [tool.name for tool in (await client.list_tools()).tools])
+                page = await client.call_tool("list_curation_albums", {"year": 2021, "limit": 1})
+                cursor = page.structured_content["next_after"]
+                page = await client.call_tool("list_curation_albums", {"year": 2021, "after": cursor, "limit": 1})
+                handle = page.structured_content["albums"][0]["album"]
+                details = (await client.call_tool("inspect_curation_album", {"album": handle})).structured_content
+                self.assertEqual(details["folder_name"], ALBUM.split("/")[1])
+                proposal = await client.call_tool("propose_curation_album", {
+                    "album": handle, "version": details["version"], "changes": self._good_changes(),
+                })
+                self.assertFalse(proposal.is_error, proposal.content)
+                applied = await client.call_tool("apply_curation_proposals", {
+                    "proposals": [proposal.structured_content["proposal_file"]],
+                })
+                self.assertFalse(applied.is_error, applied.content)
+                self.assertEqual(applied.structured_content["status"], "applied")
+                remaining = await client.call_tool("list_curation_albums", {"year": 2021, "missing_place": True})
+                self.assertEqual(len(remaining.structured_content["albums"]), 1)
+
+        asyncio.run(asyncio.wait_for(exercise(), timeout=15))
+        self.assertEqual(self.curation.inspect(ALBUM)["place"], "Madrid")
 
 
 if __name__ == "__main__":

@@ -5,13 +5,13 @@ description: Propón metadatos de álbumes desde OpenCode y apruébalos en una t
 
 ## Clasificación antes de guardar
 
-El operador elige hasta 20 rutas `año/carpeta` ya indexadas. OpenCode puede revisar una carpeta cada vez y preparar una propuesta por álbum: título legible, lugar mencionado, fecha, etiquetas y enlaces a personas existentes. No ve fotos, miniaturas, nombres de archivo de las fotos ni álbumes fuera de la selección. Tampoco escribe en SQLite.
+El servidor lee directamente el índice SQLite. Con `--all-albums`, OpenCode puede recorrer todos los álbumes por páginas, con filtros opcionales de año y lugar pendiente. También se puede limitar a 20 rutas `año/carpeta` seleccionadas. No ve fotos, miniaturas ni nombres de archivo de las fotos. Por defecto solo prepara propuestas: título legible, lugar mencionado, fecha, etiquetas y enlaces a personas existentes.
 
 Las propuestas citan palabras exactas de la carpeta. Solo se acepta una fecha completa e inequívoca del año indexado. Por ejemplo, `15.08.2021_Cumple de Anita en Madrid` permite recuperar `2021-08-15`; `03.04.2021` queda sin interpretar si no se conoce la convención. Un nombre o alias sirve para enlazar el álbum con una persona que ya existe, no para afirmar que sale en una foto. No se reemplazan correcciones ni decisiones manuales.
 
 ## Prueba con OpenCode
 
-Usa Python 3.11 o posterior y el extra `.[mcp]`. Desde un entorno de pruebas, indexa el archivo sintético y registra el comando local siguiendo la [guía de conexión en inglés](../../reference/mcp.md#connect-opencode-to-a-synthetic-album). El servidor usa la entrada y salida estándar de un proceso: no abre un puerto. Si la base está en el NAS, sigue los [pasos de conexión por SSH](../../reference/mcp.md#run-it-on-the-nas-over-ssh). `list-albums --missing-place` ayuda a elegir álbumes sin lugar; guarda solo las rutas aprobadas en un archivo privado en el NAS. OpenCode inicia el proceso por SSH, no hace falta arrancarlo en otra terminal.
+Usa Python 3.11 o posterior y el extra `.[mcp]`. Desde un entorno de pruebas, indexa el archivo sintético y registra el comando local siguiendo la [guía de conexión en inglés](../../reference/mcp.md#connect-opencode-to-a-synthetic-album). El servidor usa la entrada y salida estándar de un proceso: no abre un puerto. Si la base está en el NAS, sigue los [pasos de conexión por SSH](../../reference/mcp.md#run-it-on-the-nas-over-ssh). OpenCode inicia el proceso por SSH, no hace falta arrancarlo en otra terminal.
 
 Puedes pedirle al modelo:
 
@@ -19,7 +19,9 @@ Puedes pedirle al modelo:
 
 ### Revisar y guardar
 
-La propuesta queda en un archivo privado. Desde una terminal de confianza en la máquina que tiene SQLite, ejecuta primero `review` y luego, si estás de acuerdo, `review --apply`. El segundo comando muestra los cambios y pide escribir `APPLY`:
+Con `--allow-apply`, el servidor ofrece `apply_curation_proposals` para guardar las propuestas elegidas. El cliente MCP decide si pide confirmación o aplica automáticamente. Para pedirla en OpenCode, configura la [regla de permisos](../../reference/mcp.md#apply-from-opencode). El servidor no detecta confirmaciones escritas en el chat. Guarda solo metadatos en SQLite y deja intactos los originales.
+
+Como alternativa, la propuesta queda en un archivo privado. Desde una terminal de confianza en la máquina que tiene SQLite, ejecuta primero `review` y luego, si estás de acuerdo, `review --apply`. El segundo comando muestra los cambios y pide escribir `APPLY`:
 
 ```bash
 .venv/bin/python scripts/folder_curation_mcp.py --database /ruta/index.db \

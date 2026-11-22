@@ -96,7 +96,7 @@ def _evidenced(value: object, limit: int, name: str) -> dict[str, str]:
 
 
 class FolderCuration:
-    """Read the index without photo access; only the operator CLI invokes apply()."""
+    """Read and curate index metadata without opening the photo archive."""
 
     def __init__(self, database: str | Path):
         self.database = Path(database).resolve(strict=True)
@@ -128,6 +128,27 @@ class FolderCuration:
                 (year, year, missing_place, limit, offset),
             )]
 
+    def library_page(
+        self, *, after: int, year: int | None, missing_place: bool, limit: int,
+    ) -> list[dict]:
+        with self.read() as connection:
+            return [dict(row) for row in connection.execute(
+                """SELECT id, indexed_year, place IS NOT NULL AS has_place
+                   FROM album_metadata
+                   WHERE id > ? AND (? IS NULL OR indexed_year = ?) AND (? = 0 OR place IS NULL)
+                   ORDER BY id LIMIT ?""",
+                (after, year, year, missing_place, limit),
+            )]
+
+    def album_reference(self, album_id: int) -> tuple[str, tuple[int, str, int]]:
+        with self.read() as connection:
+            row = connection.execute(
+                "SELECT folder_path, ftp_root_path, year FROM folders WHERE id = ?", (album_id,)
+            ).fetchone()
+        if row is None:
+            raise ValueError("The selected album is not indexed anymore.")
+        return row["folder_path"], (album_id, row["ftp_root_path"], row["year"])
+
     @staticmethod
     def _identity(connection: Connection, path: str) -> tuple[int, str, int]:
         row = connection.execute(
@@ -153,8 +174,13 @@ class FolderCuration:
         item = review_item(connection, folder)
         name = folder["folder_name_raw"]
         people = person_candidates(connection, name)
+        linked_people = [dict(row) for row in connection.execute(
+            """SELECT p.id, p.display_name AS name FROM folder_people fp
+               JOIN people p ON p.id = fp.person_id WHERE fp.folder_id = ? ORDER BY p.id""",
+            (folder["id"],),
+        )]
         revision = hashlib.sha256(json.dumps(
-            [str(self.database), current_identity, item, people], sort_keys=True, ensure_ascii=True
+            [str(self.database), current_identity, item, people, linked_people], sort_keys=True, ensure_ascii=True
         ).encode()).hexdigest()
         return folder, item, {
             "version": revision,
@@ -168,6 +194,7 @@ class FolderCuration:
             "place": folder["place"],
             "manual_tags": item["manual_tags"],
             "tag_suggestions": item["suggestions"],
+            "linked_people": linked_people,
             "people_candidates": [
                 candidate | {"already_linked": person_id in item["person_ids"]}
                 for person_id, candidate in sorted(people.items())
@@ -254,8 +281,8 @@ class FolderCuration:
             raise ValueError("No new changes to propose.")
         return {"context": context, "tags": list(tag_changes.values()), "people": people}
 
-    def apply(self, records: list[dict]) -> None:
-        """Validate the entire displayed batch again in the transaction that saves it."""
+    def apply(self, records: list[dict], *, via_mcp: bool = False) -> None:
+        """Validate the supplied batch again in the transaction that saves it."""
         repository = Repository(str(self.database))
         with repository.write_transaction() as connection:
             for record in records:
@@ -267,7 +294,9 @@ class FolderCuration:
                 self._save(connection, folder, item, proposal)
                 repository.record_audit_event(
                     "apply_folder_curation", "folder", record["path"],
-                    {"origin": "mcp_folder_review", **proposal}, connection=connection,
+                    {"origin": "mcp_folder_review",
+                     "write_channel": "mcp_client" if via_mcp else "operator_terminal",
+                     **proposal}, connection=connection,
                 )
 
     @staticmethod
