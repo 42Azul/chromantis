@@ -511,6 +511,36 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 ## Ready Next
 
+### Phone-test follow-up — pick in this order
+
+These are the next automation picks from the physical Android test against the NAS. Apply the browser changes alongside the APK where specified. Finish these tasks before expanding native owner tools or model-assisted curation.
+
+#### 1. Reliable album covers and gallery thumbnails (Android and browser)
+
+- First check that the deployed API has thumbnails enabled and can generate one for a representative indexed photo. Trace missing previews from the archive and API through both clients; separate deployment issues from client bugs. Android already requests visible album covers, so verify that path before replacing it.
+- Show one cover per visible album in **Carpetas**: choose a random eligible indexed photo, keep the choice stable while browsing and on reload, and choose a replacement if it disappears or cannot be previewed. Inside the album, load low-resolution thumbnails for visible photos as the user scrolls. Request full-size originals only on explicit open, save or share.
+- Reuse the existing NAS preview endpoint and disk budget. Add bounded, private thumbnail reuse on Android and in the browser. Invalidate previews when the source changes; scope reuse to the server and signed-in session. Clear or isolate previews at sign-out or origin change, and make sure revoked access cannot be bypassed by reopening cached private images. Never put family previews in a shared cache.
+- **Acceptance:** On the phone and browser, album cards show covers and opening an album shows low-resolution thumbnails without downloading originals. Revisiting the same gallery avoids unnecessary thumbnail requests. A replaced photo refreshes its preview, and missing previews show a placeholder without blocking navigation.
+
+#### 2. Save and share one photo or a selection (Android and browser)
+
+- Add visible **Guardar/Descargar** and **Compartir** actions to the photo viewer and gallery selection toolbar. Keep selection for export distinct from tagging. Support a single photo, a multi-photo selection, and an explicit **Descargar álbum** action for saving everything, not just the currently loaded page.
+- On Android, save originals to the phone gallery and use the Android share sheet for one or more photos so WhatsApp can receive them when installed. In the browser, download a single original or a ZIP for a selection or album. Use file sharing where the browser supports it and offer download as the fallback; don't assume every desktop or browser can hand files to WhatsApp directly.
+- Keep downloads behind existing photo permissions. Bound batch work and temporary storage; confirm large exports and show progress, cancellation and partial failures. Don't upload anything until the user chooses a share target and confirms there.
+- **Acceptance:** Save one photo to the Android gallery, share one and then several photos through WhatsApp on a physical phone, and download a selection and a multi-page synthetic album from the browser. Output contains only the intended originals, and a failed transfer can be retried without silently duplicating the successful ones.
+
+#### 3. Recover the second 2003 folder and recognize dates in album names
+
+- Reproduce the reported missing `2003(2)` while `2003(1)` appears. The source adapters and path parser already accept both exact names; trace the exact folder spelling, directory depth, scan skips, indexed paths and year-list pagination before changing the parser. Both branches should appear under year **2003**, with distinct paths even if they contain albums with the same name.
+- Gather a few sanitized examples of missed date-bearing names and extend deterministic parsing for the confirmed formats. The current parser only recognizes a leading `YYYY-MM-DD` followed by `_`, `-`, or the end of the name. Reject invalid dates and leave ambiguous dates unguessed. Keep folder-derived dates separate from manual corrections, JPEG capture dates and file modification times.
+- **Acceptance:** Synthetic local and FTP fixtures show both branches under 2003 in the API, browser and Android. Representative album names show the correct folder-derived dates. Document and test how to refresh existing affected rows without discarding manual corrections or other curation: today's incremental scan skips unchanged files, so use a full reindex unless a targeted metadata refresh is added.
+
+#### 4. Run the physical-phone release checklist
+
+- A first NAS phone test produced the reports above; it did not complete the release checklist. After the fixes, record the APK build, Android version and device model, and verify one-time sign-in, session recovery after a cold start and process death, gallery position, revocation on the next protected request, and recovery after Wi-Fi or NAS loss. Check local-network permission denial and recovery where the OS requires that permission.
+- Rerun the cover, export and year-browsing acceptance checks on the same build. Use synthetic albums for repeatable checks and keep household addresses, folder names, invite codes and photos out of shared evidence.
+- **Acceptance:** The checklist records pass, fail or not applicable for each scenario. Failures have a reproduction and owner; do not mark MVP 19A done while any required check is failing or unverified.
+
 ### MVP 19A — Android Family App (APK)
 
 **Status:** `Ready Next`
@@ -523,7 +553,7 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Acceptance:** Build and install the APK on an emulator or test phone with synthetic albums. Sign in once, reopen the app and navigate year → folder → photo, then go back to the same folder position. Link the fixture person Ana to an album, save it, and find the album by searching for Ana. Verify revocation on the next protected request. With the photo source disconnected, folder navigation, filename listing and album tagging still work. Preview errors, an unreachable NAS and a denied local-network permission where applicable show how to recover.
 
-**Progress:** The Kotlin and Compose client includes HTTPS family sign-in, session persistence, year and album navigation, album search, and a paged photo grid. It saves the explorer path when Android recreates the activity. It can open the pending album review queue or correct a specific album. It uses index metadata for listings and review and requests previews on demand. The temporary HTTPS fixture covers synthetic browsing and curation. A loopback test verifies the one-time code, secure session cookie, gallery pagination, search after tagging with the archive disconnected, and revocation on the next request. Gradle creates the release variant only with complete private signing configuration from an ignored local file or environment variables. Verified that a general build without keys produces only a debug APK and that the release APK passes independent signature verification. Installation and the complete interaction flow on a current physical phone are still pending.
+**Progress:** The Kotlin and Compose client includes HTTPS family sign-in, session persistence, year and album navigation, album search, and a paged photo grid. It saves the explorer path when Android recreates the activity. It can open the pending album review queue or correct a specific album. It uses index metadata for listings and review and requests previews on demand. The temporary HTTPS fixture covers synthetic browsing and curation. A loopback test verifies the one-time code, secure session cookie, gallery pagination, search after tagging with the archive disconnected, and revocation on the next request. Gradle creates the release variant only with complete private signing configuration from an ignored local file or environment variables. Verified that a general build without keys produces only a debug APK and that the release APK passes independent signature verification. An initial physical-phone test against the NAS informed the follow-up above; the complete release checklist is still pending.
 
 **References:** [Cx File Explorer](https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer), [Android lazy grids](https://developer.android.com/develop/ui/compose/lists), [APK distribution](https://developer.android.com/studio/publish), [network security](https://developer.android.com/privacy-and-security/security-config), and [local network permissions](https://developer.android.com/privacy-and-security/local-network-permission).
 
@@ -552,6 +582,14 @@ The trial confirmed that the authorization boundary can stay in the application 
 **Explorer shortcuts:** The folder trail links to the year list, the current year and, from an original photo, its gallery. **Continuar en…** on the home tab reopens the last gallery browsed through folders at its last loaded page. The shortcut is stored locally and cleared when the family session ends. Verify on a phone that the shortcut survives a cold start and that the year and album steps return to their existing positions. The family browser also lists indexed years with album and photo counts, opens paged albums for a year, and returns from an album editor to that page without archive reads.
 
 ## Planned Later
+
+### Owner-only missing-album diagnostics
+
+**Case:** When an album is absent after a scan, the owner can tell whether it was skipped, not indexed, or indexed but missing from a browse page.
+
+**Scope:** Start with a read-only CLI check for one owner-supplied, archive-relative path. Reuse the source adapters, parser and index queries to distinguish an unavailable source, depth or parsing skips, and indexed albums. Report inconclusive results explicitly when the available scan data cannot explain a skip. Do not fetch photos, trigger a scan, or expose paths through family-facing endpoints.
+
+**Validation:** Synthetic local and FTP fixtures distinguish a skipped branch from an indexed album on a later page and an unreachable source. The command leaves the archive and curation unchanged.
 
 ### Optional family passkey trial
 
@@ -620,11 +658,11 @@ The trial confirmed that the authorization boundary can stay in the application 
 
 **Case:** Query one explicitly granted album from a supported MCP client when that is materially easier than the family web.
 
-**Scope:** Wrap the existing read-only tool core in an official, authenticated transport. Keep grants per album and revocable, expose no original-image tool by default, and leave the adapter disabled when unused.
+**Scope:** Wrap the existing read-only tool core in an authenticated transport. Trial [OpenCode V2](https://opencode.ai/docs/mcp-servers) with GPT‑6.2 Sol on one synthetic album first: connect using local stdio or private Streamable HTTP, inspect folder metadata and date evidence, and propose tags one album at a time. Keep grants revocable and confined to the selected album. Suggestions include their evidence and require owner review in Chromantis; the MCP tool cannot commit tags. Leave the adapter disabled when unused.
 
-**Dependencies:** A supported ChatGPT plan or another MCP host, Python 3.11+ for the current official Python SDK, and an explicit choice between public HTTPS and a Secure MCP Tunnel. OAuth or person-bound authentication must be designed before sharing beyond a single owner-controlled trial.
+**Dependencies:** OpenCode must be able to reach the chosen transport; the existing Chromantis HTTPS endpoint is not an MCP endpoint. Verify what tool output goes to the configured model provider. Real family metadata stays out of a hosted model unless the owner explicitly approves the specific data. Trial visual tagging with synthetic images or local inference first; use only explicitly selected, small previews if an owner approves a hosted image trial. Never grant the model unrestricted archive access or send originals by default.
 
-**Validation:** An official MCP client completes initialize, tool discovery, scoped list/search and live revocation against synthetic data; requests for another album, mutation and original bytes fail. Measure idle memory and request latency on representative NAS hardware before deployment.
+**Validation:** OpenCode completes tool discovery, scoped list/search and live revocation against synthetic data; requests for another album, mutation and original bytes fail. Compare suggestions against the existing folder-name rules before testing image-based suggestions. Measure idle memory and request latency on representative NAS hardware before deployment.
 
 ### Optional visual curation
 
