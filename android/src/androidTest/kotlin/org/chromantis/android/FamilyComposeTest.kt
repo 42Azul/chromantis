@@ -12,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
@@ -37,7 +36,7 @@ import org.junit.runner.RunWith
 class FamilyComposeTest {
     @get:Rule val compose = createComposeRule()
 
-    private fun capture(name: String, tag: String? = null) {
+    private fun capture(name: String) {
         if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true") return
         if (Build.VERSION.SDK_INT < 29) return
         val values =
@@ -50,16 +49,16 @@ class FamilyComposeTest {
                 )
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        compose.waitForIdle()
+        instrumentation.waitForIdleSync()
+        val resolver = instrumentation.targetContext.contentResolver
         val uri = requireNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
         try {
             requireNotNull(resolver.openOutputStream(uri)).use {
-                check(
-                    (if (tag == null) compose.onRoot() else compose.onNodeWithTag(tag))
-                        .captureToImage()
-                        .asAndroidBitmap()
-                        .compress(Bitmap.CompressFormat.PNG, 100, it)
-                )
+                val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
+                bitmap.recycle()
             }
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
@@ -190,7 +189,7 @@ class FamilyComposeTest {
             await("Ana · Anita")
             click("Ana · Anita")
             compose.onNodeWithText(label(R.string.manual_photo_tag)).performTextInput("excursion")
-            capture("photo-batch-light", "photo-tag-dialog")
+            capture("photo-batch-light")
             compose.onNodeWithTag("save-photo-tags").performClick()
             await(label(R.string.photo_tags_saved))
             click(label(R.string.review_album))
