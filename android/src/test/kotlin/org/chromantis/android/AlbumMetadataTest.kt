@@ -14,6 +14,16 @@ class AlbumMetadataTest {
     }
 
     @Test
+    fun readsPhotoRevisionAndAcceptsServersWithoutIt() {
+        val item = JSONObject("""{"path":"2024/trip/photo.jpg","identity":"revision-one"}""")
+        assertEquals("revision-one", photoEntry(item).identity)
+        item.put("identity", "revision-two")
+        assertEquals("revision-two", photoEntry(item).identity)
+        item.remove("identity")
+        assertNull(photoEntry(item).identity)
+    }
+
+    @Test
     fun displaysTheBestKnownAlbumDate() {
         assertEquals(
             "2024-07-01",

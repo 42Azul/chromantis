@@ -31,6 +31,55 @@ let collectionRequest = 0;
 let originalRequest;
 let originalURL;
 
+// Memory only, owned by this signed-in browser instance. Never cache originals.
+class PrivateThumbnailCache {
+  constructor(fetchPreview, budget = 4 * 1024 * 1024, maxEntries = 64) {
+    this.fetchPreview = fetchPreview;
+    this.budget = budget;
+    this.maxEntries = maxEntries;
+    this.clear();
+  }
+
+  clear() {
+    this.generation = (this.generation || 0) + 1;
+    this.entries = new Map();
+    this.bytes = 0;
+  }
+
+  async load(item, signal) {
+    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+    // Old servers omit identity: fetch again rather than reusing a stale preview.
+    const key = item.identity ? JSON.stringify([item.path, item.identity]) : undefined;
+    const cached = key && this.entries.get(key);
+    if (cached) {
+      this.entries.delete(key);
+      this.entries.set(key, cached);
+      return cached;
+    }
+    const generation = this.generation;
+    const blob = await this.fetchPreview(item.path, signal);
+    if (signal.aborted || generation !== this.generation) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    if (key && blob.size <= this.budget) {
+      // A concurrent request may already have filled this entry.
+      if (this.entries.has(key)) this.bytes -= this.entries.get(key).size;
+      this.entries.delete(key);
+      this.entries.set(key, blob);
+      this.bytes += blob.size;
+      while (this.bytes > this.budget || this.entries.size > this.maxEntries) {
+        const oldest = this.entries.keys().next().value;
+        this.bytes -= this.entries.get(oldest).size;
+        this.entries.delete(oldest);
+      }
+    }
+    return blob;
+  }
+}
+
+const thumbnailCache = new PrivateThumbnailCache((path, signal) =>
+  api("/thumbnail" + queryParams({ path }), { raw: true, signal }));
+
 function element(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
@@ -58,6 +107,7 @@ async function api(path, { method = "GET", data, signal, raw = false } = {}) {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
+    if (response.status === 401 && connection === connectionNumber) thumbnailCache.clear();
     if (response.status === 401 && connection === connectionNumber && principal?.auth_mode === "family") {
       signOut();
       $("family-sign-in").open = true;
@@ -191,6 +241,7 @@ async function loadSharedAlbum(offset = 0) {
 }
 
 function signOut() {
+  thumbnailCache.clear();
   token = "";
   principal = undefined;
   indexStatus = undefined;
@@ -280,6 +331,7 @@ function archiveHealth(offline = false) {
 }
 
 async function signIn(value, { quiet = false, familyLogin = false } = {}) {
+  thumbnailCache.clear();
   token = value;
   const connection = ++connectionNumber;
   const initialRequest = requestNumber;
@@ -736,7 +788,9 @@ function photoCard(item, signal, {
   const observer = new IntersectionObserver(entries => {
     if (!entries.some(entry => entry.isIntersecting)) return;
     observer.disconnect();
-    api((isThumbnail ? "/thumbnail" : "/image") + queryParams({ path: item.path }), { raw: true, signal }).then(blob => {
+    const preview = isThumbnail ? thumbnailCache.load(item, signal)
+      : api("/image" + queryParams({ path: item.path }), { raw: true, signal });
+    preview.then(blob => {
       if (signal.aborted) return;
       previewURL = URL.createObjectURL(blob);
       urls.add(previewURL);

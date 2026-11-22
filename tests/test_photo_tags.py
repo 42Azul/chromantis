@@ -202,6 +202,35 @@ class PhotoTagTests(unittest.TestCase):
         self.assertEqual(self.find("confirmed-images", person="Ana"), [])
         self.assertNotEqual(self.tags(PHOTO_PATH)[0]["identity"], first["identity"])
 
+    def test_image_listings_supply_revision_identity_without_opening_photos(self):
+        first = self.tags(PHOTO_PATH)[0]
+        self.assertEqual(self.edit([first], add_people=[self.ana.id], manual_add=["picnic"])[0], 200)
+        routes = (
+            "/album-images?" + urlencode({"path": ALBUM}),
+            "/images?q=2024",
+            "/confirmed-images?person=Anita",
+            "/confirmed-images?tag=picnic",
+        )
+        for route in routes:
+            with self.subTest(route=route):
+                status, payload = self.request("GET", route)
+                self.assertEqual(status, 200)
+                item = next(item for item in payload["items"] if item["path"] == PHOTO_PATH)
+                self.assertEqual(item["identity"], first["identity"])
+
+        self.scanner.scan(incremental=True)
+        status, unchanged = self.request("GET", routes[0])
+        self.assertEqual(unchanged["items"][0]["identity"], first["identity"])
+        (self.archive / PHOTO_PATH).write_bytes(b"A replacement synthetic photo with a new size")
+        self.scanner.scan(incremental=True)
+        current = self.tags(PHOTO_PATH)[0]
+        self.assertNotEqual(current["identity"], first["identity"])
+        self.archive.rename(self.archive.with_name("disconnected"))
+        status, offline = self.request("GET", routes[0])
+        self.assertEqual(status, 200)
+        self.assertEqual(offline["items"][0]["identity"], current["identity"])
+        self.scanner.source.read_bytes.assert_not_called()
+
     def test_missing_source_metadata_preserves_last_known_photo_identity(self):
         photo = self.tags(PHOTO_PATH)[0]
         self.assertEqual(self.edit([photo], add_people=[self.ana.id])[0], 200)

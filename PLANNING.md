@@ -7,9 +7,26 @@ This file tracks delivery status, upcoming MVPs, and the implementation directio
 ## Status Legend
 
 - `Done`: shipped and reflected in the current codebase
+- `In Progress`: implemented in part, with explicit remaining delivery or validation work
 - `Ready Next`: next implementation target, scoped enough to build now
 - `Planned Later`: intentionally deferred
 - `Open Risks`: unresolved cross-cutting concerns
+
+## Latest Requests and Delivery Order
+
+Reviewed against `main` and the family product requests on 2026-11-22. Keep the existing milestones below as the delivery ledger; this table makes their priority and remaining work explicit.
+
+| Request | Current delivery | Next concrete outcome |
+| --- | --- | --- |
+| Phone test: absent previews, saving/sharing, missing `2003(2)` and date formats | Reported in the 2026-11-22 roadmap update; not yet verified as fixed | Follow the four phone-test tasks below in their stated order, across Android and browser |
+| A friendly, visual app with coherent icons and light/dark appearance | Android library, album review, classification, search and sign-in have reviewed synthetic captures; the browser has appearance settings | Resolve the phone preview/export reports first, using MVP 20A's design criteria; then redesign the family web review and search surfaces |
+| Classify as well as browse; optional swipe review | Album suggestion cards and per-photo review with explicit buttons and undo exist | Compare batch selection and photo review on the same synthetic album; test cancelled gestures and correction before extending the pattern |
+| Strong authentication, free by default, little maintenance | Local one-time invitations, revocable limited sessions, HTTPS checks and Android Keystore persistence exist | MVP 20B reviews the complete trust boundary and recovery flow; an optional passkey prototype follows only with a stable trusted HTTPS origin |
+| A useful APK, not just screenshots | CI builds and verifies an installable debug APK and checksum; launcher recreation and fresh launch are tested | Finish the combined person/tag interaction test; keep physical-phone, private-LAN and device-key checks as an explicit release gate |
+| Short English README and portable bilingual documentation | Static Astro/Starlight documentation and English/Spanish guides are shipped | Update both languages and synthetic examples in the same feature change; keep installation, Android and browser guides easy to reach |
+| People, index tools, chat and later local models | MVP 19C and the rules-first portion of 19D are partly implemented | Continue their scoped work after the family UX/auth increments; measure optional model trials before adopting any NAS workload |
+
+**Execution order:** the phone-test follow-up below takes precedence: previews, save/share, missing branch/date parsing, then the physical-phone checklist. Preserve the in-flight MVP 19B test work, but do not let screenshot-only work displace reported phone failures. Apply MVP 20A's design and MVP 20B's security criteria while delivering those fixes; broader web redesign and passkeys follow afterward. Native owner tools, local model comparison, face processing and remote MCP remain later work. A physical-device release gate does not block runnable synthetic service/browser improvements.
 
 ## Current State
 
@@ -40,7 +57,8 @@ Chromantis currently provides:
 
 Not implemented yet:
 
-- embeddings, EXIF extraction, or model-based reranking
+- production semantic embeddings or model-based reranking (MVP 14 remains an optional experiment)
+- automatic face identification (manual person links are implemented)
 
 Current architecture map:
 
@@ -509,7 +527,7 @@ Current architecture map:
 
 The trial confirmed that the authorization boundary can stay in the application layer without a transport or SDK. The tool core returns no archive paths or original URLs and checks expiry or revocation on every call. Current official documentation says ChatGPT needs public HTTPS or a Secure MCP Tunnel rather than a direct local process, so no endpoint or tunnel was enabled.
 
-## Ready Next
+## Active MVPs
 
 ### Phone-test follow-up — pick in this order
 
@@ -521,6 +539,8 @@ These are the next automation picks from the physical Android test against the N
 - Show one cover per visible album in **Carpetas**: choose a random eligible indexed photo, keep the choice stable while browsing and on reload, and choose a replacement if it disappears or cannot be previewed. Inside the album, load low-resolution thumbnails for visible photos as the user scrolls. Request full-size originals only on explicit open, save or share.
 - Reuse the existing NAS preview endpoint and disk budget. Add bounded, private thumbnail reuse on Android and in the browser. Invalidate previews when the source changes; scope reuse to the server and signed-in session. Clear or isolate previews at sign-out or origin change, and make sure revoked access cannot be bypassed by reopening cached private images. Never put family previews in a shared cache.
 - **Acceptance:** On the phone and browser, album cards show covers and opening an album shows low-resolution thumbnails without downloading originals. Revisiting the same gallery avoids unnecessary thumbnail requests. A replaced photo refreshes its preview, and missing previews show a placeholder without blocking navigation.
+
+**First increment:** Inspection found that the quick NAS setup installs only the Telegram extra and leaves `THUMBNAIL_CACHE_MIB=0` unless configured separately. This is a reproducible configuration pitfall, not a confirmed diagnosis of the running NAS. The bilingual configuration guide now explains how to check the authenticated thumbnail flag, enable the existing renderer deliberately and distinguish individual-image failures. Photo listings expose the existing SQLite revision identity without source reads. Android uses that identity for its existing 4 MiB cache and clears it after sign-out or an unauthorized response; old-server listings without identities bypass reuse. The browser adds a 4 MiB/64-entry memory-only thumbnail cache, clears it on sign-in/out or unauthorized responses, and discards late responses from an ended session. No schema or dependency is added. Stable randomized album covers, replacement after an unpreviewable cover, and the actual NAS/phone acceptance checks remain pending.
 
 #### 2. Save and share one photo or a selection (Android and browser)
 
@@ -543,7 +563,7 @@ These are the next automation picks from the physical Android test against the N
 
 ### MVP 19A — Android Family App (APK)
 
-**Status:** `Ready Next`
+**Status:** `In Progress` — emulator flow and test APK delivered; physical-phone release checks pending
 
 **Case:** A family member can open Chromantis from an Android home-screen icon, sign in with a one-time family code and find or review an album over the home Wi-Fi without a Telegram account.
 
@@ -581,28 +601,9 @@ These are the next automation picks from the physical Android test against the N
 
 **Explorer shortcuts:** The folder trail links to the year list, the current year and, from an original photo, its gallery. **Continuar en…** on the home tab reopens the last gallery browsed through folders at its last loaded page. The shortcut is stored locally and cleared when the family session ends. Verify on a phone that the shortcut survives a cold start and that the year and album steps return to their existing positions. The family browser also lists indexed years with album and photo counts, opens paged albums for a year, and returns from an album editor to that page without archive reads.
 
-## Planned Later
-
-### Owner-only missing-album diagnostics
-
-**Case:** When an album is absent after a scan, the owner can tell whether it was skipped, not indexed, or indexed but missing from a browse page.
-
-**Scope:** Start with a read-only CLI check for one owner-supplied, archive-relative path. Reuse the source adapters, parser and index queries to distinguish an unavailable source, depth or parsing skips, and indexed albums. Report inconclusive results explicitly when the available scan data cannot explain a skip. Do not fetch photos, trigger a scan, or expose paths through family-facing endpoints.
-
-**Validation:** Synthetic local and FTP fixtures distinguish a skipped branch from an indexed album on a later page and an unreachable source. The command leaves the archive and curation unchanged.
-
-### Optional family passkey trial
-
-**Case:** A family member can return on a trusted device without asking the owner to send another invitation code.
-
-**Scope:** Use the existing invitation to enroll a passkey. Verify it against a single configured private HTTPS origin using a maintained WebAuthn implementation and keep the existing revocable permissions in SQLite. Use a new owner-issued invitation for recovery. Defer Google sign-in to deployments that want an external identity provider and meet its web redirect requirements.
-
-**Dependencies:** A stable local DNS name, trusted HTTPS and a compatible browser or platform authenticator. Review the [WebAuthn origin and relying-party requirements](https://www.w3.org/TR/webauthn/) and [Google's web redirect rules](https://developers.google.com/identity/protocols/oauth2/web-server#uri-validation) before choosing an implementation.
-
-**Validation:** On two household devices with a synthetic archive, enroll and sign in while offline from the internet. Reject a response from the wrong origin, a reused challenge and a revoked credential. Measure the steps to recover after losing a device.
-
-
 ### MVP 19B — Manual Photo Tagging
+
+**Status:** `In Progress` — service and both clients delivered; combined native interaction and phone comparison pending
 
 **Case:** A family member who knows which photos show Ana can record that for those photos and find them later.
 
@@ -620,6 +621,8 @@ These are the next automation picks from the physical Android test against the N
 
 ### MVP 19C — Index and People Tools
 
+**Status:** `In Progress` — browser scan trigger and native read-only index status delivered; native people tools and owner access remain
+
 **Case:** The owner has added folders to the NAS and wants to update the catalogue and check the result from the app.
 
 **Scope:** Add **Herramientas → Índice** for last run, status and **Buscar carpetas nuevas**, a background incremental scan. Reserve the trigger for an owner credential, share a single scan lock with scheduled scans, and reuse the existing scanner and run history. Give the owner a place to inspect database readiness and reach existing backup and verification tools. Keep initial NAS setup and destructive recovery in the existing CLI. Group the directory, aliases and corrections under **Personas**, with the current role checks.
@@ -631,6 +634,8 @@ These are the next automation picks from the physical Android test against the N
 **Progress:** The existing browser admin panel can request a background incremental scan and refresh its run history. The API checks the owner role and accepts no scan options. Scheduled and manual runs share the same lock beside SQLite. Synthetic HTTP tests cover role denial, contention with a separate process, successful discovery and failure with the previous index intact. Android Settings now opens a read-only index status screen using the existing family-authorized archive-status endpoint. It shows the current scan state and last successful date, refreshes only on demand, and reuses session-expiry and connection recovery. No archive access or background polling is needed. A synthetic HTTP test covers a disconnected archive, a failed scan retaining the previous success date, and session revocation; Android parsing tests cover empty history and unknown states. The debug APK builds, all 20 Android unit tests pass, and lint reports no errors (three existing warnings). Native scan triggers with a separate owner credential and the physical phone interaction test remain pending.
 
 ### MVP 19D — Chat Search and Local Model Comparison
+
+**Status:** `In Progress` — rules-first chat delivered; bounded model comparison deferred until the family flow is validated
 
 **Case:** A family member can ask «fotos de la playa con Ana antes de 2020» from the **Buscar** tab, inspect the filters and open the result in its folder.
 
@@ -644,7 +649,47 @@ These are the next automation picks from the physical Android test against the N
 
 **Conversational search design:** Android **Buscar** now opens as a calm prompt surface with grounded examples instead of an empty utility form. A submitted request remains visible as a message, the same composer accepts one refinement at a time, and removable deterministic filters stay beside the visual album results. **Fotos por persona** remains a separate exact photo-level action, so the interface does not blur confirmed links with album search or imply that a model ran. The result area reuses the existing album cards, thumbnail client and navigation. Verified in [branch CI](https://github.com/42Azul/chromantis/actions/runs/44521306283): formatting, APK compilation and lint pass; all 30 JVM and six Android 16/API 36 instrumented tests pass with no failures, errors or skipped tests; seven synthetic PNG exports validate the walkthrough. The 320×640 dark search capture was visually reviewed before publication. The next product validation is the documented launcher lifecycle and full flow on a physical phone; only after comparing this rules-first UX should a bounded local model trial be considered.
 
+## Ready Next
+
+### MVP 20A — Family Web Design and Accessibility
+
+**Status:** `Ready Next`
+
+**Case:** Fernando's father can identify the next pending album, choose Ana, save and find the album again from a phone or home computer, with a clear and welcoming interface.
+
+**Scope:** Bring the existing family browser review and search to the visual hierarchy recorded in [DESIGN.md](DESIGN.md): readable album title/date, quiet grouping, coherent labelled icons, clear selected people and one visible primary action. Reuse current routes, drafts, permissions and thumbnails. Keep preview loading explicit in album review. Improve one complete task before adding more screens. Preserve light, dark and system appearance and make the family navigation usable without knowing technical terms.
+
+**Dependencies:** Existing browser, album/person APIs and synthetic UI fixture only. Use the reviewed design references; no new frontend framework, paid design service, remote fonts or runtime CDN.
+
+**Validation:** At 360 px and desktop widths, complete open album → select Ana or her alias → save → find by Ana. Inspect synthetic light/dark captures, keyboard focus, touch targets, large text, empty/error states and the visible save action. Confirm that ordinary navigation and name-only review require no originals or external requests. Record the remaining physical-phone usability check separately.
+
+### MVP 20B — Family Authentication Review and Passkey Trial
+
+**Status:** `Ready Next` for the existing-auth review; passkey implementation is gated on origin and recovery validation
+
+**Case:** Family members return easily with limited access, and the owner can revoke a lost device without running an external identity service.
+
+**Scope:** First review the current invitation → session → protected request → revocation path across the browser and Android. Document what protects against code guessing, replay, cross-site writes, session theft and privilege escalation; add regression coverage for any demonstrated gap. Keep HTTPS, bounded invitations, hashed server secrets and limited curation as the free default. Do not describe any option as absolutely secure. Keep owner credentials outside the family app until its separate access design and device checks are complete.
+
+**Optional next increment:** Use an existing invitation to enroll a passkey through a maintained WebAuthn library, with required user verification, one configured RP ID/origin, short-lived single-use challenges, per-credential revocation and recovery by a new owner invitation. Store public credentials and permissions in the existing SQLite database. Do not implement signature or attestation verification by hand. Compare device-local and synced credential recovery; do not promise offline sign-in on every authenticator.
+
+**Dependencies and decision:** A stable DNS name, trusted HTTPS and compatible authenticators are required for the passkey trial. W3C specifies secure contexts and explicit origin/RP binding. Google's web OAuth redirect rules reject raw IP hosts except loopback, so a typical LAN-IP NAS is not a drop-in Google web login. Our current choice is to validate the local approach first; Google/OIDC remains an opt-in alternative only if an identified household need justifies provider configuration and internet dependence. Official [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and [Google web redirect requirements](https://developers.google.com/identity/protocols/oauth2/web-server#uri-validation) were checked on 2026-11-22. No provider is enabled by this roadmap.
+
+**Validation:** Existing auth tests reject expired/reused invitations, revoked sessions, cross-origin writes and curator administration; verify concurrent redemption and recovery. For a later synthetic passkey prototype, reject wrong origin/RP, wrong challenge, missing user verification, replay and revoked credentials. Try two household device/browser combinations with internet disconnected after enrollment, report any authenticator dependency, and measure recovery steps and NAS request/idle cost. The web remains usable with passkeys disabled.
+
+## Planned Later
+
+### Owner-only missing-album diagnostics
+
+**Case:** When an album is absent after a scan, the owner can tell whether it was skipped, not indexed, or indexed but missing from a browse page.
+
+**Scope:** Start with a read-only CLI check for one owner-supplied, archive-relative path. Reuse the source adapters, parser and index queries to distinguish an unavailable source, depth or parsing skips, and indexed albums. Report inconclusive results explicitly when the available scan data cannot explain a skip. Do not fetch photos, trigger a scan, or expose paths through family-facing endpoints.
+
+**Validation:** Synthetic local and FTP fixtures distinguish a skipped branch from an indexed album on a later page and an unreachable source. The command leaves the archive and curation unchanged.
+
 ### MVP 19E — Face Review Trial
+
+**Status:** `Planned Later`
 
 **Case:** The owner can prepare a small set of photos for review in **Personas → Caras** and confirm or correct suggested face-to-person links.
 

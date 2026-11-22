@@ -36,6 +36,7 @@ class SearchResult:
     event_date: str | None = None
     place: str | None = None
     event_date_source: str | None = None
+    identity: str | None = None
 
 
 class SearchService:
@@ -196,7 +197,7 @@ class SearchService:
             if person is None:
                 return []
             rows = connection.execute(
-                """SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date
+                """SELECT i.file_path, i.filename, i.photo_identity, f.folder_path, f.title, f.year, f.event_date
                    FROM photo_people pp
                    JOIN images i ON i.id = pp.image_id
                    JOIN album_metadata f ON f.id = i.folder_id
@@ -216,7 +217,7 @@ class SearchService:
     ) -> list[SearchResult]:
         with self.repository.session() as connection:
             rows = connection.execute(
-                """SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date
+                """SELECT i.file_path, i.filename, i.photo_identity, f.folder_path, f.title, f.year, f.event_date
                    FROM photo_manual_tags pt
                    JOIN images i ON i.id = pt.image_id
                    JOIN album_metadata f ON f.id = i.folder_id
@@ -262,7 +263,7 @@ class SearchService:
         with self.repository.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date
+                SELECT i.file_path, i.filename, i.photo_identity, f.folder_path, f.title, f.year, f.event_date
                 FROM album_metadata f JOIN images i ON i.folder_id = f.id
                 WHERE f.folder_path = ?
                 ORDER BY i.file_path ASC
@@ -408,6 +409,7 @@ class SearchService:
             year=row["year"],
             folder_path=row["folder_path"],
             event_date=row["event_date"],
+            identity=row["photo_identity"],
         )
 
     @staticmethod
@@ -426,7 +428,7 @@ class SearchService:
             , (SELECT GROUP_CONCAT(pt.tag) FROM photo_manual_tags pt WHERE pt.image_id = i.id) AS photo_tags
         """ if include_photo_tags else ""
         return f"""
-            SELECT i.file_path, i.filename, f.folder_path, f.title, f.year, f.event_date,
+            SELECT i.file_path, i.filename, i.photo_identity, f.folder_path, f.title, f.year, f.event_date,
                    f.indexed_title, f.indexed_year, f.aliases_json,
                    {_FOLDER_TAGS_SQL} AS folder_tags,
                    GROUP_CONCAT(DISTINCT p.id) AS person_ids,

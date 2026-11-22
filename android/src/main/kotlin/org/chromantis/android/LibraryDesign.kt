@@ -162,13 +162,13 @@ internal fun AlbumFolderCard(
     onExpired: () -> Unit,
     onOpen: () -> Unit,
 ) {
-    var cover by remember(entry.path) { mutableStateOf<Bitmap?>(null) }
+    var cover by remember(api, entry.path) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(api, entry.path) {
         if (api != null) {
             attempt {
                     val photos = api.photos(entry.path, 0)
                     if (photos.hasThumbnails)
-                        photos.entries.firstOrNull()?.let { api.thumbnail(it.path) }
+                        photos.entries.firstOrNull()?.let { api.thumbnail(it.path, it.identity) }
                     else null
                 }
                 .onSuccess { cover = it }

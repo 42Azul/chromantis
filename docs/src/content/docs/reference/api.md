@@ -20,6 +20,8 @@ Use `Authorization: Bearer <token>` or `X-API-Token: <token>`. If either token s
 
 Family sessions can use `/api/v1/years`, `/api/v1/folders` and `/api/v1/album-images` to browse the index. The album-images route takes the exact, URL-encoded path returned by folder search and returns `{"items": [...], "next_offset": ...}` in file-path order. The page size is capped at 50, and `next_offset` is null on the last page. These requests read SQLite metadata only. A client can request thumbnails separately when needed.
 
+Image results also include an opaque `identity` for the indexed revision. Use `(path, identity)` for private, session-scoped thumbnail reuse; never treat it as authorization. A replaced photo receives a new identity after indexing. If an older server omits the field, fetch the preview again. See [preview configuration and cache limits](../operate/configuration.md#missing-photo-previews).
+
 To configure an owner token, set `TELEGRAM_ADMIN_CHAT_ALLOWLIST` to the owner chat ID and put a separate token for that ID in `API_CHAT_TOKENS`. Generate one token per chat with `python -c 'import secrets; print(secrets.token_urlsafe(32))'` and restart the API after changing the configuration.
 
 ```dotenv

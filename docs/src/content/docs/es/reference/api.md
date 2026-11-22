@@ -20,6 +20,8 @@ Usa `Authorization: Bearer <token>` o `X-API-Token: <token>`. Si hay un token co
 
 Las sesiones familiares pueden explorar el índice mediante `/api/v1/years`, `/api/v1/folders` y `/api/v1/album-images`. Esta última ruta recibe la ruta exacta del álbum, codificada para URL, y devuelve `{"items": [...], "next_offset": ...}` ordenado por ruta de archivo. El máximo es de 50 elementos por página. `next_offset` vale `null` en la última. La consulta solo lee SQLite. El cliente puede solicitar las miniaturas por separado.
 
+Los resultados de fotos también incluyen una `identity` opaca de la versión indexada. Usa `(path, identity)` para reutilizar miniaturas privadas dentro de la sesión; nunca equivale a una autorización. Una foto sustituida recibe otra identidad al indexar. Si un servidor antiguo no envía el campo, vuelve a solicitar la miniatura. Consulta [la configuración y los límites de caché](../operate/configuration.md#no-aparecen-las-miniaturas).
+
 Pon el ID del propietario en `TELEGRAM_ADMIN_CHAT_ALLOWLIST` y añade su token individual a `API_CHAT_TOKENS`. Genera un token por chat con `python -c 'import secrets; print(secrets.token_urlsafe(32))'` y reinicia la API tras cambiar la configuración.
 
 ```dotenv
