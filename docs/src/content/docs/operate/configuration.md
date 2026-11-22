@@ -23,3 +23,13 @@ Start with [the example environment file](https://github.com/42Azul/chromantis/b
 | `LOG_LEVEL` | Defaults to `INFO`. Use `DEBUG` for more scan and query diagnostics. |
 
 See [private access](../start/private-access.md) for role setup and family sessions, and [local experiments](../reference/experiments.md) for model adapters.
+
+## Missing photo previews
+
+The quick NAS installer installs the Telegram extra. It does not install the optional image renderer or turn on previews. First check the running server's authenticated `GET /api/v1/archive-status`: `item.thumbnails` must be `true`. A folder placeholder alone does not establish a client fault.
+
+To enable previews deliberately on the NAS, install `'.[thumbnails]'` in the same Python environment that runs the API, set `THUMBNAIL_CACHE_MIB=64` in its private `.env`, and restart the API. Keep `SQLITE_PATH` outside the read-only archive: the preview cache is created beside SQLite. Environment variables override `.env`. If the status is still false, check the API log for a missing renderer or an unsafe cache location.
+
+With an authorized local client, request `/api/v1/thumbnail?path=<indexed-photo-path>` for one small indexed JPEG. `404` can mean disabled previews, an unindexed path or a missing source file; `422` means an unsupported or oversized image or an index/source mismatch; `502` means the source could not be reached. Test a second image if only one fails. Keep credentials, paths and response images out of shared reports. This check reads only the explicitly selected photo; it does not start a scan.
+
+Android and browser gallery previews reuse a bounded 4 MiB memory cache for the current client session. Image listings supply an opaque `identity`; reindexing a replaced photo changes it and prevents reuse of the earlier preview. Old servers that omit it are still supported, with a fresh preview request instead of caching. Signing out, signing in again or receiving an unauthorized response clears the cache. The browser also caps it at 64 entries, and stores no preview in persistent browser storage. The protected listing request still runs when reopening a gallery; a revoked session cannot use cached thumbnails to reopen that gallery. Revocation cannot retract pixels already displayed or explicitly downloaded.

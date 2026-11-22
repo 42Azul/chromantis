@@ -756,7 +756,7 @@ internal fun Thumbnail(
     onExpired: () -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(16.dp)),
     contentScale: ContentScale = ContentScale.Crop,
-    identity: String? = null,
+    identity: String? = entry.identity,
     onReady: () -> Unit = {},
 ) {
     var result by

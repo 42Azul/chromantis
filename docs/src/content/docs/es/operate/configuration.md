@@ -23,3 +23,13 @@ Empieza con el [archivo de configuración de ejemplo](https://github.com/42Azul/
 | `LOG_LEVEL` | Por defecto, `INFO`. Usa `DEBUG` para más detalles sobre escaneos y consultas. |
 
 Consulta [Acceso privado](../start/private-access.md) para configurar permisos y sesiones familiares, y [Pruebas de búsqueda local](../reference/experiments.md) para configurar modelos.
+
+## No aparecen las miniaturas
+
+El instalador rápido del NAS instala el extra de Telegram. No instala el generador opcional de imágenes ni activa las miniaturas. Comprueba primero `GET /api/v1/archive-status` con un cliente autorizado: `item.thumbnails` debe ser `true`. Ver una carpeta sin portada no demuestra por sí solo un fallo del cliente.
+
+Para activarlas de forma explícita en el NAS, instala `'.[thumbnails]'` en el mismo entorno Python que ejecuta la API, pon `THUMBNAIL_CACHE_MIB=64` en su `.env` privado y reinicia la API. Mantén `SQLITE_PATH` fuera del archivo de solo lectura: la caché se crea junto a SQLite. Las variables de entorno tienen prioridad sobre `.env`. Si el estado sigue siendo falso, revisa si el registro de la API indica que falta el generador o que la ubicación de la caché no es válida.
+
+Con un cliente local autorizado, pide `/api/v1/thumbnail?path=<ruta-indexada>` para un JPEG pequeño ya indexado. `404` puede indicar miniaturas desactivadas, una ruta sin indexar o un archivo que ya no existe; `422`, una imagen no compatible, demasiado grande o un índice que no corresponde a la fuente; `502`, que no se ha podido acceder al archivo. Prueba una segunda foto si solo falla una. No incluyas credenciales, rutas ni imágenes en informes compartidos. La comprobación solo lee la foto elegida; no inicia una indexación.
+
+Android y la galería web reutilizan miniaturas en una caché de memoria de hasta 4 MiB por sesión del cliente. Las listas incluyen una `identity` opaca; al reindexar una foto sustituida cambia y se descarta la miniatura anterior. Los servidores antiguos que no la envían siguen funcionando, con una petición nueva en lugar de reutilizar la imagen. Cerrar sesión, volver a entrar o recibir una respuesta no autorizada vacía la caché. En el navegador también se limita a 64 entradas y no se guarda en almacenamiento persistente. Al volver a abrir una galería se consulta su lista protegida; una sesión revocada no puede reabrirla mediante miniaturas guardadas. La revocación no puede retirar píxeles ya mostrados ni fotos descargadas explícitamente.

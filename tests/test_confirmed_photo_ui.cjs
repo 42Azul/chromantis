@@ -215,7 +215,52 @@ async function verifyManualPhotoTags() {
   assert.equal(dialog.open, false);
 }
 
-verifyReturnToPhotoSearch().then(verifySearchSelection).then(verifyManualPhotoTags).then(() => {
+async function verifyPrivateThumbnailReuse() {
+  const Cache = new Function(`${between("class PrivateThumbnailCache", "const thumbnailCache")} return PrivateThumbnailCache;`)();
+  const requests = [];
+  let complete;
+  const fetchPreview = async path => { requests.push(path); return new Blob(["1234"]); };
+  const cache = new Cache(fetchPreview, 8, 2);
+  const signal = new AbortController().signal;
+  const photo = { path: "2024/fixture/A.jpg", identity: "first" };
+  const first = await cache.load(photo, signal);
+  assert.equal(await cache.load(photo, signal), first);
+  assert.equal(requests.length, 1);
+  await cache.load({ ...photo, identity: "replacement" }, signal);
+  assert.equal(requests.length, 2);
+  await cache.load({ path: "other.jpg", identity: "other" }, signal);
+  assert.equal(cache.bytes, 8);
+  assert.equal(cache.entries.size, 2);
+  await cache.load(photo, signal); // The oldest version was evicted.
+  assert.equal(requests.length, 4);
+  await cache.load({ path: photo.path }, signal);
+  await cache.load({ path: photo.path }, signal);
+  assert.equal(requests.length, 6); // Old-server metadata never creates an unsafe cache key.
+  cache.clear();
+  assert.equal(cache.bytes, 0);
+  assert.equal(cache.entries.size, 0);
+  await cache.load(photo, signal);
+  assert.equal(requests.length, 7);
+  const aborted = new AbortController();
+  aborted.abort();
+  await assert.rejects(cache.load(photo, aborted.signal), { name: "AbortError" });
+  assert.equal(requests.length, 7);
+
+  const pending = new Cache(() => new Promise(resolve => { complete = resolve; }));
+  const oldSession = pending.load(photo, signal);
+  pending.clear();
+  complete(new Blob(["private preview"]));
+  await assert.rejects(oldSession, { name: "AbortError" });
+  assert.equal(pending.entries.size, 0);
+  const failed = new Cache(async () => { throw Object.assign(new Error("revoked"), { status: 401 }); });
+  await assert.rejects(failed.load(photo, signal), { status: 401 });
+  assert.equal(failed.entries.size, 0);
+  const oversized = new Cache(fetchPreview, 1);
+  await oversized.load(photo, signal);
+  assert.equal(oversized.bytes, 0);
+}
+
+verifyReturnToPhotoSearch().then(verifySearchSelection).then(verifyManualPhotoTags).then(verifyPrivateThumbnailReuse).then(() => {
   console.log("Confirmed photo UI regression checks passed.");
 }).catch(error => {
   console.error(error);

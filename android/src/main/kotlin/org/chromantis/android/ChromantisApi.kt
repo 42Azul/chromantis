@@ -15,7 +15,12 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class Entry(val title: String, val path: String, val albumCount: Int? = null)
+internal data class Entry(
+    val title: String,
+    val path: String,
+    val albumCount: Int? = null,
+    val identity: String? = null,
+)
 
 internal data class EntryPage(
     val entries: List<Entry>,
@@ -80,8 +85,13 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             }
         }
 
-    suspend fun signOut() =
-        withContext(Dispatchers.IO) { request("DELETE", "/family/session") { Unit } }
+    suspend fun signOut() {
+        try {
+            withContext(Dispatchers.IO) { request("DELETE", "/family/session") { Unit } }
+        } finally {
+            thumbnails.evictAll()
+        }
+    }
 
     suspend fun years() = EntryPage(json("/years").getJSONArray("items").mapObjects(::yearEntry))
 
@@ -214,7 +224,8 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
     suspend fun thumbnail(path: String, identity: String? = null): Bitmap =
         thumbnailRequests.withPermit {
             val key = path to identity
-            thumbnails.get(key) ?: photo(path, preview = true).also { thumbnails.put(key, it) }
+            if (identity == null) photo(path, preview = true)
+            else thumbnails.get(key) ?: photo(path, preview = true).also { thumbnails.put(key, it) }
         }
 
     suspend fun photo(path: String, preview: Boolean = false): Bitmap =
@@ -269,6 +280,7 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
                 connection.outputStream.use { output -> output.write(bytes) }
             }
             val status = connection.responseCode
+            if (status == 401) thumbnails.evictAll()
             if (status !in 200..299) throw HttpFailure(status)
             return read(connection)
         } finally {
@@ -356,9 +368,9 @@ internal fun albumDate(item: JSONObject): String? =
     item.optionalString("event_date")
         ?: if (item.isNull("year")) null else item.getInt("year").toString()
 
-private fun photoEntry(item: JSONObject): Entry {
+internal fun photoEntry(item: JSONObject): Entry {
     val path = item.getString("path")
-    return Entry(path.substringAfterLast('/'), path)
+    return Entry(path.substringAfterLast('/'), path, identity = item.optionalString("identity"))
 }
 
 internal fun taggedPhoto(item: JSONObject) =
