@@ -555,6 +555,8 @@ These are the next automation picks from the physical Android test against the N
 
 **Verification:** All 214 service tests (including the newly shipped local MCP transport), three Node UI suites and the bilingual documentation build pass on the updated main base; 737 internal links are checked across 25 pages. The cache regressions cover replacement identity, unchanged and disconnected indexing, memory/entry limits, old servers, logout, late responses and unauthorized fetches. [Android branch CI](https://github.com/42Azul/chromantis/actions/runs/45057774246) passes formatting, APK compilation, lint, 31 JVM tests and eight Android 16/API 36 instrumented tests, with no failures, errors or skips. Its nine synthetic PNG exports include the visually inspected light gallery and dark library. The Android/cache implementation is unchanged by the subsequent merge of the independent MCP work. No NAS configuration or deployment was changed.
 
+**Cover API increment:** The private API now serves a JPEG cover using the existing thumbnail budget. It ranks up to 12 indexed entries by a stable path hash and tries up to three candidates. A missing or unpreviewable candidate can fall back to another, and a source outage stops the attempt. Client integration and phone validation remain pending.
+
 #### 2. Save and share one photo or a selection (Android and browser)
 
 - Add visible **Guardar/Descargar** and **Compartir** actions to the photo viewer and gallery selection toolbar. Keep selection for export distinct from tagging. Support a single photo, a multi-photo selection, and an explicit **Descargar álbum** action for saving everything, not just the currently loaded page.

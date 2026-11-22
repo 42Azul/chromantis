@@ -6,6 +6,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from ftplib import Error as FtpError
+from hashlib import sha256
 from hmac import compare_digest
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -121,6 +122,8 @@ def _dispatch(
                 return _read_image(params.get("path", [""])[0], app_service, image_fetcher)
             if path == "/api/v1/thumbnail":
                 return _read_thumbnail(params.get("path", [""])[0], app_service, thumbnails)
+            if path == "/api/v1/album-cover":
+                return _read_album_cover(params.get("path", [""])[0], app_service, thumbnails)
             if path == "/api/v1/image-dates":
                 image_path = _text({"path": params.get("path", [""])[0]}, "path")
                 dates = app_service.repository.image_dates(image_path)
@@ -625,6 +628,24 @@ def _read_thumbnail(
         return 404, {"error": "Image no longer available"}
     except (FtpError, OSError, EOFError):
         return 502, {"error": "Archive unavailable"}
+
+
+def _read_album_cover(
+    path: str, app: ApplicationService, thumbnails: ThumbnailCache | None,
+) -> tuple[int, dict[str, object] | PhotoPayload]:
+    if not path.strip() or len(path) > 4096:
+        return 400, {"error": "path must be a non-empty indexed album path of at most 4096 characters."}
+    if thumbnails is None:
+        return 404, {"error": "Thumbnails are disabled"}
+
+    candidates = app.images_in_folder(path, limit=12)
+    # A stable shuffle of a bounded window avoids scanning the whole album per card.
+    candidates.sort(key=lambda item: sha256(item.path.encode()).digest())
+    for candidate in candidates[:3]:
+        status, payload = _read_thumbnail(candidate.path, app, thumbnails)
+        if status in {200, 502}:
+            return status, payload
+    return 404, {"error": "No album cover available"}
 
 
 def _role(body: dict[str, object], roles: set[str], default: str | None = None) -> str:

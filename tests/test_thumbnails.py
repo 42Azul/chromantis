@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from http.client import HTTPConnection
+from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from threading import Thread
@@ -71,6 +72,27 @@ class ThumbnailTests(unittest.TestCase):
             return response.status, response.getheader("Content-Type"), response.read()
         finally:
             connection.close()
+
+    def test_album_cover_is_stable_and_skips_an_unavailable_candidate(self):
+        album = self.photo.parent
+        other = album / "second.jpg"
+        other.write_bytes(b"second synthetic original")
+        self.scanner.scan(incremental=True)
+        paths = sorted(
+            (IMAGE_PATH, other.relative_to(self.archive).as_posix()),
+            key=lambda path: sha256(path.encode()).digest(),
+        )
+        broken = self.archive / paths[0]
+        broken.unlink()
+        route = "/album-cover?" + urlencode({"path": album.relative_to(self.archive)})
+        grant, code = self.app.family_access.invite("synthetic")
+        cookie = "chromantis_family=" + self.app.family_access.redeem(code)
+        self.assertEqual(self.request(route, token=None)[0], 401)
+        expected = (self.archive / paths[1]).read_bytes()[:7]
+        for _ in range(2):
+            self.assertEqual(self.request(route, token=None, cookie=cookie), (200, "image/jpeg", expected))
+        self.app.family_access.revoke(grant)
+        self.assertEqual(self.request(route, token=None, cookie=cookie)[0], 401)
 
     def test_family_index_status_survives_source_disconnect_and_failed_scan(self):
         grant, code = self.app.family_access.invite("synthetic")
