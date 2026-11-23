@@ -35,7 +35,7 @@ Para buscar una etiqueta manual de foto, elige **Fotos por etiqueta** y escribe 
 
 Para clasificar varios resultados juntos, pulsa **Seleccionar fotos**, marca las que quieras o usa **Seleccionar esta página** y desmarca las dudosas. **Etiquetar fotos** abre el mismo editor por lotes que la galería. Puedes mezclar álbumes; cada resultado muestra su álbum y el editor incluye las rutas para distinguir fotos con el mismo nombre. Guarda una sola vez para añadir o quitar personas y etiquetas manuales. La búsqueda conserva la persona, la etiqueta y la página; si los cambios vacían esa página, vuelve a una anterior. Cancelar o cambiar de página borra la selección sin guardar. El flujo funciona desde el índice con las miniaturas desactivadas y el archivo desconectado.
 
-Pulsa **Ver álbum** en una foto de los resultados para abrir el álbum al que pertenece. Con **Volver a resultados** o **Guardar y volver a resultados** recuperas la misma búsqueda y la misma página.
+Abre un resultado de álbum o pulsa **Ver álbum** en un resultado de foto para consultar la galería. Si tienes permiso de curación, pulsa **Etiquetar álbum** para abrir el editor. Con **Volver a resultados** o **Guardar y volver a resultados** recuperas la misma búsqueda y la misma página.
 
 ## Etiqueta tu primer álbum
 
@@ -64,7 +64,7 @@ Con las miniaturas activadas, **Revisar foto a foto** recorre la página actual 
 
 El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Etiquetar foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).
 
-Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Ana ×** entre las personas seleccionadas y después **Guardar y volver a resultados**. La búsqueda se actualiza y el álbum desaparece si ha dejado de coincidir. Pulsa **Volver a resultados** para salir del editor sin guardar los cambios de personas y etiquetas. También puedes abrir álbumes ya revisados desde **Ya revisados**.
+Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Etiquetar álbum** y después **Ana ×** entre las personas seleccionadas y después **Guardar y volver a resultados**. La búsqueda se actualiza y el álbum desaparece si ha dejado de coincidir. Pulsa **Volver a resultados** para salir del editor sin guardar los cambios de personas y etiquetas. También puedes abrir álbumes ya revisados desde **Ya revisados**.
 
 ## Revisa sugerencias por lotes
 

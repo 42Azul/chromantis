@@ -708,7 +708,7 @@ Cover selection excludes photos whose indexed size exceeds the renderer limit be
 
 **Dependencies:** Existing browser, album/person APIs and synthetic UI fixture only. Use the reviewed design references; no new frontend framework, paid design service, remote fonts or runtime CDN.
 
-**Next browser increment:** Keep **Buscar álbumes** focused on finding and opening albums. Open search results in a browsing view and enter the existing editor through an explicit **Etiquetar álbum** action for curators. Preserve the search query, filters and page on return. Reuse gallery, thumbnail and export controls. Validate that opening a result makes no curation requests and that the same search is restored after an intentional edit.
+**Browser album viewer:** Keep **Buscar álbumes** focused on finding and opening albums. Open search results in a browsing view and enter the existing editor through an explicit **Etiquetar álbum** action for curators. Preserve the search query, filters and page on return. Reuse gallery, thumbnail and export controls. The synthetic HTTPS Chromium flow verifies that opening a result does not load the editor or photos, returning after an intentional edit restores the year results, and searching for Ana finds the edited album. The viewing gallery retains selection and album downloads.
 
 **Validation:** At 360 px and desktop widths, complete open album → select Ana or her alias → save → find by Ana. Inspect synthetic light/dark captures, keyboard focus, touch targets, large text, empty/error states and the visible save action. Confirm that ordinary navigation and name-only review require no originals or external requests. Record the remaining physical-phone usability check separately.
 

@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const views = ["archive", "people", "album-review", "searches", "collections", "admin"];
+const views = ["archive", "album-browse", "people", "album-review", "searches", "collections", "admin"];
 const familyPhotoSearchModes = {
   confirmed: {
     parameter: "person", title: "Fotos por persona", placeholder: "Nombre o alias",
@@ -256,7 +256,7 @@ function signOut() {
   closeAlbumReview();
   for (const view of views) $(view).hidden = true;
   for (const id of ["results", "browsing", "statistics", "people-list", "add-person", "saved-list",
-    "collection-list", "collection-detail", "admin-content"]) {
+    "collection-list", "collection-detail", "admin-content", "album-browse"]) {
     $(id).replaceChildren();
   }
   $("person-details").replaceChildren(element("h2", {}, "Person details"),
@@ -396,15 +396,21 @@ async function signIn(value, { quiet = false, familyLogin = false } = {}) {
 async function showView(view, albumOptions) {
   if (!principal || (view === "admin" && !isAdmin()) || (view === "album-review" && !canCurateAlbums)
       || (view === "collections" && !isOwner())) return;
+  if (!$("album-browse").hidden) {
+    resetAlbumPhotos();
+    if ($("lightbox").open) $("lightbox").close();
+    $("album-browse").replaceChildren();
+  }
   if (view !== "album-review" && !$("album-review").hidden) closeAlbumReview();
   for (const name of views) $(name).hidden = name !== view;
   for (const nav of document.querySelectorAll("[data-view]")) {
-    if (nav.dataset.view === view) nav.setAttribute("aria-current", "page");
+    if (nav.dataset.view === (view === "album-browse" ? "archive" : view)) nav.setAttribute("aria-current", "page");
     else nav.removeAttribute("aria-current");
   }
   try {
     if (view === "people") await loadPeople();
     if (view === "album-review") await loadAlbumReview(albumOptions);
+    if (view === "album-browse") renderAlbumBrowse(albumOptions);
     if (view === "searches") await loadSearches();
     if (view === "collections") await loadCollections();
     if (view === "admin") await loadAdmin();
@@ -547,19 +553,29 @@ async function refineArchive(text) {
   }
 }
 
-function openAlbumFromResults(path, refresh) {
-  return showView("album-review", {
-    path,
-    returnTo: {
-      label: "Volver a resultados",
-      saveLabel: "Guardar y volver a resultados",
-      async open() {
-        await showView("archive");
-        await refresh();
-        if (!$("archive").hidden) $("results-title").focus();
-      },
+function openAlbumFromResults(album, refresh) {
+  return showView("album-browse", { album, refresh });
+}
+
+function renderAlbumBrowse({ album, refresh }) {
+  const returnTo = {
+    label: "Volver a resultados",
+    saveLabel: "Guardar y volver a resultados",
+    async open() {
+      await showView("archive");
+      await refresh();
+      if (!$("archive").hidden) $("results-title").focus();
     },
-  });
+  };
+  const heading = element("h1", { tabindex: "-1" }, album.title);
+  const actions = element("div", { class: "actions" }, button(returnTo.label, returnTo.open));
+  if (canCurateAlbums) {
+    actions.append(button("Etiquetar álbum", () => showView("album-review", { path: album.path, returnTo })));
+  }
+  $("album-browse").replaceChildren(element("div", { class: "panel album-heading" },
+    heading, ...(album.event_date ? [element("p", {}, album.event_date)] : []),
+    element("p", {}, album.path), actions, albumPhotoGallery(album.path, false)));
+  heading.focus();
 }
 
 function loadAlbumCover(card, path, signal) {
@@ -590,7 +606,7 @@ function renderFolders(items, timeline, refresh) {
   $("browsing").replaceChildren();
   $("results").classList.toggle("timeline-results", timeline);
   $("results").replaceChildren(...items.map(item => {
-    const card = button("", () => family ? openAlbumFromResults(item.path, refresh)
+    const card = button("", () => family ? openAlbumFromResults(item, refresh)
       : archiveRequest("open_folder", { folder: item.path }), "folder-card");
     if (family && indexStatus?.thumbnails) loadAlbumCover(card, item.path, photoRequests.signal);
     card.append(element("strong", {}, item.title));
@@ -639,8 +655,9 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
       spanish: true, originalOnClick: true, showAlbum: true, editTags: canCurateAlbums, onTagsSaved: refresh,
     });
     if (canCurateAlbums) selection.append(card, item);
-    if (canCurateAlbums && item.folder_path) {
-      const album = button("Ver álbum", () => openAlbumFromResults(item.folder_path, () => {
+    if (item.folder_path) {
+      const parent = { path: item.folder_path, title: item.folder_path.split("/").at(-1), event_date: item.event_date };
+      const album = button("Ver álbum", () => openAlbumFromResults(parent, () => {
         $("query").value = term;
         $("photo-tag").value = tag || "";
         return refresh();
@@ -1387,7 +1404,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
   return { toggle, edit, all, download, downloadAlbum, cancelExport, exportStatus, append, setSelecting, update, beginPage };
 }
 
-function albumPhotoGallery(path) {
+function albumPhotoGallery(path, editable = canCurateAlbums) {
   const limit = 6;
   let offset = 0;
   let nextOffset = null;
@@ -1405,8 +1422,8 @@ function albumPhotoGallery(path) {
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, editSelection, controls.download, controls.downloadAlbum, controls.cancelExport);
-  const panel = element("div", { hidden: "" }, toolbar, controls.exportStatus, grid, navigation, reviewPhotos);
+  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, ...(editable ? [editSelection] : []), controls.download, controls.downloadAlbum, controls.cancelExport);
+  const panel = element("div", { hidden: "" }, toolbar, controls.exportStatus, grid, navigation, ...(editable ? [reviewPhotos] : []));
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);
     resetAlbumPhotos();
@@ -1434,16 +1451,14 @@ function albumPhotoGallery(path) {
       pageItems = items;
       grid.replaceChildren(...items.map(item => {
         const card = photoCard(item, albumPhotoRequests.signal, {
-          urls: albumPhotoURLs, spanish: true, originalOnClick: true, editTags: canCurateAlbums,
+          urls: albumPhotoURLs, spanish: true, originalOnClick: true, editTags: editable,
           onTagsSaved: () => message("album-review-status", "Se han guardado los cambios de la foto."),
         });
-        if (canCurateAlbums) {
-          controls.append(card, item);
-        }
+        controls.append(card, item);
         return card;
       }));
-      selectPhotos.hidden = !canCurateAlbums || !items.length;
-      reviewPhotos.hidden = !canCurateAlbums || !items.length || !indexStatus?.thumbnails;
+      selectPhotos.hidden = !items.length;
+      reviewPhotos.hidden = !items.length || !indexStatus?.thumbnails;
       status.textContent = items.length ? `Fotos ${offset + 1}–${offset + items.length}` : "No hay fotos en esta página.";
       panel.hidden = false;
       toggle.textContent = "Ocultar fotos";

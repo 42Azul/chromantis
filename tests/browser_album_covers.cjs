@@ -40,8 +40,13 @@ async function main() {
     }
     assert.equal(paths.filter(path => path === "/api/v1/album-cover").length, 1);
     assert.ok(!paths.includes("/api/v1/image"));
+    const searchRequests = paths.length;
     await page.locator("#results .folder-card").filter({ has: page.locator(".album-cover") }).click();
-    await page.getByRole("button", { name: "Ver fotos del álbum" }).click();
+    const browse = page.locator("#album-browse");
+    await browse.getByRole("heading", { level: 1 }).waitFor();
+    assert.ok(!paths.slice(searchRequests).some(path => path.startsWith("/api/v1/album-review")));
+    assert.ok(!paths.includes("/api/v1/album-images"));
+    await browse.getByRole("button", { name: "Ver fotos del álbum" }).click();
     await page.getByRole("button", { name: "Seleccionar fotos", exact: true }).click();
     await page.getByRole("checkbox", { name: /Photo_02.jpg/ }).check();
     await page.getByRole("checkbox", { name: /Photo_04.jpg/ }).check();
@@ -72,6 +77,20 @@ async function main() {
       const number = String(i + 1).padStart(2, "0");
       return `${number}-Photo_${number}.jpg`;
     }));
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await browse.getByRole("heading", { level: 1 }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-album-browse-${mode}.png` });
+    }
+    assert.equal(await browse.getByRole("button", { name: "Etiquetar fotos" }).count(), 0);
+    await browse.getByRole("button", { name: "Etiquetar álbum", exact: true }).click();
+    await page.getByPlaceholder("Escribe un nombre o alias").fill("Anita");
+    await page.getByRole("button", { name: "Ana · Anita" }).click();
+    await page.getByRole("button", { name: "Guardar y volver a resultados" }).click();
+    await page.getByText("Álbumes de 2024", { exact: true }).waitFor();
+    await page.locator("#query").fill("Ana");
+    await page.locator("#search-form button[type=submit]").click();
+    await page.locator("#results .folder-card").filter({ hasText: "2024/2024-07-01_playa" }).waitFor();
   } finally {
     await browser.close();
   }

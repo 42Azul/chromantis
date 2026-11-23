@@ -123,6 +123,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
      const showView = async (view, options) => {
        browser.view = view;
        if (view === "album-review") await loadAlbumReview(options);
+       if (view === "album-browse") renderAlbumBrowse(options);
      };
      ${source.slice(start, photoDialogStart)}
      ${source.slice(galleryStart, end)}
@@ -230,12 +231,14 @@ async function verifyBatchReview(source, failedReloads = 0) {
   renderFolders([{ ...album(4, 0), reason: "" }], false, () => { browser.refreshCount++; });
   const openResult = () => results.children[0].listeners.click();
   await openResult();
-  assert(browser.view === "album-review", "A family search result should open the individual album");
+  assert(browser.view === "album-browse", "A family search result should open the album viewer");
+  assert(photoOffsets.length === 0, "Opening the viewer must leave photos unloaded");
   await action(content, "Volver a resultados");
   assert(browser.view === "archive" && browser.refreshCount === 1 && detailPosts.length === 1,
     "Returning to the same search should refresh its results without saving a draft");
 
   await openResult();
+  await action(content, "Etiquetar álbum");
   const resultEditor = content.children.at(-1);
   assert(resultEditor.querySelectorAll().some(control => control.children[0] === "Guardar y volver a resultados"),
     "The search result editor should offer to save and return");

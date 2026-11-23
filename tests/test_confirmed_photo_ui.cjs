@@ -49,7 +49,7 @@ const render = new Function("results", "browsing", "opened", "searches", "edits"
 const item = { path: "2024/fixture/Photo-25.jpg", folder_path: "2024/fixture" };
 render({ items: [item], next_offset: null }, "confirmed", "Anita", 24, 24);
 assert.equal(results.cards.length, 1);
-assert.equal(results.cards[0].children.length, 2);
+assert.equal(results.cards[0].children.length, 3);
 assert.equal(results.cards[0].children[1].children.at(-1).children[0], item.folder_path);
 assert.deepEqual(opened, []);
 const [frame] = results.cards[0].children;
@@ -76,8 +76,8 @@ edits[0].saved();
 assert.deepEqual(searches.at(-1), { action: "confirmed", options: { term: "Anita", offset: 24 } });
 assert.equal(album.label, "Ver álbum");
 album.click();
-assert.equal(views[0].view, "album-review");
-assert.equal(views[0].options.path, item.folder_path);
+assert.equal(views[0].view, "album-browse");
+assert.equal(views[0].options.album.path, item.folder_path);
 render({ items: [item], next_offset: 24 }, "tagged", "romería", 0, 24);
 browsing.buttons[0].click();
 assert.deepEqual(searches.at(-1), { action: "tagged", options: { term: "romería", offset: 24 } });
@@ -146,13 +146,9 @@ async function verifySearchSelection() {
 }
 
 async function verifyReturnToPhotoSearch() {
-  const { returnTo } = views[0].options;
-  assert.equal(returnTo.label, "Volver a resultados");
-  await returnTo.open();
-  assert.equal(views.at(-1).view, "archive");
+  await views[0].options.refresh();
   assert.equal(query.value, "Anita");
   assert.deepEqual(searches.at(-1), { action: "confirmed", options: { term: "Anita", offset: 24 } });
-  assert.equal(resultsTitle.focused, true);
 }
 
 async function verifyManualPhotoTags() {

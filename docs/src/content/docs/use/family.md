@@ -35,7 +35,7 @@ For a manual photo tag, choose **Fotos por etiqueta** and enter one exact tag su
 
 To classify several search results together, choose **Seleccionar fotos**, mark only the photos you want, or use **Seleccionar esta página** and uncheck doubtful photos. **Etiquetar fotos** opens the same batch editor as the gallery. The batch can span albums; each result shows its album path and the editor includes paths to distinguish repeated filenames. Save once to add or remove people and manual tags. The search keeps its person, tag and page, returning to an earlier page if edits empty the current one. Canceling or changing pages clears the selection without saving. This flow also works from the index with previews disabled and the archive disconnected.
 
-Choose **Ver álbum** on a photo result to open its album. **Volver a resultados** and **Guardar y volver a resultados** restore the same search and page.
+Open an album result, or choose **Ver álbum** on a photo result, to browse its gallery. Choose **Etiquetar álbum** to open the editor if you have curation access. **Volver a resultados** and **Guardar y volver a resultados** restore the same search and page.
 
 ## Tag your first album
 
@@ -64,7 +64,7 @@ With thumbnails enabled, **Revisar foto a foto** reviews the current gallery pag
 
 An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Etiquetar foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).
 
-Use **Saltar** to leave a doubtful album pending. To correct a link in a family session, find the album by its title in **Buscar álbumes** and open the result. Tap **Ana ×** under the selected people, then choose **Guardar y volver a resultados**. The search refreshes and the album drops out if it no longer matches. Choose **Volver a resultados** to leave the editor without saving your people and tag changes. You can also open reviewed albums from **Ya revisados**.
+Use **Saltar** to leave a doubtful album pending. To correct a link in a family session, find the album by its title in **Buscar álbumes** and open the result. Choose **Etiquetar álbum**. Tap **Ana ×** under the selected people, then choose **Guardar y volver a resultados**. The search refreshes and the album drops out if it no longer matches. Choose **Volver a resultados** to leave the editor without saving your people and tag changes. You can also open reviewed albums from **Ya revisados**.
 
 ## Review suggestions in batches
 
