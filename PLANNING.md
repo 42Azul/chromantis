@@ -559,7 +559,9 @@ These are the next automation picks from the physical Android test against the N
 
 Cover selection excludes photos whose indexed size exceeds the renderer limit before choosing its 12 candidates. A regression with 12 oversized entries before a small photo verifies that the cover is still returned and only the small photo is opened. Entries with unknown size still use the existing bounded reader.
 
-**Android integration:** Album cards request the stable cover through the existing preview concurrency limit, with the original thumbnail flow as a compatibility fallback. [Android verification](https://github.com/42Azul/chromantis/actions/runs/45091864982) passed 31 JVM and eight emulator tests. Synthetic light and dark screenshots were reviewed. Browser cards and physical-phone validation remain pending.
+**Android integration:** Album cards request the stable cover through the existing preview concurrency limit, with the original thumbnail flow as a compatibility fallback. [Android verification](https://github.com/42Azul/chromantis/actions/runs/45091864982) passed 31 JVM and eight emulator tests. Synthetic light and dark screenshots were reviewed. Physical-phone and NAS validation remain pending.
+
+**Browser integration:** Visible album cards load stable covers in the search and year views. A synthetic HTTPS Chromium smoke test (`tests/browser_album_covers.cjs`) verifies that the year grid requests no covers, opening a year loads exactly one decoded cover, switching themes reuses it, and the flow downloads no originals. The light and dark captures were reviewed at a 390 px viewport. The deployed NAS and physical-device acceptance checks remain open.
 
 #### 2. Save and share one photo or a selection (Android and browser)
 
