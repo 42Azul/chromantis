@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -83,12 +84,13 @@ class FTPScannerTests(unittest.TestCase):
             scanner.scan()
             archive.rename(root / "disconnected")
             original_index = database.read_bytes()
+            env = dict(os.environ, SOURCE_ROOT=str(archive), SOURCE_TYPE="local")
             script = Path(__file__).resolve().parents[1] / "scripts" / "diagnose_album.py"
 
-            def diagnose(path, db=database):
+            def diagnose(path, db=database, *, options=()):
                 return subprocess.run(
-                    [sys.executable, str(script), "--db", str(db), path],
-                    capture_output=True, text=True, timeout=5,
+                    [sys.executable, str(script), "--db", str(db), *options, path],
+                    capture_output=True, text=True, timeout=5, cwd=root, env=env,
                 )
 
             for branch in ("2003(1)", "2003(2)"):
@@ -100,6 +102,20 @@ class FTPScannerTests(unittest.TestCase):
             missing = root / "missing.db"
             self.assertEqual(diagnose("2003(2)/same_album", missing).returncode, 1)
             self.assertFalse(missing.exists())
+            unavailable = diagnose("2003(2)/same_album", options=("--check-source",))
+            self.assertEqual(unavailable.returncode, 1)
+            self.assertIn("absent or inaccessible", unavailable.stderr)
+            (root / "disconnected").rename(archive)
+            nested = archive / "2003(2)" / "nested_only" / "subfolder"
+            nested.mkdir(parents=True)
+            (nested / "fixture.jpg").write_bytes(b"synthetic nested original")
+            visible = diagnose("2003(2)/same_album", options=("--check-source",))
+            self.assertEqual(visible.returncode, 0)
+            self.assertIn("1 supported direct photos; 0 subfolders", visible.stdout)
+            skipped = diagnose("2003(2)/nested_only", options=("--check-source",))
+            self.assertEqual(skipped.returncode, 0)
+            self.assertIn("absent from the index", skipped.stdout)
+            self.assertIn("outside the indexed album layout", skipped.stdout)
             self.assertEqual(database.read_bytes(), original_index)
 
     def test_reindex_prunes_stale_rows(self) -> None:

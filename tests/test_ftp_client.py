@@ -119,6 +119,19 @@ class StdlibFTPClientTests(unittest.TestCase):
                 self.assertEqual(first["items"][0]["path"], "2003(1)/album_00")
                 self.assertEqual(second["items"][0]["path"], "2003(2)/album_00")
 
+    def test_targeted_ftp_listing_only_visits_the_requested_album(self) -> None:
+        for mlsd_available in (True, False):
+            with self.subTest(mlsd_available=mlsd_available):
+                ftp = SplitYearFTP(mlsd_available=mlsd_available)
+                source = FtpArchiveSource("example", "fixture", "fixture", ftp.root)
+                album = "2003(2)/album_00"
+                with patch.object(source, "_connect", return_value=ftp), patch.object(
+                    ftp, "mlsd", wraps=ftp.mlsd
+                ) as mlsd:
+                    entries = list(source.iter_album_entries(album))
+                mlsd.assert_called_once_with(f"{ftp.root}/{album}")
+                self.assertEqual([entry.path for entry in entries], [f"{album}/photo.jpg"])
+
     def test_ftp_absolute_path_rejects_parent_traversal(self) -> None:
         client = FtpArchiveSource(
             host="example",

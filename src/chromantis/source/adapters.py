@@ -37,6 +37,9 @@ class ArchiveSource(Protocol):
     def iter_entries(self, max_depth: int = MAX_SCAN_DEPTH) -> Iterator[ArchiveEntry]:
         ...
 
+    def iter_album_entries(self, album_path: str) -> Iterator[ArchiveEntry]:
+        ...
+
     def read_bytes(self, relative_path: str, *, max_bytes: int | None = None) -> bytes:
         ...
 
@@ -63,6 +66,15 @@ class FtpArchiveSource:
             yield from self._walk(ftp, "", max_depth=max_depth)
         finally:
             logger.debug("Closing FTP connection")
+            ftp.quit()
+
+    def iter_album_entries(self, album_path: str) -> Iterator[ArchiveEntry]:
+        ftp = self._connect()
+        try:
+            self._verify_root(ftp)
+            ftp.cwd(self._absolute_path(album_path))
+            yield from self._walk(ftp, album_path, max_depth=0)
+        finally:
             ftp.quit()
 
     def read_bytes(self, relative_path: str, *, max_bytes: int | None = None) -> bytes:
@@ -322,6 +334,14 @@ class LocalArchiveSource:
                     stat.st_mtime, timezone.utc
                 ).isoformat(),
             )
+
+    def iter_album_entries(self, album_path: str) -> Iterator[ArchiveEntry]:
+        folder = self._absolute_path(album_path)
+        if folder != self.root_path / album_path:
+            raise ValueError("Album path must not use symlinks.")
+        for path in folder.iterdir():
+            if not path.is_symlink() and (path.is_dir() or path.is_file()):
+                yield ArchiveEntry(path.relative_to(self.root_path).as_posix(), path.is_dir())
 
     def read_bytes(self, relative_path: str, *, max_bytes: int | None = None) -> bytes:
         path = self._absolute_path(relative_path)

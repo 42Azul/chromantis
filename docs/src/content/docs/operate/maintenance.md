@@ -77,3 +77,5 @@ From the repository on the NAS, check a single exact path in the existing index:
 ```
 
 The command opens SQLite read-only and reports how many photos are indexed for that path. An absent row leaves the cause open. Use the source and scan checks above to investigate.
+
+Add `--check-source` to compare with the configured archive. It lists only the album’s direct entries without opening photos. If it finds subfolders and no supported direct photos, photos inside those subfolders are outside the indexed layout. A listing failure leaves the album’s presence inconclusive.

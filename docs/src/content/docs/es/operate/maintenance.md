@@ -77,3 +77,5 @@ Desde el repositorio en el NAS, comprueba una ruta exacta en el índice existent
 ```
 
 El comando abre SQLite en solo lectura e indica cuántas fotos hay indexadas en esa ruta. Si la ruta no figura, aplica las comprobaciones del origen y del escaneo descritas arriba para investigar la causa.
+
+Añade `--check-source` para comparar con el archivo configurado. Solo lista las entradas directas del álbum y no abre fotos. Si encuentra subcarpetas y ninguna foto directa compatible, las fotos dentro de esas subcarpetas quedan fuera de la estructura indexada. Si falla el listado, la presencia del álbum queda sin confirmar.
