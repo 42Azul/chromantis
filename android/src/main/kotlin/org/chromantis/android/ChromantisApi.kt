@@ -242,9 +242,9 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
     suspend fun photo(path: String, preview: Boolean = false): Bitmap =
         readPhoto(if (preview) "/thumbnail" else "/image", path, preview)
 
-    suspend fun originalBytes(path: String): ByteArray =
+    suspend fun originalBytes(path: String, limit: Int = 32 shl 20): ByteArray =
         withContext(Dispatchers.IO) {
-            request("GET", "/image?path=${encode(path)}") { it.readBytes(32 shl 20) }
+            request("GET", "/image?path=${encode(path)}") { it.readBytes(limit) }
         }
 
     private suspend fun readPhoto(route: String, path: String, preview: Boolean): Bitmap =
@@ -338,15 +338,17 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
     }
 }
 
+internal class ResponseTooLarge : IOException("Response is too large.")
+
 private fun HttpsURLConnection.readBytes(limit: Int): ByteArray {
-    if (contentLengthLong > limit) throw IOException("Response is too large.")
+    if (contentLengthLong > limit) throw ResponseTooLarge()
     return inputStream.use { input ->
         val output = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(16 * 1024)
         while (true) {
             val count = input.read(buffer)
             if (count == -1) break
-            if (output.size() + count > limit) throw IOException("Response is too large.")
+            if (output.size() + count > limit) throw ResponseTooLarge()
             output.write(buffer, 0, count)
         }
         output.toByteArray()

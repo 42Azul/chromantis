@@ -87,6 +87,7 @@ import androidx.core.content.edit
 import androidx.core.view.WindowCompat
 import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ExplorerActivity : ComponentActivity() {
@@ -646,6 +647,7 @@ internal fun EntryScreen(
                                 Text(stringResource(R.string.cancel))
                             }
                         }
+                        if (photoApi != null) ShareSelection(photoApi, selection, onExpired)
                     }
                 }
                 if (photoApi != null) {
@@ -787,6 +789,56 @@ internal fun Thumbnail(
             }
         }
     }
+}
+
+@Composable
+private fun ShareSelection(api: ChromantisApi, paths: List<String>, onExpired: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var job by remember { mutableStateOf<Job?>(null) }
+    var status by remember(paths) { mutableIntStateOf(0) }
+    Row {
+        TextButton(
+            enabled = job == null && paths.size in 1..MAX_SHARE_PHOTOS,
+            onClick = {
+                status = R.string.preparing_share
+                job =
+                    scope.launch {
+                        try {
+                            val result = attempt {
+                                val send = prepareOriginalShare(context, paths, api::originalBytes)
+                                context.startActivity(Intent.createChooser(send, null))
+                            }
+                            val error = result.exceptionOrNull()
+                            if (error?.hasStatus(401) == true) onExpired()
+                            status =
+                                when {
+                                    error is ResponseTooLarge -> R.string.share_size_limit
+                                    error != null -> errorLabel(error)
+                                    else -> 0
+                                }
+                        } finally {
+                            job = null
+                        }
+                    }
+            },
+        ) {
+            Text(stringResource(R.string.share_selection))
+        }
+        if (job != null) {
+            TextButton(
+                onClick = {
+                    job?.cancel()
+                    status = 0
+                }
+            ) {
+                Text(stringResource(R.string.cancel_share))
+            }
+        }
+    }
+    if (paths.size > MAX_SHARE_PHOTOS)
+        Text(stringResource(R.string.share_count_limit, MAX_SHARE_PHOTOS))
+    else if (status != 0) Text(stringResource(status))
 }
 
 @Composable

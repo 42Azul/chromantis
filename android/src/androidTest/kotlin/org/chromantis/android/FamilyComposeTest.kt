@@ -183,6 +183,14 @@ class FamilyComposeTest {
                 }
             }
             capture("gallery-light")
+            click(label(R.string.select_photos))
+            visiblePhotos.forEach { click(it.title) }
+            compose.onNodeWithText(label(R.string.share_selection)).assertIsDisplayed()
+            capture("share-selection-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("share-selection-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            click(label(R.string.cancel))
             click(visiblePhotos.first().title)
             await(label(R.string.save_original))
             compose.onNodeWithText(label(R.string.share_original)).assertIsDisplayed()

@@ -89,7 +89,7 @@ jobs:
           gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true
       - name: Print synthetic Compose screenshots
         run: |
-          for name in sign-in-light folders-light classify-light albums-light gallery-light original-light original-dark review-light folders-dark search-dark sign-in-dark; do
+          for name in sign-in-light folders-light classify-light albums-light gallery-light share-selection-light share-selection-dark original-light original-dark review-light folders-dark search-dark sign-in-dark; do
             echo "CHROMANTIS_SCREENSHOT_BEGIN:$name"
             adb exec-out cat "/sdcard/Download/chromantis-compose/$name.png" > "$RUNNER_TEMP/$name.png"
             python3 -c 'from pathlib import Path; import sys; assert Path(sys.argv[1]).read_bytes().startswith(bytes.fromhex("89504e470d0a1a0a"))' "$RUNNER_TEMP/$name.png"

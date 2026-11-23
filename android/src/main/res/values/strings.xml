@@ -164,5 +164,10 @@
     <string name="save_original">Guardar original</string>
     <string name="original_saved">Original guardado en la galería</string>
     <string name="share_original">Compartir</string>
+    <string name="share_selection">Compartir selección</string>
+    <string name="preparing_share">Preparando originales…</string>
+    <string name="cancel_share">Cancelar preparación</string>
+    <string name="share_count_limit">Selecciona hasta %1$d fotos para compartir.</string>
+    <string name="share_size_limit">La selección supera 32 MiB. Selecciona menos fotos.</string>
 </resources>
 
