@@ -40,6 +40,12 @@ With API authentication enabled, run on the NAS:
 
 Send the one-time code privately. On the device, open the local Chromantis address, choose **Family access** (*Acceso familiar*) and enter the code within 24 hours. The session lasts up to 90 days in that browser and allows search and album review without administrator privileges. Use the ID shown by `list` to revoke a session. Issue a new code for another browser or after sign-out.
 
+### Recover access after a lost device
+
+Use `list` on the NAS to identify the invitation or session for that device and revoke its ID. Revocation blocks subsequent protected requests. Then issue a new one-time code for the replacement device. Give each device a distinct label if one person uses several devices.
+
+Chromantis stores hashes of the invitation and session secrets in SQLite. Redeeming a code replaces it with a new session secret. Treat that secret like a password until expiry or revocation. The browser uses a host-only `HttpOnly`, `SameSite=Strict` cookie with `Secure` on HTTPS and checks the exact origin for family writes. Android preserves the session locally using Android Keystore encryption. Family access covers archive searches and curation. Use a separate album link if the recipient should see only one album.
+
 ## Share one album
 
 1. Sign in as owner and open the album in **Archive**.

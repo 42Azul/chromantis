@@ -40,6 +40,12 @@ Con la autenticación de la API activada, ejecuta en el NAS:
 
 Envía el código en privado. El familiar abre la dirección local de Chromantis, elige **Acceso familiar** e introduce el código en las 24 horas siguientes. La sesión dura hasta 90 días en ese navegador y permite buscar y etiquetar álbumes sin permisos de administrador. Usa el ID que muestra `list` para revocar la sesión. Genera un código nuevo si cambia de navegador o cierra sesión.
 
+### Recupera el acceso tras perder un dispositivo
+
+Usa `list` en el NAS para identificar la invitación o sesión de ese dispositivo y revoca su ID. La revocación bloquea las siguientes solicitudes protegidas. Después, genera un código de un solo uso para el dispositivo nuevo. Usa etiquetas distintas si una persona accede desde varios dispositivos.
+
+Chromantis guarda en SQLite los hashes de los secretos de invitación y sesión. Al canjear el código se sustituye por un secreto de sesión nuevo. Trátalo como una contraseña hasta que caduque o se revoque. El navegador usa una cookie limitada al host con `HttpOnly`, `SameSite=Strict` y `Secure` en HTTPS, y el servidor verifica el origen exacto de las escrituras familiares. Android conserva la sesión localmente con cifrado de Android Keystore. El acceso familiar permite buscar y etiquetar en el archivo. Usa un enlace de álbum si el destinatario solo debe ver un álbum.
+
 ## Comparte un solo álbum
 
 1. Entra como propietario y abre el álbum en **Archivo** (*Archive*).
