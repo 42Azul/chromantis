@@ -89,6 +89,7 @@ import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -831,10 +832,10 @@ private fun ExportSelection(api: ChromantisApi, paths: List<String>, onExpired: 
                     startTransfer(R.string.saving_selection) {
                         var remaining = 32 shl 20
                         for (path in unsaved) {
-                            ensureActive()
+                            currentCoroutineContext().ensureActive()
                             val bytes = api.originalBytes(path, remaining)
                             remaining -= bytes.size
-                            ensureActive()
+                            currentCoroutineContext().ensureActive()
                             // Finish recording an already-started write even if the user cancels.
                             withContext(NonCancellable) {
                                 saveOriginal(context.contentResolver, path, bytes)
