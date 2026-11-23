@@ -190,7 +190,7 @@ class FamilyComposeTest {
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("original-dark")
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
-            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            click(album.title)
             await(label(R.string.review_album))
             click(label(R.string.review_album))
             await("Ana")
