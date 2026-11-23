@@ -100,7 +100,7 @@ sha256sum --check SHA256SUMS.txt
 adb install -r Chromantis-debug.apk
 ```
 
-This APK is produced only after formatting, unit tests, lint and the emulator suite pass. It contains no NAS address, invitation, family metadata, photos or release key. It uses Android's standard debug signature and is only for private testing; build the signed release below for stable installation and updates.
+This test APK is signed with the persistent CI testing key. Switching from an APK signed with an earlier debug key requires a one-time reinstall and a new sign-in. Subsequent builds from this workflow can update in place.
 
 ### Build it locally
 

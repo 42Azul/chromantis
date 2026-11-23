@@ -44,3 +44,26 @@ python -m unittest tests.test_folder_curation_mcp -v
 ```
 
 See [interface direction and design references](DESIGN.md), and [contributing and publishing](docs/src/content/docs/reference/contributing.md) for requirements and the static-site workflow.
+
+
+### Android CI signing
+
+The [Android workflow](.github/workflows/android.yml) publishes the verified test APK only from
+`main`. Generate a dedicated key once and keep a private backup of the keystore and its password.
+Run the following from a trusted machine with an authenticated GitHub CLI and Android Build Tools
+on PATH. Enter the same password for the PKCS#12 store and key.
+
+```bash
+umask 077
+keytool -genkeypair -storetype PKCS12 -keystore chromantis-test.keystore \
+  -alias chromantis-test -keyalg RSA -keysize 3072 -validity 10000 \
+  -dname 'CN=Chromantis Android Test'
+base64 -w0 chromantis-test.keystore | gh secret set ANDROID_TEST_KEYSTORE_BASE64
+gh secret set ANDROID_TEST_KEYSTORE_PASSWORD
+keytool -list -v -keystore chromantis-test.keystore -alias chromantis-test
+gh variable set ANDROID_TEST_CERT_SHA256 --body '<lowercase SHA-256 fingerprint without colons>'
+gh workflow run android.yml --ref main
+```
+
+Copy the certificate fingerprint from `keytool`. CI rejects a mismatched fingerprint before
+uploading. Keep using the same keystore for updates. The signing key is dedicated to testing.

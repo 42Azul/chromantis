@@ -97,19 +97,38 @@ jobs:
             echo
             echo "CHROMANTIS_SCREENSHOT_END:$name"
           done
-      - name: Prepare verified test APK
-        if: github.event_name == 'push'
+      - name: Sign and verify the installable test APK
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_TEST_CERT_SHA256 }}
         run: |
-          mkdir -p "$RUNNER_TEMP/chromantis-apk"
-          cp android/build/outputs/apk/debug/Chromantis-debug.apk \
-            "$RUNNER_TEMP/chromantis-apk/Chromantis-debug.apk"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose \
-            "$RUNNER_TEMP/chromantis-apk/Chromantis-debug.apk"
-          cd "$RUNNER_TEMP/chromantis-apk"
+          set -euo pipefail
+          if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || ! "$EXPECTED_CERT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Configure the persistent Android test signing secrets and certificate fingerprint."
+            exit 1
+          fi
+          umask 077
+          keystore="$(mktemp "$RUNNER_TEMP/chromantis-signing.XXXXXX")"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          unset KEYSTORE_BASE64
+          signer="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          output="$RUNNER_TEMP/chromantis-apk"
+          mkdir -p "$output"
+          "$signer" sign --ks "$keystore" --ks-type PKCS12 --ks-key-alias chromantis-test \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+            --out "$output/Chromantis-debug.apk" android/build/outputs/apk/debug/Chromantis-debug.apk
+          verification="$("$signer" verify --verbose --print-certs "$output/Chromantis-debug.apk")"
+          printf '%s\n' "$verification"
+          grep -Fxq 'Number of signers: 1' <<< "$verification"
+          grep -Fxq "Signer #1 certificate SHA-256 digest: $EXPECTED_CERT_SHA256" <<< "$verification"
+          cd "$output"
           sha256sum Chromantis-debug.apk > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
       - name: Upload verified test APK
-        if: github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chromantis-debug-${{ github.sha }}

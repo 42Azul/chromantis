@@ -29,6 +29,18 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Execution order:** the phone-test follow-up below takes precedence: previews, save/share, missing branch/date parsing, then the physical-phone checklist. Preserve the in-flight MVP 19B test work, but do not let screenshot-only work displace reported phone failures. Apply MVP 20A's design and MVP 20B's security criteria while delivering those fixes; broader web redesign and passkeys follow afterward. Native owner tools, local model comparison, face processing and remote MCP remain later work. A physical-device release gate does not block runnable synthetic service/browser improvements.
 
+### Android browsing, search, and curation
+
+- Keep **Folders** grounded in the archive hierarchy. Preserve the active breadcrumb, page and
+  scroll position on return. Evaluate folder-only name filtering and explicit name/date ordering
+  over the complete folder listing, including paged results.
+- Keep **Search** for retrieval by album, confirmed person or tag, with visible filters, clear
+  result types and a return path that keeps the query. A gallery opened from Search can be viewed,
+  saved and shared, without surfacing tagging or review actions.
+- Keep album and photo tagging under **Organize** and explicit actions from **Folders**. Add a
+  direct album picker to Organize so existing albums can be curated without entering Search.
+  Validate both a single-photo edit and batch selection with undo on a synthetic phone-sized view.
+
 ## Current State
 
 Chromantis currently provides:
