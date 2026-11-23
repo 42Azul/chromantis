@@ -135,6 +135,24 @@ class FamilyAccessTests(unittest.TestCase):
         for method, path in (("GET", "/auth/me"), ("GET", preview), ("POST", "/album-review")):
             self.assertEqual(self.request(method, path, cookie=cookie, body=data if method == "POST" else None)[0], 401)
 
+    def test_lost_device_replacement_keeps_other_family_sessions(self):
+        lost_id, lost_code = self.app.family_access.invite("Teléfono perdido")
+        lost = self.enter(lost_code)
+        _, other_code = self.app.family_access.invite("Ordenador familiar")
+        other = self.enter(other_code)
+        self.cli("revoke", str(lost_id))
+        replacement_code = self.cli("invite", "Teléfono nuevo").splitlines()[-1]
+        replacement = self.enter(replacement_code)
+        self.assertNotEqual(replacement, lost)
+        self.assertEqual(self.request("GET", "/auth/me", cookie=lost)[0], 401)
+        self.assertEqual(self.request("POST", "/family/session", body={"code": lost_code})[0], 401)
+        for cookie in (other, replacement):
+            with self.subTest(device="replacement" if cookie == replacement else "other"):
+                status, _, body = self.request("GET", "/auth/me", cookie=cookie)
+                self.assertEqual(status, 200)
+                self.assertEqual(json.loads(body)["item"]["auth_mode"], "family")
+                self.assertEqual(self.request("GET", "/admin/chats", cookie=cookie)[0], 403)
+
     def test_http_is_limited_to_a_loopback_peer_and_host(self):
         host = "photos.home.arpa"
         for forwarded in ({}, {"X-Forwarded-Proto": "https"}):
