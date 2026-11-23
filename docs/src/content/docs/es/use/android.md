@@ -190,3 +190,5 @@ Para probar la revocación, ejecuta este comando en otra terminal con la ruta **
 SOURCE_TYPE=local SOURCE_ROOT=/tmp SQLITE_PATH=/tmp/chromantis-android-EXAMPLE/index.db \
   python scripts/family_access.py revoke 1
 ```
+
+En Android 10 o posterior, abre una foto y pulsa **Guardar original** para guardar una copia en **Pictures/Chromantis**. La app descarga el original bajo demanda, con un límite de 32 MiB.

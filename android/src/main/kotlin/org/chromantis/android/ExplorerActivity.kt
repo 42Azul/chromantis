@@ -1,5 +1,6 @@
 package org.chromantis.android
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -68,6 +69,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -789,6 +791,32 @@ internal fun Thumbnail(
 @Composable
 internal fun OriginalPhoto(api: ChromantisApi, path: String, title: String, onExpired: () -> Unit) {
     LoadContent(onExpired, load = { api.photo(path) }) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            var saving by remember(path) { mutableStateOf(false) }
+            var status by remember(path) { mutableIntStateOf(0) }
+            Button(
+                enabled = !saving && status != R.string.original_saved,
+                onClick = {
+                    saving = true
+                    scope.launch {
+                        val result = attempt {
+                            saveOriginal(context.contentResolver, path, api.originalBytes(path))
+                        }
+                        saving = false
+                        val error = result.exceptionOrNull()
+                        if (error?.hasStatus(401) == true) onExpired()
+                        else
+                            status =
+                                if (error == null) R.string.original_saved else errorLabel(error)
+                    }
+                },
+            ) {
+                Text(stringResource(if (saving) R.string.loading else R.string.save_original))
+            }
+            if (status != 0) Text(stringResource(status))
+        }
         Image(it.asImageBitmap(), title, Modifier.fillMaxWidth(), contentScale = ContentScale.Fit)
     }
 }

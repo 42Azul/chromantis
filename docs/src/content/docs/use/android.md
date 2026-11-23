@@ -190,3 +190,5 @@ To test revocation, run the command below in a second terminal using the fixture
 SOURCE_TYPE=local SOURCE_ROOT=/tmp SQLITE_PATH=/tmp/chromantis-android-EXAMPLE/index.db \
   python scripts/family_access.py revoke 1
 ```
+
+On Android 10 and newer, open a photo and choose **Guardar original** to save a copy under **Pictures/Chromantis**. The app downloads the original on demand, with a 32 MiB limit.

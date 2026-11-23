@@ -161,5 +161,7 @@
     <string name="library_review_help">Añade personas y etiquetas, a tu ritmo.</string>
     <string name="review_people_hint">Buscar nombre o alias</string>
     <string name="review_people_help">Marca a quienes reconozcas. Puedes cambiarlo después.</string>
+    <string name="save_original">Guardar original</string>
+    <string name="original_saved">Original guardado en la galería</string>
 </resources>
 

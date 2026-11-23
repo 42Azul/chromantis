@@ -242,6 +242,11 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
     suspend fun photo(path: String, preview: Boolean = false): Bitmap =
         readPhoto(if (preview) "/thumbnail" else "/image", path, preview)
 
+    suspend fun originalBytes(path: String): ByteArray =
+        withContext(Dispatchers.IO) {
+            request("GET", "/image?path=${encode(path)}") { it.readBytes(32 shl 20) }
+        }
+
     private suspend fun readPhoto(route: String, path: String, preview: Boolean): Bitmap =
         withContext(Dispatchers.IO) {
             request("GET", "$route?path=${encode(path)}") { connection ->

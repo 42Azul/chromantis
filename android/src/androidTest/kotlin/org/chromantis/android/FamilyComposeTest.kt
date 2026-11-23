@@ -183,6 +183,15 @@ class FamilyComposeTest {
                 }
             }
             capture("gallery-light")
+            click(visiblePhotos.first().title)
+            await(label(R.string.save_original))
+            compose.onNodeWithText(label(R.string.save_original)).assertIsDisplayed()
+            capture("original-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("original-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await(label(R.string.review_album))
             click(label(R.string.review_album))
             await("Ana")
             compose.onNodeWithText("Ana").performScrollTo().performClick()
