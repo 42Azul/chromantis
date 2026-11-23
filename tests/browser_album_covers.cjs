@@ -83,14 +83,41 @@ async function main() {
       await page.screenshot({ path: `/tmp/chromantis-album-browse-${mode}.png` });
     }
     assert.equal(await browse.getByRole("button", { name: "Etiquetar fotos" }).count(), 0);
-    await browse.getByRole("button", { name: "Etiquetar álbum", exact: true }).click();
-    await page.getByPlaceholder("Escribe un nombre o alias").fill("Anita");
-    await page.getByRole("button", { name: "Ana · Anita" }).click();
-    await page.getByRole("button", { name: "Guardar y volver a resultados" }).click();
+    const editorWidth = Number(process.env.EDITOR_TEST_WIDTH || 360);
+    await page.setViewportSize({ width: editorWidth, height: 800 });
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    const checkWidth = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.ok(await checkWidth(), "The viewer should fit with doubled text.");
+    const heading = browse.getByRole("heading", { level: 1 });
+    await heading.focus();
+    await page.keyboard.press("Tab");
+    assert.equal(await page.locator(":focus").textContent(), "Volver a resultados");
+    await page.keyboard.press("Tab");
+    assert.equal(await page.locator(":focus").textContent(), "Etiquetar álbum");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.activeElement?.placeholder === "Escribe un nombre o alias");
+    await page.keyboard.type("Anita");
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "Quitar a Ana del álbum" }).waitFor();
+    assert.ok(await checkWidth(), "The editor should fit with doubled text.");
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await page.getByPlaceholder("Escribe un nombre o alias").focus();
+      await page.screenshot({ path: `/tmp/chromantis-keyboard-editor-${editorWidth}-${mode}.png`, fullPage: true });
+    }
+    const save = page.getByRole("button", { name: "Guardar y volver a resultados" });
+    for (let tabs = 0; tabs < 30 && !(await save.evaluate(button => button === document.activeElement)); tabs++) {
+      await page.keyboard.press("Tab");
+    }
+    assert.ok(await save.evaluate(button => button === document.activeElement), "Save should be reachable by Tab.");
+    await page.keyboard.press("Enter");
     await page.getByText("Álbumes de 2024", { exact: true }).waitFor();
+    await page.waitForFunction(() => document.activeElement?.id === "results-title");
+    assert.ok(await checkWidth(), "The year results should fit with doubled text.");
     await page.locator("#query").fill("Ana");
     await page.locator("#search-form button[type=submit]").click();
     await page.locator("#results .folder-card").filter({ hasText: "2024/2024-07-01_playa" }).waitFor();
+    assert.ok(!paths.includes("/api/v1/image"), "The browsing and name-only review flow should not open originals.");
   } finally {
     await browser.close();
   }

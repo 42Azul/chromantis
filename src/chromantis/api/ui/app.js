@@ -1572,6 +1572,9 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
       albumContextEditor(album, heading, date, request)),
     form
   );
+  if (returnButton && document.activeElement === returnButton) {
+    people.querySelector('input[type="search"]').focus();
+  }
 }
 
 function albumContextEditor(album, heading, date, request) {
