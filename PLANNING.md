@@ -570,6 +570,8 @@ Cover selection excludes photos whose indexed size exceeds the renderer limit be
 - Keep downloads behind existing photo permissions. Bound batch work and temporary storage; confirm large exports and show progress, cancellation and partial failures. Don't upload anything until the user chooses a share target and confirms there.
 - **Acceptance:** Save one photo to the Android gallery, share one and then several photos through WhatsApp on a physical phone, and download a selection and a multi-page synthetic album from the browser. Output contains only the intended originals, and a failed transfer can be retried without silently duplicating the successful ones.
 
+**Selection export API:** A private POST route returns a ZIP of explicitly selected indexed originals. It deduplicates paths, caps each export at 20 entries and 16 MiB of input, and allows one export at a time per API process. It returns an error if the archive is unavailable or a file is missing. Synthetic HTTP tests cover authentication, exact ZIP contents and failure handling. The browser selection UI, whole-album export and Android save/share remain pending.
+
 #### 3. Recover the second 2003 folder and recognize dates in album names
 
 - Reproduce the reported missing `2003(2)` while `2003(1)` appears. The source adapters and path parser already accept both exact names; trace the exact folder spelling, directory depth, scan skips, indexed paths and year-list pagination before changing the parser. Both branches should appear under year **2003**, with distinct paths even if they contain albums with the same name.

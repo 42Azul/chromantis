@@ -6,6 +6,8 @@ import subprocess
 import sys
 import tempfile
 from http.client import HTTPConnection
+from io import BytesIO
+from zipfile import ZipFile
 from threading import Event, Thread
 from time import monotonic, sleep
 from unittest.mock import Mock
@@ -19,6 +21,7 @@ from chromantis.db.repository import Repository
 from chromantis.parsing.path_parser import PathParser
 from chromantis.source import ArchiveScanner, LocalArchiveSource
 from chromantis.source.scanner import ScanBusy
+from chromantis.source.adapters import ArchiveReadLimit
 
 
 PHOTOS_ROOT = Path(__file__).parent / "fixtures" / "ftp_tree" / "server_root" / "photos" / "archive"
@@ -84,7 +87,7 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(years, [2019, 2021])
 
 
-    def start_api(self, thumbnails=None, start_index_scan=None) -> None:
+    def start_api(self, thumbnails=None, start_index_scan=None, export_reader=None) -> None:
         self.repository.authorize_chat(102, role="admin")
         self.repository.authorize_chat(103, role="viewer")
         self.repository.authorize_chat(104, role="viewer")
@@ -95,6 +98,7 @@ class ApiServerTests(unittest.TestCase):
             deployment_info={"source_type": "local", "enrichment_search": False, "query_interpreter": "rules"},
             thumbnails=thumbnails,
             start_index_scan=start_index_scan,
+            export_reader=export_reader,
         ))
         thread = Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         thread.start()
@@ -171,6 +175,7 @@ from chromantis.db.repository import Repository
 from chromantis.parsing.path_parser import PathParser
 from chromantis.source import ArchiveScanner, LocalArchiveSource
 from chromantis.source.scanner import ScanBusy
+from chromantis.source.adapters import ArchiveReadLimit
 
 scanner = ArchiveScanner(LocalArchiveSource(sys.argv[1]), Repository(sys.argv[2]), PathParser())
 try:
@@ -346,6 +351,33 @@ except ScanBusy:
             self.assertEqual(response.read(), (PHOTOS_ROOT / path).read_bytes())
         finally:
             connection.close()
+
+    def test_export_contains_only_selected_originals_and_requires_authentication(self) -> None:
+        source = LocalArchiveSource(str(PHOTOS_ROOT))
+        reader = Mock(side_effect=lambda path, limit: source.read_bytes(path, max_bytes=limit))
+        self.start_api(export_reader=reader)
+        path = "2021/2021-08-15_city_trip/IMG_001.jpg"
+        route = "/photo-export"
+        self.assertEqual(self.request("POST", route, body={"paths": [path]})[0], 401)
+        self.assertEqual(self.request("POST", route, "read-token", {"paths": [path] * 21})[0], 400)
+        self.assertEqual(self.request("POST", route, "read-token", {"paths": [path, "../missing.jpg"]})[0], 404)
+        reader.assert_not_called()
+        connection = HTTPConnection(*self.server.server_address, timeout=2)
+        self.addCleanup(connection.close)
+        connection.request("POST", "/api/v1" + route, json.dumps({"paths": [path, path]}),
+                           {"Authorization": "Bearer read-token", "Content-Type": "application/json"})
+        response = connection.getresponse()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.getheader("Cache-Control"), "no-store")
+        self.assertEqual(response.getheader("Content-Type"), "application/zip")
+        with ZipFile(BytesIO(response.read())) as archive:
+            self.assertEqual(archive.namelist(), ["01-IMG_001.jpg"])
+            self.assertEqual(archive.read("01-IMG_001.jpg"), (PHOTOS_ROOT / path).read_bytes())
+        reader.assert_called_once_with(path, 16 * 1024 * 1024)
+        reader.side_effect = ArchiveReadLimit()
+        self.assertEqual(self.request("POST", route, "read-token", {"paths": [path]})[0], 413)
+        reader.side_effect = OSError()
+        self.assertEqual(self.request("POST", route, "read-token", {"paths": [path]})[0], 502)
 
     def test_private_album_link_is_scoped_expiring_and_revocable(self) -> None:
         class Thumbnails:

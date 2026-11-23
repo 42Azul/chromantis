@@ -10,11 +10,14 @@ from hashlib import sha256
 from hmac import compare_digest
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from ipaddress import ip_address
 from mimetypes import guess_type
 from pathlib import Path
 from ssl import SSLSocket
+from threading import Lock
 from urllib.parse import parse_qs, unquote, urlparse
+from zipfile import ZipFile
 
 from chromantis.api.thumbnails import SOURCE_BYTES, ThumbnailCache
 from chromantis.app import ApplicationService, AuthOperationError
@@ -22,6 +25,7 @@ from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
 from chromantis.app.recall import RefinementError
 from chromantis.db.family_access import FamilySession, SESSION_SECONDS
+from chromantis.source.adapters import ArchiveReadLimit
 from chromantis.source.scanner import ScanBusy
 
 LOOPBACK_HOST = re.compile(r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", re.IGNORECASE)
@@ -35,6 +39,10 @@ PHOTO_TAGS_PATH = "/api/v1/photo-tags"
 SYNC_RUNS_PATH = "/api/v1/sync/runs"
 ALBUM_SHARES_PATH = "/api/v1/album-shares"
 SHARED_ALBUM_PATH = "/api/v1/shared"
+
+PHOTO_EXPORT_PATH = "/api/v1/photo-export"
+EXPORT_BYTES = 16 * 1024 * 1024
+EXPORT_PHOTOS = 20
 
 UI_ROOT = Path(__file__).with_name("ui")
 UI_FILES = {
@@ -77,6 +85,7 @@ def _dispatch(
     family_secret: str | None = None,
     thumbnails: ThumbnailCache | None = None,
     start_index_scan: Callable[[], int] | None = None,
+    export_reader: Callable[[str, int], bytes] | None = None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
     try:
         parsed = urlparse(url)
@@ -131,6 +140,10 @@ def _dispatch(
             if path == "/api/v1/archive-status":
                 status = app_service.repository.archive_index_status()
                 return 200, {"item": {**status, "thumbnails": thumbnails is not None}}
+        if method == "POST" and url.split("?", 1)[0] == PHOTO_EXPORT_PATH:
+            if not (api_token or api_chat_tokens):
+                return 401, {"error": "Photo export requires authenticated access"}
+            return _export_photos((body or {}).get("paths"), app_service, export_reader)
         if path == "/api/v1/refine" and method == "POST":
             data = body or {}
             query = data.get("q", "")
@@ -591,6 +604,36 @@ def _browse_request(
     return browse(app, chat_id, action, q=q or "", count=count, folder_path=folder, year=year)
 
 
+def _export_photos(
+    paths: object, app: ApplicationService, reader: Callable[[str, int], bytes] | None,
+) -> tuple[int, dict[str, object] | PhotoPayload]:
+    if (not isinstance(paths, list) or not 1 <= len(paths) <= EXPORT_PHOTOS
+            or any(not isinstance(path, str) or not path for path in paths)):
+        return 400, {"error": f"Select between 1 and {EXPORT_PHOTOS} indexed photos"}
+    paths = list(dict.fromkeys(paths))
+    if reader is None:
+        return 503, {"error": "Photo export is unavailable"}
+    if any(not app.repository.is_indexed_image(path) for path in paths):
+        return 404, {"error": "Image not found"}
+
+    remaining = EXPORT_BYTES
+    buffer = BytesIO()
+    try:
+        with ZipFile(buffer, "w") as archive:
+            for number, path in enumerate(paths, start=1):
+                content = reader(path, remaining)
+                remaining -= len(content)
+                name = path.replace("\\", "/").rsplit("/", 1)[-1]
+                archive.writestr(f"{number:02d}-{name}", content)
+    except ArchiveReadLimit:
+        return 413, {"error": "Selection exceeds the 16 MiB export limit"}
+    except (FileNotFoundError, ValueError):
+        return 404, {"error": "Image no longer available"}
+    except (FtpError, OSError, EOFError):
+        return 502, {"error": "Archive unavailable"}
+    return 200, PhotoPayload(buffer.getvalue(), "application/zip")
+
+
 def _read_image(
     path: str, app: ApplicationService, image_fetcher: Callable[[str], bytes] | None
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
@@ -751,7 +794,10 @@ def make_api_handler(
     start_index_scan: Callable[[], int] | None = None,
     *,
     trust_local_proxy: bool = False,
+    export_reader: Callable[[str, int], bytes] | None = None,
 ):
+    export_lock = Lock()
+
     class ChromantisApiHandler(BaseHTTPRequestHandler):
         server_version = "ChromantisAPI/0.1"
 
@@ -823,6 +869,18 @@ def make_api_handler(
                     and not self._same_origin_family_request()):
                 self._write_json(403, {"error": "La petición debe proceder de la web de Chromantis."})
                 return
+            if self.command == "POST" and self.path.split("?", 1)[0] == PHOTO_EXPORT_PATH:
+                if not export_lock.acquire(blocking=False):
+                    self._write_json(503, {"error": "A photo export is already running"})
+                    return
+                try:
+                    self._dispatch_response(body, family_secret)
+                finally:
+                    export_lock.release()
+                return
+            self._dispatch_response(body, family_secret)
+
+        def _dispatch_response(self, body: dict[str, object] | None, family_secret: str | None) -> None:
             status, payload = _dispatch(
                 self.command,
                 self.path,
@@ -837,6 +895,7 @@ def make_api_handler(
                 family_secret,
                 thumbnails,
                 start_index_scan,
+                export_reader,
             )
             if isinstance(payload, PhotoPayload):
                 self._write(status, payload.content, payload.content_type)
@@ -907,6 +966,8 @@ def make_api_handler(
                 "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; "
                 "connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
             )
+            if content_type == "application/zip":
+                self.send_header("Content-Disposition", 'attachment; filename="chromantis-photos.zip"')
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             if cookie is not None:
