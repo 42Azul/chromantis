@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -67,6 +69,38 @@ class FTPScannerTests(unittest.TestCase):
             self.assertEqual(updated["event_date"], "2024-02-28")
             self.assertEqual(updated["title"], "Fecha de la reunión")
             self.assertEqual(photo.read_bytes(), b"synthetic original")
+
+    def test_diagnose_album_reads_an_existing_index_with_the_archive_disconnected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            archive = root / "archive"
+            database = root / "index # fixture.db"
+            for branch in ("2003(1)", "2003(2)"):
+                folder = archive / branch / "same_album"
+                folder.mkdir(parents=True)
+                (folder / "fixture.jpg").write_bytes(b"synthetic original")
+            _, scanner = self._build_scanner(str(database), archive)
+            scanner.scan()
+            archive.rename(root / "disconnected")
+            original_index = database.read_bytes()
+            script = Path(__file__).resolve().parents[1] / "scripts" / "diagnose_album.py"
+
+            def diagnose(path, db=database):
+                return subprocess.run(
+                    [sys.executable, str(script), "--db", str(db), path],
+                    capture_output=True, text=True, timeout=5,
+                )
+
+            for branch in ("2003(1)", "2003(2)"):
+                result = diagnose(f"{branch}/same_album")
+                self.assertEqual(result.returncode, 0)
+                self.assertIn("Indexed photos: 1.", result.stdout)
+            self.assertIn("absent from the index", diagnose("2003(3)/same_album").stdout)
+            self.assertEqual(diagnose("2003/../same_album").returncode, 2)
+            missing = root / "missing.db"
+            self.assertEqual(diagnose("2003(2)/same_album", missing).returncode, 1)
+            self.assertFalse(missing.exists())
+            self.assertEqual(database.read_bytes(), original_index)
 
     def test_reindex_prunes_stale_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

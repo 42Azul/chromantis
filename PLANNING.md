@@ -740,6 +740,8 @@ Cover selection excludes photos whose indexed size exceeds the renderer limit be
 
 **Scope:** Start with a read-only CLI check for one owner-supplied, archive-relative path. Reuse the source adapters, parser and index queries to distinguish an unavailable source, depth or parsing skips, and indexed albums. Report inconclusive results explicitly when the available scan data cannot explain a skip. Do not fetch photos, trigger a scan, or expose paths through family-facing endpoints.
 
+**Index-only increment:** The operator can check an exact album path and its photo count through `scripts/diagnose_album.py`. The command opens the existing SQLite file read-only, needs no archive connection and reports absence without assigning a cause. A synthetic scan of two same-title albums in separate year branches verifies both lookups after disconnecting the archive. Targeted source listing to distinguish skipped paths from an unavailable source remains next.
+
 **Validation:** Synthetic local and FTP fixtures distinguish a skipped branch from an indexed album on a later page and an unreachable source. The command leaves the archive and curation unchanged.
 
 ### MVP 19E — Face Review Trial

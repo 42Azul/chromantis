@@ -69,3 +69,11 @@ Restore applies current schema migrations and refuses to overwrite an existing d
 The year view groups indexed albums under the four-digit year. For split years such as `2003(1)` and `2003(2)`, compare the album paths while paging through the year. A repeated title can correspond to separate paths. The clients show 30 albums per page.
 
 If the branch is absent from every page, check the most recent index run in **Archive status**. On the NAS, compare the exact directory name and depth exposed by the configured source with the layout `year/album/photo.jpg`. For FTP, check whether the scan used MLSD or fell back to NLST and whether the source listing includes both branches. An album needs at least one indexed image to appear in the year view. Keep paths and scan logs local when diagnosing a family archive.
+
+From the repository on the NAS, check a single exact path in the existing index:
+
+```bash
+.venv/bin/python scripts/diagnose_album.py '2003(2)/example_album'
+```
+
+The command opens SQLite read-only and reports how many photos are indexed for that path. An absent row leaves the cause open. Use the source and scan checks above to investigate.

@@ -69,3 +69,11 @@ La restauración aplica las migraciones de esquema actuales y evita sobrescribir
 La vista por años agrupa los álbumes indexados bajo el año de cuatro cifras. Si el año está dividido en `2003(1)` y `2003(2)`, recorre todas las páginas y compara las rutas. Dos álbumes con el mismo título pueden tener rutas distintas. Los clientes muestran 30 álbumes por página.
 
 Si la carpeta no aparece en ninguna página, revisa el último escaneo en **Estado del archivo**. En el NAS, compara el nombre exacto de la carpeta y la profundidad que ve el origen configurado con la estructura `año/álbum/foto.jpg`. Si usas FTP, comprueba si el escaneo empleó MLSD o recurrió a NLST y si el listado del origen incluye ambas carpetas. Para aparecer en la vista por años, un álbum necesita al menos una imagen indexada. Mantén las rutas y los registros de escaneo en el entorno local.
+
+Desde el repositorio en el NAS, comprueba una ruta exacta en el índice existente:
+
+```bash
+.venv/bin/python scripts/diagnose_album.py '2003(2)/album_de_ejemplo'
+```
+
+El comando abre SQLite en solo lectura e indica cuántas fotos hay indexadas en esa ruta. Si la ruta no figura, aplica las comprobaciones del origen y del escaneo descritas arriba para investigar la causa.

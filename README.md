@@ -21,6 +21,8 @@ bash scripts/setup_nas.sh
 
 For a browser-only installation, FTP, or a synthetic first run, follow the [installation guide](docs/src/content/docs/start/install.md). See also [Telegram](docs/src/content/docs/use/telegram.md), [Android](docs/src/content/docs/use/android.md), [maintenance](docs/src/content/docs/operate/maintenance.md), the [local API](docs/src/content/docs/reference/api.md), and [optional MCP folder curation](docs/src/content/docs/reference/mcp.md).
 
+Check an exact album path in the existing index with `.venv/bin/python scripts/diagnose_album.py '2003(2)/example_album'`. See the [maintenance guide](docs/src/content/docs/operate/maintenance.md#a-year-branch-is-missing).
+
 ## Development
 
 ```bash
