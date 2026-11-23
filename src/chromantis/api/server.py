@@ -143,7 +143,7 @@ def _dispatch(
         if method == "POST" and url.split("?", 1)[0] == PHOTO_EXPORT_PATH:
             if not (api_token or api_chat_tokens):
                 return 401, {"error": "Photo export requires authenticated access"}
-            return _export_photos((body or {}).get("paths"), app_service, export_reader)
+            return _export_photos(body or {}, app_service, export_reader)
         if path == "/api/v1/refine" and method == "POST":
             data = body or {}
             query = data.get("q", "")
@@ -605,12 +605,24 @@ def _browse_request(
 
 
 def _export_photos(
-    paths: object, app: ApplicationService, reader: Callable[[str, int], bytes] | None,
+    data: dict[str, object], app: ApplicationService, reader: Callable[[str, int], bytes] | None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
-    if (not isinstance(paths, list) or not 1 <= len(paths) <= EXPORT_PHOTOS
-            or any(not isinstance(path, str) or not path for path in paths)):
-        return 400, {"error": f"Select between 1 and {EXPORT_PHOTOS} indexed photos"}
-    paths = list(dict.fromkeys(paths))
+    if set(data) == {"album"}:
+        album = data["album"]
+        if not isinstance(album, str) or not album.strip() or len(album) > 4096:
+            raise ValueError("album must be a non-empty indexed album path of at most 4096 characters.")
+        items = app.images_in_folder(album, limit=EXPORT_PHOTOS + 1)
+        if not items:
+            return 404, {"error": "Album has no indexed photos"}
+        if len(items) > EXPORT_PHOTOS:
+            return 413, {"error": "Album exceeds the 20 photo export limit"}
+        paths = [item.path for item in items]
+    else:
+        paths = data.get("paths")
+        if (set(data) != {"paths"} or not isinstance(paths, list) or not 1 <= len(paths) <= EXPORT_PHOTOS
+                or any(not isinstance(path, str) or not path for path in paths)):
+            return 400, {"error": f"Select between 1 and {EXPORT_PHOTOS} indexed photos"}
+        paths = list(dict.fromkeys(paths))
     if reader is None:
         return 503, {"error": "Photo export is unavailable"}
     if any(not app.repository.is_indexed_image(path) for path in paths):

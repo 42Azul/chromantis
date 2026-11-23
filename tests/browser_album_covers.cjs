@@ -1,6 +1,8 @@
-// Run against tests/android_fixture.py with a fresh synthetic invitation.
+// Run against open_fixture in tests/android_fixture.py with beach_photos=9 and a fresh invitation.
+// Requires unzip to check the downloaded album.
 // Requires Playwright with Chromium installed. Optional CHROMIUM_EXECUTABLE selects a local binary.
 const assert = require("node:assert/strict");
+const { execFileSync } = require("node:child_process");
 const { chromium } = require("playwright");
 
 async function main() {
@@ -58,6 +60,18 @@ async function main() {
       ["Photo_02.jpg", "Photo_04.jpg"]);
     assert.equal(download.suggestedFilename(), "chromantis-photos.zip");
     assert.equal(await download.failure(), null);
+    const albumButton = page.getByRole("button", { name: "Descargar álbum" });
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await albumButton.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-album-export-${mode}.png` });
+    }
+    const [album] = await Promise.all([page.waitForEvent("download"), albumButton.click()]);
+    const names = execFileSync("unzip", ["-Z1", await album.path()], { encoding: "utf8" }).trim().split("\n");
+    assert.deepEqual(names, Array.from({ length: 9 }, (_, i) => {
+      const number = String(i + 1).padStart(2, "0");
+      return `${number}-Photo_${number}.jpg`;
+    }));
   } finally {
     await browser.close();
   }

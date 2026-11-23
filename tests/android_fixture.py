@@ -19,11 +19,11 @@ from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
 @contextmanager
-def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False):
+def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False, beach_photos=33):
     with TemporaryDirectory(prefix="chromantis-android-") as directory:
         root = Path(directory)
         archive = root / "archive"
-        for folder, count in (("2024/2024-07-01_playa", 33), ("2023/2023-10-05_excursion", 2)):
+        for folder, count in (("2024/2024-07-01_playa", beach_photos), ("2023/2023-10-05_excursion", 2)):
             album = archive / folder
             album.mkdir(parents=True)
             for number in range(1, count + 1):

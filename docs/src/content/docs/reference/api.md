@@ -127,3 +127,5 @@ Add `filters=1` to `GET /api/v1/folders` to receive `filters.q` (the query for f
 Owner collections use `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collections/{id}`, `POST /api/v1/collections/{id}/entries`, and `DELETE /api/v1/collections/{id}/entries/{entry-id}`. Creation accepts a `name` and optional `entry`. Each entry contains `kind` (`folder` or `image`) and its exact indexed `path`.
 
 Send `POST /api/v1/photo-export` with a JSON body such as `{"paths":["indexed/photo.jpg"]}` to download a ZIP of selected originals. Use the same credentials as for originals, or a same-origin family session. The server deduplicates paths, accepts up to 20 entries and caps original data at 16 MiB. It serves one export at a time, with no disk staging. Oversized selections return 413. Missing files and archive failures return an error instead of a partial ZIP.
+
+To export a whole album, send an `album` string containing its indexed path instead of `paths`. The same limits apply, and albums with more than 20 indexed photos return 413 before opening originals.

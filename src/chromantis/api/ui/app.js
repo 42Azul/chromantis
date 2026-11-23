@@ -1276,7 +1276,7 @@ async function openPhotoReview(items, signal) {
   }
 }
 
-function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
+function photoSelectionControls(grid, signal, onSaved, albumPath) {
   const selected = new Set();
   let candidates = [];
   let selecting = false;
@@ -1297,9 +1297,17 @@ function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
 
   let exportRequest;
   const exportStatus = element("p", { class: "message", role: "status" });
-  const download = button("Descargar selección", async () => {
+  const download = button("Descargar selección", () =>
+    exportPhotos({ paths: [...selected].map(item => item.path) }));
+  const downloadAlbum = button("Descargar álbum", () => exportPhotos({ album: albumPath }));
+  const cancelExport = button("Cancelar descarga", () => {
+    exportRequest?.abort();
+    exportStatus.textContent = "Descarga cancelada.";
+  });
+
+  async function exportPhotos(data) {
     const pageSignal = signal();
-    if (pageSignal.aborted || exportRequest || !selected.size) return;
+    if (pageSignal.aborted || exportRequest || (!data.album && !data.paths.length)) return;
     const request = new AbortController();
     const cancel = () => request.abort();
     pageSignal.addEventListener("abort", cancel, { once: true });
@@ -1308,7 +1316,7 @@ function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
     update();
     try {
       const blob = await api("/photo-export", {
-        method: "POST", data: { paths: [...selected].map(item => item.path) },
+        method: "POST", data,
         raw: true, signal: request.signal,
       });
       if (request.signal.aborted) return;
@@ -1319,7 +1327,8 @@ function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
     } catch (error) {
       if (!request.signal.aborted) {
         exportStatus.textContent = error.status === 413
-          ? "El ZIP supera 16 MiB. Selecciona menos fotos."
+          ? (data.album ? "El álbum supera el límite de 20 fotos o 16 MiB. Descárgalo por selecciones."
+            : "El ZIP supera 16 MiB. Selecciona menos fotos.")
           : "No se pudo preparar el ZIP. Puedes volver a intentarlo.";
       }
     } finally {
@@ -1329,13 +1338,15 @@ function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
         update();
       }
     }
-  });
+  }
 
   function update() {
     edit.textContent = `Etiquetar fotos (${selected.size})`;
     edit.disabled = toggle.disabled || !selected.size;
     all.disabled = toggle.disabled || selected.size === candidates.length;
     download.disabled = toggle.disabled || !selected.size || !!exportRequest;
+    downloadAlbum.disabled = toggle.disabled || !candidates.length || !!exportRequest;
+    cancelExport.hidden = !exportRequest;
   }
 
   function setSelecting(active) {
@@ -1343,7 +1354,7 @@ function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
     grid.classList.toggle("selecting-photos", active);
     toggle.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
     edit.hidden = all.hidden = !active;
-    download.hidden = !active || !allowDownload;
+    download.hidden = !active || !albumPath;
     if (!active) {
       exportRequest?.abort();
       exportRequest = undefined;
@@ -1373,7 +1384,7 @@ function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
     candidates = [];
   }
   setSelecting(false);
-  return { toggle, edit, all, download, exportStatus, append, setSelecting, update, beginPage };
+  return { toggle, edit, all, download, downloadAlbum, cancelExport, exportStatus, append, setSelecting, update, beginPage };
 }
 
 function albumPhotoGallery(path) {
@@ -1384,7 +1395,7 @@ function albumPhotoGallery(path) {
   const status = element("p", { class: "message", "aria-live": "polite", tabindex: "-1" });
   const controls = photoSelectionControls(grid, () => albumPhotoRequests.signal, () => {
     message("album-review-status", "Se han guardado los cambios de las fotos.");
-  }, true);
+  }, path);
   const selectPhotos = controls.toggle;
   const editSelection = controls.edit;
   const setSelecting = controls.setSelecting;
@@ -1394,7 +1405,7 @@ function albumPhotoGallery(path) {
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, editSelection, controls.download);
+  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, editSelection, controls.download, controls.downloadAlbum, controls.cancelExport);
   const panel = element("div", { hidden: "" }, toolbar, controls.exportStatus, grid, navigation, reviewPhotos);
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);

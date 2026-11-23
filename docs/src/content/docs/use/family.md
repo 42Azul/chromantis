@@ -83,3 +83,5 @@ In an owner session, choose **Add photo to collection** or **Add album to collec
 To let someone else view an album, use a [revocable album link](../start/private-access.md#share-one-album).
 
 In the album gallery, select photos on the current page and choose **Descargar selección** to save their originals as a ZIP. If the selection exceeds 16 MiB, mark fewer photos and retry. **Cancelar selección** cancels the download in the browser and clears the selection.
+
+**Descargar álbum** includes all indexed photos in the album, including photos on pages you have yet to open. The ZIP is limited to 20 photos and 16 MiB. For larger albums, use page selections.

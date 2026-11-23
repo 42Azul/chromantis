@@ -379,6 +379,17 @@ except ScanBusy:
         reader.side_effect = OSError()
         self.assertEqual(self.request("POST", route, "read-token", {"paths": [path]})[0], 502)
 
+    def test_export_rejects_empty_or_oversized_albums_before_reading_originals(self) -> None:
+        reader = Mock()
+        self.start_api(export_reader=reader)
+        route = "/photo-export"
+        self.assertEqual(self.request("POST", route, "read-token", {"album": "2099/missing"})[0], 404)
+        self.assertEqual(self.request("POST", route, "read-token", {"album": "x", "paths": ["y"]})[0], 400)
+        with unittest.mock.patch.object(self.app_service, "images_in_folder", return_value=[None] * 21) as lookup:
+            self.assertEqual(self.request("POST", route, "read-token", {"album": "2021/fixture"})[0], 413)
+            lookup.assert_called_once_with("2021/fixture", limit=21)
+        reader.assert_not_called()
+
     def test_private_album_link_is_scoped_expiring_and_revocable(self) -> None:
         class Thumbnails:
             def get(self, path, fingerprint):
