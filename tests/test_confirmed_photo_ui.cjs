@@ -260,7 +260,39 @@ async function verifyPrivateThumbnailReuse() {
   assert.equal(oversized.bytes, 0);
 }
 
-verifyReturnToPhotoSearch().then(verifySearchSelection).then(verifyManualPhotoTags).then(verifyPrivateThumbnailReuse).then(() => {
+async function verifyLazyAlbumCover() {
+  let visible, complete;
+  const requests = [];
+  const urls = new Set();
+  const controller = new AbortController();
+  const load = new Function("api", "queryParams", "photoURLs", "IntersectionObserver",
+    `${between("function loadAlbumCover(", "function renderFolders(")} return loadAlbumCover;`)(
+    (path, options) => {
+      requests.push({ path, options });
+      return new Promise(resolve => { complete = resolve; });
+    },
+    data => "?" + new URLSearchParams(data), urls,
+    class {
+      constructor(callback) { visible = callback; }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  const card = { prepend() { assert.fail("A stale cover must not reach the card"); } };
+  load(card, "2024/Picnic", controller.signal);
+  visible([{ isIntersecting: false }]);
+  assert.equal(requests.length, 0);
+  visible([{ isIntersecting: true }]);
+  assert.deepEqual(requests, [{
+    path: "/album-cover?path=2024%2FPicnic", options: { raw: true, signal: controller.signal },
+  }]);
+  controller.abort();
+  complete(new Blob(["synthetic"]));
+  await Promise.resolve();
+  assert.equal(urls.size, 0);
+}
+
+verifyReturnToPhotoSearch().then(verifySearchSelection).then(verifyManualPhotoTags).then(verifyPrivateThumbnailReuse).then(verifyLazyAlbumCover).then(() => {
   console.log("Confirmed photo UI regression checks passed.");
 }).catch(error => {
   console.error(error);

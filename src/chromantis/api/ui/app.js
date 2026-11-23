@@ -562,6 +562,25 @@ function openAlbumFromResults(path, refresh) {
   });
 }
 
+function loadAlbumCover(card, path, signal) {
+  const observer = new IntersectionObserver(entries => {
+    if (signal.aborted || !entries.some(entry => entry.isIntersecting)) return;
+    observer.disconnect();
+    api("/album-cover" + queryParams({ path }), { raw: true, signal }).then(blob => {
+      if (signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      photoURLs.add(url);
+      const cover = element("img", { class: "album-cover", alt: "", decoding: "async" });
+      cover.addEventListener("load", () => {
+        if (!signal.aborted) card.prepend(cover);
+      }, { once: true });
+      cover.src = url;
+    }).catch(() => { /* Keep the operable text card when previews are unavailable. */ });
+  });
+  signal.addEventListener("abort", () => observer.disconnect(), { once: true });
+  observer.observe(card);
+}
+
 function renderFolders(items, timeline, refresh) {
   const family = principal?.auth_mode === "family";
   resetPhotos();
@@ -573,6 +592,7 @@ function renderFolders(items, timeline, refresh) {
   $("results").replaceChildren(...items.map(item => {
     const card = button("", () => family ? openAlbumFromResults(item.path, refresh)
       : archiveRequest("open_folder", { folder: item.path }), "folder-card");
+    if (family && indexStatus?.thumbnails) loadAlbumCover(card, item.path, photoRequests.signal);
     card.append(element("strong", {}, item.title));
     const details = [];
     if (timeline) {
