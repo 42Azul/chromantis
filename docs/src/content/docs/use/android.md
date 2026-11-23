@@ -196,3 +196,5 @@ On Android 10 and newer, open a photo and choose **Guardar original** to save a 
 In the photo viewer, choose **Compartir** to open Android's share sheet with the original. Select an app and confirm there when you want to send it. Sharing prepares a private temporary copy and supports originals up to 32 MiB.
 
 In the gallery, choose **Seleccionar fotos** and mark up to ten photos. Tap **Compartir selección** to prepare their originals (32 MiB total) and open Android's share sheet. You can cancel preparation or change the selection and retry if it is too large.
+
+On Android 10 and newer, **Guardar selección** saves the marked originals to **Pictures/Chromantis**. Each attempt handles up to ten photos and 32 MiB. If you cancel or a file fails, keep the same selection open and retry to save the remaining files.

@@ -576,7 +576,9 @@ Cover selection excludes photos whose indexed size exceeds the renderer limit be
 
 **Android single-photo share:** **Compartir** opens Android's share sheet with one authenticated original, using the existing 32 MiB client cap. A private cache retains at most one prepared photo, and the receiving app gets a temporary read grant. The emulator checks intent permissions, original bytes and replacement of the prior cached export. The physical WhatsApp check remains open.
 
-**Android selection share:** The gallery selection toolbar prepares up to ten originals with one 32 MiB aggregate budget and opens the Android share sheet only after successful preparation. The selection stays available on failure or cancellation. Requests are sequential and use the existing authenticated image route. The previous private export is replaced. Saving a selection to the gallery and the physical-device WhatsApp check remain open.
+**Android selection share:** The gallery selection toolbar prepares up to ten originals with one 32 MiB aggregate budget and opens the Android share sheet only after successful preparation. The selection stays available on failure or cancellation. Requests are sequential and use the existing authenticated image route. The previous private export is replaced. The physical-device WhatsApp check remains open.
+
+**Android selection save:** Android 10 and newer can save the selection to the phone gallery using the same ten-photo and 32 MiB transfer limits. Originals are committed individually. The current selection displays the completed count and retries only unfinished photos. Cancellation stops before the next write, and a write already in progress finishes. Physical-device validation remains open.
 
 #### 3. Recover the second 2003 folder and recognize dates in album names
 

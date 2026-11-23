@@ -186,6 +186,9 @@ class FamilyComposeTest {
             click(label(R.string.select_photos))
             visiblePhotos.forEach { click(it.title) }
             compose.onNodeWithText(label(R.string.share_selection)).assertIsDisplayed()
+            click(label(R.string.save_selection))
+            await("2 originales guardados")
+            compose.onNodeWithText(label(R.string.save_selection)).assertIsNotEnabled()
             capture("share-selection-light")
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("share-selection-dark")

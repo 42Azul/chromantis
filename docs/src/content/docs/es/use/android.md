@@ -196,3 +196,5 @@ En Android 10 o posterior, abre una foto y pulsa **Guardar original** para guard
 En el visor, pulsa **Compartir** para abrir el menú de Android con el original. Elige una aplicación y confirma allí el envío. El visor prepara una copia temporal privada y admite originales de hasta 32 MiB.
 
 En la galería, pulsa **Seleccionar fotos** y marca hasta diez. **Compartir selección** prepara los originales (32 MiB en total) y abre el menú de Android. Puedes cancelar la preparación o cambiar la selección y reintentar si supera el límite.
+
+En Android 10 o posterior, **Guardar selección** copia las fotos marcadas a **Pictures/Chromantis**. Cada intento admite hasta diez fotos y 32 MiB. Si cancelas o falla un archivo, mantén abierta la selección y reintenta para guardar los que falten.

@@ -88,7 +88,10 @@ import androidx.core.view.WindowCompat
 import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ExplorerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -647,7 +650,7 @@ internal fun EntryScreen(
                                 Text(stringResource(R.string.cancel))
                             }
                         }
-                        if (photoApi != null) ShareSelection(photoApi, selection, onExpired)
+                        if (photoApi != null) ExportSelection(photoApi, selection, onExpired)
                     }
                 }
                 if (photoApi != null) {
@@ -792,53 +795,85 @@ internal fun Thumbnail(
 }
 
 @Composable
-private fun ShareSelection(api: ChromantisApi, paths: List<String>, onExpired: () -> Unit) {
+private fun ExportSelection(api: ChromantisApi, paths: List<String>, onExpired: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var job by remember { mutableStateOf<Job?>(null) }
     var status by remember(paths) { mutableIntStateOf(0) }
-    Row {
+    var savedPaths by remember { mutableStateOf(setOf<String>()) }
+    val unsaved = paths.filterNot { it in savedPaths }
+    val savedCount = paths.size - unsaved.size
+
+    fun startTransfer(progress: Int, action: suspend () -> Unit) {
+        status = progress
+        job =
+            scope.launch {
+                try {
+                    val error = attempt(action).exceptionOrNull()
+                    if (error?.hasStatus(401) == true) onExpired()
+                    status =
+                        when {
+                            error is ResponseTooLarge -> R.string.share_size_limit
+                            error != null -> errorLabel(error)
+                            else -> 0
+                        }
+                } finally {
+                    job = null
+                }
+            }
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            TextButton(
+                enabled = job == null && unsaved.size in 1..MAX_SHARE_PHOTOS,
+                onClick = {
+                    startTransfer(R.string.saving_selection) {
+                        var remaining = 32 shl 20
+                        for (path in unsaved) {
+                            ensureActive()
+                            val bytes = api.originalBytes(path, remaining)
+                            remaining -= bytes.size
+                            ensureActive()
+                            // Finish recording an already-started write even if the user cancels.
+                            withContext(NonCancellable) {
+                                saveOriginal(context.contentResolver, path, bytes)
+                                savedPaths = savedPaths + path
+                            }
+                        }
+                    }
+                },
+            ) {
+                Text(stringResource(R.string.save_selection))
+            }
+        }
         TextButton(
             enabled = job == null && paths.size in 1..MAX_SHARE_PHOTOS,
             onClick = {
-                status = R.string.preparing_share
-                job =
-                    scope.launch {
-                        try {
-                            val result = attempt {
-                                val send = prepareOriginalShare(context, paths, api::originalBytes)
-                                context.startActivity(Intent.createChooser(send, null))
-                            }
-                            val error = result.exceptionOrNull()
-                            if (error?.hasStatus(401) == true) onExpired()
-                            status =
-                                when {
-                                    error is ResponseTooLarge -> R.string.share_size_limit
-                                    error != null -> errorLabel(error)
-                                    else -> 0
-                                }
-                        } finally {
-                            job = null
-                        }
-                    }
+                startTransfer(R.string.preparing_share) {
+                    val send = prepareOriginalShare(context, paths, api::originalBytes)
+                    context.startActivity(Intent.createChooser(send, null))
+                }
             },
         ) {
             Text(stringResource(R.string.share_selection))
         }
-        if (job != null) {
-            TextButton(
-                onClick = {
-                    job?.cancel()
-                    status = 0
-                }
-            ) {
-                Text(stringResource(R.string.cancel_share))
+    }
+    if (job != null) {
+        TextButton(
+            onClick = {
+                job?.cancel()
+                status = 0
             }
+        ) {
+            Text(stringResource(R.string.cancel_share))
         }
     }
     if (paths.size > MAX_SHARE_PHOTOS)
         Text(stringResource(R.string.share_count_limit, MAX_SHARE_PHOTOS))
-    else if (status != 0) Text(stringResource(status))
+    if (status != 0) Text(stringResource(status))
+    if (savedCount > 0)
+        Text(pluralStringResource(R.plurals.saved_original_count, savedCount, savedCount))
 }
 
 @Composable
