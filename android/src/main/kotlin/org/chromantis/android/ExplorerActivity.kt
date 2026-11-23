@@ -395,17 +395,21 @@ internal fun Explorer(
                     }
                     Level.PHOTOS -> {
                         Text(page.path.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                        TextButton(
-                            onClick = { pages = pages + Page(Level.REVIEW, reviewTitle, page.path) }
-                        ) {
-                            Text(stringResource(R.string.review_album))
+                        val browsingFromSearch = workspace.level == Level.ASK
+                        if (!browsingFromSearch) {
+                            TextButton(
+                                onClick = { pages = pages + Page(Level.REVIEW, reviewTitle, page.path) }
+                            ) {
+                                Text(stringResource(R.string.review_album))
+                            }
                         }
                         EntryScreen(
                             load = { api.photos(requireNotNull(page.path), it) },
                             onExpired = expire,
                             onOpen = { pages = pages + Page(Level.ORIGINAL, it.title, it.path) },
                             photoApi = api,
-                            allowPhotoEdits = true,
+                            allowPhotoEdits = !browsingFromSearch,
+                            allowExportSelection = true,
                             initialOffset = galleryStartOffset,
                             onPageLoaded = { offset ->
                                 albumResume(pages, offset)?.let(onAlbumVisited)
@@ -594,10 +598,12 @@ internal fun EntryScreen(
     photoApi: ChromantisApi? = null,
     folderApi: ChromantisApi? = null,
     allowPhotoEdits: Boolean = false,
+    allowExportSelection: Boolean = false,
     initialOffset: Int = 0,
     onPageLoaded: ((Int) -> Unit)? = null,
     header: @Composable (EntryPage) -> Unit = {},
 ) {
+    val canSelect = allowPhotoEdits || allowExportSelection
     var offset by rememberSaveable { mutableIntStateOf(initialOffset) }
     var reload by remember { mutableIntStateOf(0) }
     key(offset, reload) {
@@ -620,7 +626,7 @@ internal fun EntryScreen(
                 if (saved) {
                     Text(stringResource(R.string.photo_tags_saved))
                 }
-                if (allowPhotoEdits && page.entries.isNotEmpty()) {
+                if (canSelect && page.entries.isNotEmpty()) {
                     if (selection == null) {
                         TextButton(
                             onClick = {
@@ -630,7 +636,7 @@ internal fun EntryScreen(
                         ) {
                             Text(stringResource(R.string.select_photos))
                         }
-                        if (page.hasThumbnails) {
+                        if (allowPhotoEdits && page.hasThumbnails) {
                             TextButton(onClick = { review = true }) {
                                 Text(stringResource(R.string.review_photos))
                             }
@@ -644,14 +650,21 @@ internal fun EntryScreen(
                             )
                         )
                         Row {
-                            Button(onClick = { edit = true }, enabled = selection.isNotEmpty()) {
-                                Text(stringResource(R.string.tag_photos))
+                            if (allowPhotoEdits) {
+                                Button(
+                                    onClick = { edit = true },
+                                    enabled = selection.isNotEmpty(),
+                                ) {
+                                    Text(stringResource(R.string.tag_photos))
+                                }
                             }
                             TextButton(onClick = { selected = null }) {
                                 Text(stringResource(R.string.cancel))
                             }
                         }
-                        if (photoApi != null) ExportSelection(photoApi, selection, onExpired)
+                        if (allowExportSelection && photoApi != null) {
+                            ExportSelection(photoApi, selection, onExpired)
+                        }
                     }
                 }
                 if (photoApi != null) {
@@ -672,7 +685,7 @@ internal fun EntryScreen(
                                                 current + entry.path
                                             else if (!select) current - entry.path else current
                                     }
-                                } else if (allowPhotoEdits) {
+                                } else if (canSelect) {
                                     Modifier.combinedClickable(
                                         onClick = { onOpen(entry) },
                                         onLongClickLabel = stringResource(R.string.select_photos),

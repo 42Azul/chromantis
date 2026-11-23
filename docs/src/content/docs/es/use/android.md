@@ -100,7 +100,7 @@ sha256sum --check SHA256SUMS.txt
 adb install -r Chromantis-debug.apk
 ```
 
-Este APK solo se genera después de superar formato, pruebas unitarias, lint y la suite del emulador. No contiene la dirección del NAS, invitaciones, metadatos familiares, fotos ni la clave de distribución. Usa la firma de depuración estándar de Android y sirve únicamente para pruebas privadas; compila la versión firmada descrita más abajo para una instalación y actualizaciones estables.
+Este APK de prueba usa la clave persistente de CI. Para pasar desde un APK firmado con una clave anterior de depuración, reinstala la app e inicia sesión de nuevo una vez. Los siguientes APK de este flujo se pueden instalar como actualizaciones.
 
 ### Compílalo localmente
 
