@@ -81,3 +81,5 @@ Abre **Detalles del álbum** para añadir una nota, un lugar o hasta ocho alias,
 Con una sesión de propietario, usa **Add photo to collection** o **Add album to collection** y elige una colección o crea una. En **Collections** puedes volver a las entradas y quitarlas. Cada propietario tiene sus propias colecciones, con un máximo de 100 colecciones y 250 entradas por colección. Una entrada vuelve a estar disponible si el índice recupera la misma ruta y raíz del archivo.
 
 Para que otra persona pueda ver un álbum, usa un [enlace revocable](../start/private-access.md#comparte-un-solo-álbum).
+
+En la galería del álbum, marca las fotos de la página actual y pulsa **Descargar selección** para guardar sus originales en un ZIP. Si supera los 16 MiB, marca menos fotos y vuelve a intentarlo. **Cancelar selección** cancela la descarga en el navegador y borra la selección.

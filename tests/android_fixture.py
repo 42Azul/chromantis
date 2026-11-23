@@ -46,6 +46,7 @@ def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False):
             app,
             api_token="synthetic-fixture-only",
             image_fetcher=source.read_bytes,
+            export_reader=lambda path, limit: source.read_bytes(path, max_bytes=limit),
             thumbnails=build_thumbnail_cache(db, 8, source),
         )
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)

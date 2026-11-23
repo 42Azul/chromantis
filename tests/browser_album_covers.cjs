@@ -38,6 +38,26 @@ async function main() {
     }
     assert.equal(paths.filter(path => path === "/api/v1/album-cover").length, 1);
     assert.ok(!paths.includes("/api/v1/image"));
+    await page.locator("#results .folder-card").filter({ has: page.locator(".album-cover") }).click();
+    await page.getByRole("button", { name: "Ver fotos del álbum" }).click();
+    await page.getByRole("button", { name: "Seleccionar fotos", exact: true }).click();
+    await page.getByRole("checkbox", { name: /Photo_02.jpg/ }).check();
+    await page.getByRole("checkbox", { name: /Photo_04.jpg/ }).check();
+    const exportButton = page.getByRole("button", { name: "Descargar selección" });
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await exportButton.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-selection-${mode}.png` });
+    }
+    const [download, request] = await Promise.all([
+      page.waitForEvent("download"),
+      page.waitForRequest(request => request.url().endsWith("/api/v1/photo-export")),
+      exportButton.click(),
+    ]);
+    assert.deepEqual(request.postDataJSON().paths.map(path => path.split("/").at(-1)),
+      ["Photo_02.jpg", "Photo_04.jpg"]);
+    assert.equal(download.suggestedFilename(), "chromantis-photos.zip");
+    assert.equal(await download.failure(), null);
   } finally {
     await browser.close();
   }

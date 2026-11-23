@@ -50,6 +50,10 @@ async function verifyBatchReview(source, failedReloads = 0) {
   const selections = [];
   let failPhotoPage = true;
   const api = async (path, request) => {
+    if (path === "/photo-export") {
+      assert(request.data.paths.join() === "Photo-2.jpg,Photo-4.jpg", "Export only checked originals");
+      throw Object.assign(new Error("Too large"), { status: 413 });
+    }
     if (path.startsWith("/album-images?") && request?.signal) {
       const params = new URLSearchParams(path.split("?")[1]);
       const offset = Number(params.get("offset"));
@@ -238,8 +242,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
   selectValues(resultEditor)[0].value = "rejected";
   const [, , gallery] = content.children.at(-2).children;
   const [toggle, status, panel] = gallery.children;
-  const [toolbar, grid, navigation] = panel.children;
-  const [selectPhotos, selectPage, editSelection] = toolbar.children;
+  const [toolbar, exportStatus, grid, navigation] = panel.children;
+  const [selectPhotos, selectPage, editSelection, download] = toolbar.children;
   const [previous, next] = navigation.children;
   assert(panel.hidden && photoOffsets.length === 0, "Opening the album must not load photo metadata");
   await toggle.listeners.click();
@@ -253,6 +257,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
   editSelection.listeners.click();
   assert(selections[0].map(item => item.path).join() === "Photo-2.jpg,Photo-4.jpg",
     "Only the checked photos may enter the editor");
+  await download.listeners.click();
+  assert(exportStatus.textContent.includes("16 MiB") && !download.disabled, "Allow retry after an oversized ZIP");
   const firstSignal = grid.children[0].signal;
   await next.listeners.click();
   assert(grid.children.length === 6 && !next.disabled && !firstSignal.aborted && status.textContent.includes("Inténtalo"),

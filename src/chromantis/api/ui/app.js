@@ -1276,7 +1276,7 @@ async function openPhotoReview(items, signal) {
   }
 }
 
-function photoSelectionControls(grid, signal, onSaved) {
+function photoSelectionControls(grid, signal, onSaved, allowDownload = false) {
   const selected = new Set();
   let candidates = [];
   let selecting = false;
@@ -1295,10 +1295,47 @@ function photoSelectionControls(grid, signal, onSaved) {
     update();
   });
 
+  let exportRequest;
+  const exportStatus = element("p", { class: "message", role: "status" });
+  const download = button("Descargar selección", async () => {
+    const pageSignal = signal();
+    if (pageSignal.aborted || exportRequest || !selected.size) return;
+    const request = new AbortController();
+    const cancel = () => request.abort();
+    pageSignal.addEventListener("abort", cancel, { once: true });
+    exportRequest = request;
+    exportStatus.textContent = "Preparando ZIP…";
+    update();
+    try {
+      const blob = await api("/photo-export", {
+        method: "POST", data: { paths: [...selected].map(item => item.path) },
+        raw: true, signal: request.signal,
+      });
+      if (request.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      element("a", { href: url, download: "chromantis-photos.zip" }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      exportStatus.textContent = "ZIP listo para descargar.";
+    } catch (error) {
+      if (!request.signal.aborted) {
+        exportStatus.textContent = error.status === 413
+          ? "El ZIP supera 16 MiB. Selecciona menos fotos."
+          : "No se pudo preparar el ZIP. Puedes volver a intentarlo.";
+      }
+    } finally {
+      pageSignal.removeEventListener("abort", cancel);
+      if (exportRequest === request) {
+        exportRequest = undefined;
+        update();
+      }
+    }
+  });
+
   function update() {
     edit.textContent = `Etiquetar fotos (${selected.size})`;
     edit.disabled = toggle.disabled || !selected.size;
     all.disabled = toggle.disabled || selected.size === candidates.length;
+    download.disabled = toggle.disabled || !selected.size || !!exportRequest;
   }
 
   function setSelecting(active) {
@@ -1306,7 +1343,11 @@ function photoSelectionControls(grid, signal, onSaved) {
     grid.classList.toggle("selecting-photos", active);
     toggle.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
     edit.hidden = all.hidden = !active;
+    download.hidden = !active || !allowDownload;
     if (!active) {
+      exportRequest?.abort();
+      exportRequest = undefined;
+      exportStatus.textContent = "";
       selected.clear();
       for (const checkbox of grid.querySelectorAll(".photo-selection input")) checkbox.checked = false;
     }
@@ -1332,7 +1373,7 @@ function photoSelectionControls(grid, signal, onSaved) {
     candidates = [];
   }
   setSelecting(false);
-  return { toggle, edit, all, append, setSelecting, update, beginPage };
+  return { toggle, edit, all, download, exportStatus, append, setSelecting, update, beginPage };
 }
 
 function albumPhotoGallery(path) {
@@ -1343,7 +1384,7 @@ function albumPhotoGallery(path) {
   const status = element("p", { class: "message", "aria-live": "polite", tabindex: "-1" });
   const controls = photoSelectionControls(grid, () => albumPhotoRequests.signal, () => {
     message("album-review-status", "Se han guardado los cambios de las fotos.");
-  });
+  }, true);
   const selectPhotos = controls.toggle;
   const editSelection = controls.edit;
   const setSelecting = controls.setSelecting;
@@ -1353,8 +1394,8 @@ function albumPhotoGallery(path) {
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, editSelection);
-  const panel = element("div", { hidden: "" }, toolbar, grid, navigation, reviewPhotos);
+  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, editSelection, controls.download);
+  const panel = element("div", { hidden: "" }, toolbar, controls.exportStatus, grid, navigation, reviewPhotos);
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);
     resetAlbumPhotos();

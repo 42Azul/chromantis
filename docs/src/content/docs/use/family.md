@@ -81,3 +81,5 @@ Open **Album details** (*Detalles del álbum*) to add a note, place, or up to ei
 In an owner session, choose **Add photo to collection** or **Add album to collection**, then pick an existing collection or create one. Open **Collections** to revisit entries or remove them. Owners have separate collections, with up to 100 collections and 250 entries in each. An entry becomes available again when the same path and archive root return to the index.
 
 To let someone else view an album, use a [revocable album link](../start/private-access.md#share-one-album).
+
+In the album gallery, select photos on the current page and choose **Descargar selección** to save their originals as a ZIP. If the selection exceeds 16 MiB, mark fewer photos and retry. **Cancelar selección** cancels the download in the browser and clears the selection.
