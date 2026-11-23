@@ -198,3 +198,20 @@ In the photo viewer, choose **Compartir** to open Android's share sheet with the
 In the gallery, choose **Seleccionar fotos** and mark up to ten photos. Tap **Compartir selección** to prepare their originals (32 MiB total) and open Android's share sheet. You can cancel preparation or change the selection and retry if it is too large.
 
 On Android 10 and newer, **Guardar selección** saves the marked originals to **Pictures/Chromantis**. Each attempt handles up to ten photos and 32 MiB. If you cancel or a file fails, keep the same selection open and retry to save the remaining files.
+
+## Physical-phone release checks
+
+Use the same APK for every row and record its build or commit, the Android version, the device model and the date. Use a disposable family invitation and synthetic photos served on a private network. Keep addresses, codes and photo contents out of the results. Record **Pass**, **Fail** or **N/A** for each row and explain any N/A. Keep a required check open until it has been run.
+
+| Check | Expected result | Result |
+| --- | --- | --- |
+| Redeem an invitation, then try it again in a separate session. | The first sign-in works and the second redemption is refused. | |
+| Open gallery page two, rotate the phone and return from a photo. | The album and page are preserved. | |
+| Open another app, terminate the background Chromantis process and start Chromantis from its launcher. Record whether the process was actually terminated. | The family session still works and **Continue in…** opens the saved gallery page. | |
+| Revoke the test session and open a different year. | The next protected request asks for a new code. A new invitation restores access. | |
+| Disconnect Wi-Fi or stop the fixture while opening an uncached preview, then restore it. | The failed request is visible and retry loads the preview. | |
+| Deny local-network access where Android provides that control, then grant it. | The app recovers and can open a photo after access is restored. | |
+| Browse the year with the two split-year branches using a fixture that contains both. | The two same-title albums open as separate galleries, including an album on a later page. | |
+| Open a cover, save one original and a selection, and share a synthetic photo through the Android share sheet. | The cover appears, saved files open in the phone gallery, and the receiving app opens the shared photo. | |
+
+For each failure, record the shortest reproduction, what appeared on screen and who will follow up. Leave any row unrun if the fixture or device cannot exercise it.

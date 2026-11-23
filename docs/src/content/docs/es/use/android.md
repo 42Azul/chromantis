@@ -198,3 +198,20 @@ En el visor, pulsa **Compartir** para abrir el menú de Android con el original.
 En la galería, pulsa **Seleccionar fotos** y marca hasta diez. **Compartir selección** prepara los originales (32 MiB en total) y abre el menú de Android. Puedes cancelar la preparación o cambiar la selección y reintentar si supera el límite.
 
 En Android 10 o posterior, **Guardar selección** copia las fotos marcadas a **Pictures/Chromantis**. Cada intento admite hasta diez fotos y 32 MiB. Si cancelas o falla un archivo, mantén abierta la selección y reintenta para guardar los que falten.
+
+## Comprobaciones en un teléfono físico
+
+Usa la misma APK para todas las filas y anota su compilación o commit, la versión de Android, el modelo del teléfono y la fecha. Usa una invitación familiar desechable y fotos sintéticas en una red privada. Omite direcciones, códigos y contenido de las fotos en los resultados. Anota **Correcto**, **Fallo** o **No aplica** en cada fila y explica cuándo no aplica. Deja abierta cada comprobación obligatoria hasta realizarla.
+
+| Comprobación | Resultado esperado | Resultado |
+| --- | --- | --- |
+| Canjea una invitación y vuelve a probarla en otra sesión. | La primera entrada funciona y se rechaza el segundo canje. | |
+| Abre la segunda página de la galería, gira el teléfono y vuelve desde una foto. | Se conservan el álbum y la página. | |
+| Abre otra app, termina el proceso de Chromantis en segundo plano e inicia Chromantis desde su icono. Anota si el proceso llegó a terminar. | La sesión sigue activa y **Continuar en…** abre la página guardada. | |
+| Revoca la sesión de prueba y abre otro año. | La siguiente petición protegida pide un código nuevo. Una nueva invitación recupera el acceso. | |
+| Desconecta el Wi-Fi o detén el servidor de prueba al abrir una miniatura sin caché y después restablece la conexión. | Se muestra el fallo y el reintento carga la miniatura. | |
+| Deniega el acceso a la red local si Android ofrece ese control y vuelve a concederlo. | La app se recupera y puede abrir una foto al restaurar el acceso. | |
+| Explora un año con dos ramas en un archivo de prueba que incluya ambas. | Los dos álbumes con el mismo título se abren como galerías distintas, incluido el de una página posterior. | |
+| Abre una portada, guarda un original y una selección, y comparte una foto sintética desde el menú de Android. | Se ve la portada, los archivos guardados se abren en la galería y la app receptora abre la foto compartida. | |
+
+Para cada fallo, anota los pasos mínimos, lo que apareció en pantalla y quién hará el seguimiento. Deja pendiente cualquier fila que el archivo de prueba o el dispositivo no permitan comprobar.
