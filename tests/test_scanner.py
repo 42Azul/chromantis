@@ -3,6 +3,9 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+from chromantis.app import ApplicationService
 
 from chromantis.db.repository import Repository
 from chromantis.parsing.path_parser import PathParser
@@ -39,6 +42,31 @@ class FTPScannerTests(unittest.TestCase):
                 images = connection.execute("SELECT COUNT(*) FROM images").fetchone()[0]
                 self.assertEqual(folders, 3)
                 self.assertEqual(images, 5)
+
+    def test_full_scan_refreshes_compact_date_and_keeps_manual_correction(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            archive = root / "archive"
+            album = "2024/20240229 - Reunión"
+            photo = archive / album / "IMG_0001.jpg"
+            photo.parent.mkdir(parents=True)
+            photo.write_bytes(b"synthetic original")
+            repository, scanner = self._build_scanner(str(root / "index.db"), archive)
+            with patch("chromantis.parsing.path_parser.extract_event_date", return_value=None):
+                scanner.scan()
+            app = ApplicationService(repository, static_owner_chat_ids=(10,))
+            item = app.get_album_review(10)
+            self.assertIsNone(item["indexed_date"])
+            app.edit_album_context(10, album, item["id"], item["context_revision"], {
+                "event_date": "2024-02-28", "title": "Fecha de la reunión",
+            })
+
+            scanner.scan()
+            updated = app.get_album_review(10)
+            self.assertEqual(updated["indexed_date"], "2024-02-29")
+            self.assertEqual(updated["event_date"], "2024-02-28")
+            self.assertEqual(updated["title"], "Fecha de la reunión")
+            self.assertEqual(photo.read_bytes(), b"synthetic original")
 
     def test_reindex_prunes_stale_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

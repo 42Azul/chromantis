@@ -15,6 +15,8 @@ Después de añadir fotos al archivo, ejecuta desde el repositorio:
 
 El modo incremental lista el subárbol configurado, aplica los cambios y retira entradas ausentes solo si pudo completar el listado. La API y la línea de comandos comparten un archivo de bloqueo junto al índice SQLite local para los escaneos completos e incrementales. Si hay un escaneo en curso, la siguiente solicitud termina sin iniciar otro. Conserva el archivo de bloqueo. Tras un cierre inesperado, el siguiente escaneo marca la ejecución interrumpida como fallida. Ejecuta sin `--incremental` si cambias las reglas de interpretación y quieres actualizar los metadatos derivados.
 
+El índice reconoce una fecha inicial con el formato `AAAAMMDD - Título` o un nombre que solo contenga `AAAAMMDD`, si la fecha es válida y su año coincide con el de la carpeta. Ejecuta un escaneo completo para actualizar las fechas derivadas en un índice existente. Se conservan las correcciones manuales y los originales se mantienen en solo lectura.
+
 La web muestra la fecha del último índice correcto. `GET /api/v1/sync/runs?limit=10` incluye el inicio y el fin de cada ejecución, los recuentos y los errores. Para escanear cada día a las 03:20, en la zona horaria del NAS, adapta las rutas del repositorio y del registro en esta entrada de cron:
 
 ```text

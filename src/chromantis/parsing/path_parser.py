@@ -85,7 +85,7 @@ class PathParser:
         extension = PurePosixPath(filename).suffix.lower()
         folder_slug = slugify(folder_name_raw)
         title = humanize(folder_name_raw)
-        event_date = extract_event_date(folder_name_raw)
+        event_date = extract_event_date(folder_name_raw, year=int(year_match.group(1)))
         folder_tags = build_folder_tags(folder_name_raw, event_date)
         image_tags = build_image_tags(filename)
 
@@ -125,12 +125,17 @@ def humanize(value: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def extract_event_date(folder_name_raw: str) -> str | None:
+def extract_event_date(folder_name_raw: str, *, year: int | None = None) -> str | None:
     match = re.match(r"^(\d{4}-\d{2}-\d{2})(?:[_-]|$)", folder_name_raw)
-    if not match:
-        return None
+    if match:
+        candidate = match.group(1)
+    else:
+        compact = re.match(r"^([0-9]{4})([0-9]{2})([0-9]{2})(?: - |$)", folder_name_raw)
+        if not compact or year != int(compact.group(1)):
+            return None
+        candidate = "-".join(compact.groups())
     try:
-        return date.fromisoformat(match.group(1)).isoformat()
+        return date.fromisoformat(candidate).isoformat()
     except ValueError:
         return None
 

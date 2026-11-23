@@ -15,6 +15,8 @@ After adding photos to the archive, run from the checkout:
 
 Incremental mode lists the configured subtree, applies changes, and removes missing items only after a successful listing. The API and CLI share a lock file beside the local SQLite index, both for incremental and full scans. If a scan is already active, the next request exits without starting another. Keep the lock file in place. When a scan starts after an abrupt shutdown, it marks the interrupted run as failed. Run without `--incremental` after changing parsing rules to refresh derived metadata.
 
+An album name starting with `YYYYMMDD - Title`, or consisting of `YYYYMMDD` alone, supplies a folder date if the date is valid and its year agrees with the year directory. Use a full scan to refresh dates in an existing index. It keeps manual date corrections and leaves original files read-only.
+
 The browser shows the latest successful index. `GET /api/v1/sync/runs?limit=10` reports started and finished runs, counts, and errors. For a daily scan at 03:20 in the NAS timezone, adapt the checkout and log paths in this cron entry:
 
 ```text
