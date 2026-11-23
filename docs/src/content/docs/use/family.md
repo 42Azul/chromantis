@@ -85,3 +85,5 @@ To let someone else view an album, use a [revocable album link](../start/private
 In the album gallery, select photos on the current page and choose **Descargar selección** to save their originals as a ZIP. If the selection exceeds 16 MiB, mark fewer photos and retry. **Cancelar selección** cancels the download in the browser and clears the selection.
 
 **Descargar álbum** includes all indexed photos in the album, including photos on pages you have yet to open. The ZIP is limited to 20 photos and 16 MiB. For larger albums, use page selections.
+
+If an album save fails, the message beside **Guardar** explains what happened. Keep the editor open to retry with the same selections.

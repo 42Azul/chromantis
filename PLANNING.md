@@ -712,6 +712,8 @@ Cover selection excludes photos whose indexed size exceeds the renderer limit be
 
 **Keyboard and large text:** Opening the editor from a search result moves focus to the person search once the editor loads, provided focus is still on the return button. The synthetic Chromium run uses Tab and Enter to enter the editor, select Ana by alias and save. It checks focus on the restored results, finds the edited album by name, and checks for horizontal overflow at 200% text size at mobile and desktop widths.
 
+**Offline save recovery:** With the synthetic archive disconnected and thumbnails disabled, Chromium verifies that a failed save leaves Ana selected, puts the error beside the save button and allows retrying the same changes. Retrying persists the link and search finds the album by Ana. The test rejects all media requests and external traffic. Both themes were reviewed at 360 px.
+
 **Validation:** At 360 px and desktop widths, complete open album → select Ana or her alias → save → find by Ana. Inspect synthetic light/dark captures, keyboard focus, touch targets, large text, empty/error states and the visible save action. Confirm that ordinary navigation and name-only review require no originals or external requests. Record the remaining physical-phone usability check separately.
 
 ### MVP 20B — Family Authentication Review and Passkey Trial

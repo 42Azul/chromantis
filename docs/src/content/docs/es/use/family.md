@@ -85,3 +85,5 @@ Para que otra persona pueda ver un álbum, usa un [enlace revocable](../start/pr
 En la galería del álbum, marca las fotos de la página actual y pulsa **Descargar selección** para guardar sus originales en un ZIP. Si supera los 16 MiB, marca menos fotos y vuelve a intentarlo. **Cancelar selección** cancela la descarga en el navegador y borra la selección.
 
 **Descargar álbum** incluye todas las fotos indexadas del álbum, incluso las de páginas que aún no hayas abierto. El ZIP admite hasta 20 fotos y 16 MiB. Para álbumes más grandes, descarga selecciones por página.
+
+Si falla el guardado del álbum, verás el aviso junto al botón **Guardar**. Mantén abierto el editor para reintentar con las mismas selecciones.

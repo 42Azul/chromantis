@@ -1535,14 +1535,16 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
   const next = saved => returnTo ? returnTo.open(saved) : loadAlbumReview({
     after: album.id, reviewed, directory: saved && newPerson.value.trim() ? undefined : directory, saved,
   });
-  const save = element("button", { class: "primary", type: "submit" },
+  const saveStatus = element("p", { id: "album-save-status", class: "message", "aria-live": "polite" });
+  const save = element("button", { class: "primary", type: "submit", "aria-describedby": "album-save-status" },
     returnTo?.saveLabel || "Guardar y siguiente");
   const skip = returnTo ? null : button("Saltar", () => next(false));
-  form.append(element("div", { class: "actions" }, save, ...(skip ? [skip] : [])));
+  form.append(element("div", { class: "actions" }, save, ...(skip ? [skip] : [])), saveStatus);
   form.addEventListener("submit", async event => {
     event.preventDefault();
     if (save.disabled) return;
     save.disabled = true;
+    saveStatus.textContent = "";
     const otherAction = returnButton || skip;
     if (otherAction) otherAction.disabled = true;
     const { id, path, revision } = album;
@@ -1559,7 +1561,12 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
       } });
       if (request === albumRequest) await next(true);
     } catch (error) {
-      if (request === albumRequest) message("album-review-status", error.message);
+      if (request === albumRequest) {
+        saveStatus.textContent = error.status && error.status < 500 ? error.message
+          : "No se pudo guardar el álbum. Tus cambios siguen aquí. Inténtalo de nuevo.";
+        save.disabled = false;
+        if (document.activeElement === document.body) save.focus();
+      }
     } finally {
       save.disabled = false;
       if (otherAction) otherAction.disabled = false;
