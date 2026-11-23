@@ -61,3 +61,9 @@ The online backup includes committed WAL changes and prints the size and SHA-256
 ```
 
 Restore applies current schema migrations and refuses to overwrite an existing database. Stop the API and bot before switching `SQLITE_PATH`, keep the old database, and restart against the restored file. Check a corrected album and a private collection. Reindex if the archive location or contents have changed. Backup, verification, and restore work without the photo source.
+
+## A year branch is missing
+
+The year view groups indexed albums under the four-digit year. For split years such as `2003(1)` and `2003(2)`, compare the album paths while paging through the year. A repeated title can correspond to separate paths. The clients show 30 albums per page.
+
+If the branch is absent from every page, check the most recent index run in **Archive status**. On the NAS, compare the exact directory name and depth exposed by the configured source with the layout `year/album/photo.jpg`. For FTP, check whether the scan used MLSD or fell back to NLST and whether the source listing includes both branches. An album needs at least one indexed image to appear in the year view. Keep paths and scan logs local when diagnosing a family archive.
