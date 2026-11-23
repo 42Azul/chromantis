@@ -211,7 +211,7 @@ Use the same APK for every row and record its build or commit, the Android versi
 | Revoke the test session and open a different year. | The next protected request asks for a new code. A new invitation restores access. | |
 | Disconnect Wi-Fi or stop the fixture while opening an uncached preview, then restore it. | The failed request is visible and retry loads the preview. | |
 | Deny local-network access where Android provides that control, then grant it. | The app recovers and can open a photo after access is restored. | |
-| Browse the year with the two split-year branches using a fixture that contains both. | The two same-title albums open as separate galleries, including an album on a later page. | |
+| Browse the year with the two split-year branches with the fixture started using `--split-year`. | The two same-title albums open as separate galleries, including an album on a later page. | |
 | Open a cover, save one original and a selection, and share a synthetic photo through the Android share sheet. | The cover appears, saved files open in the phone gallery, and the receiving app opens the shared photo. | |
 
 For each failure, record the shortest reproduction, what appeared on screen and who will follow up. Leave any row unrun if the fixture or device cannot exercise it.

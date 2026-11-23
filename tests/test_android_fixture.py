@@ -32,7 +32,7 @@ class AndroidFixtureTests(unittest.TestCase):
                 check=True, capture_output=True, timeout=15,
             )
             tls = ssl.create_default_context(cafile=str(cert))
-            with open_fixture(cert, key, port=0) as (server, db, access_id, invitation):
+            with open_fixture(cert, key, port=0, split_year=True) as (server, db, access_id, invitation):
                 thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
                 thread.start()
                 try:
@@ -82,6 +82,14 @@ class AndroidFixtureTests(unittest.TestCase):
         photo = second["items"][0]["path"]
         for route in ("/thumbnail", "/image"):
             self.assertTrue(request("GET", route, params={"path": photo}).startswith(b"\xff\xd8"))
+
+        for offset, branch in ((0, 1), (30, 2)):
+            page, _ = request("GET", "/folders", params={"q": 2003, "limit": 31, "offset": offset})
+            self.assertEqual(len(page["items"]), 31 if offset == 0 else 1)
+            path = f"2003({branch})/album_00"
+            self.assertEqual(page["items"][0]["path"], path)
+            gallery, _ = request("GET", "/album-images", params={"path": path})
+            self.assertEqual([item["path"] for item in gallery["items"]], [f"{path}/Photo_01.jpg"])
 
         archive = Path(db).parent / "archive"
         archive.rename(archive.with_name("disconnected"))

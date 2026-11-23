@@ -604,7 +604,7 @@ Cover selection excludes photos whose indexed size exceeds the renderer limit be
 
 #### 4. Run the physical-phone release checklist
 
-Use the [Android guide recording sheet](docs/src/content/docs/use/android.md#physical-phone-release-checks) for one APK and device. The [Spanish guide](docs/src/content/docs/es/use/android.md#comprobaciones-en-un-teléfono-físico) carries the same checks. This sheet starts empty.
+Use the [Android guide recording sheet](docs/src/content/docs/use/android.md#physical-phone-release-checks) for one APK and device. The [Spanish guide](docs/src/content/docs/es/use/android.md#comprobaciones-en-un-teléfono-físico) carries the same checks. The synthetic HTTPS fixture supports `--split-year` and verifies that both same-title albums open as separate galleries across the page boundary. Physical results are pending.
 
 - A first NAS phone test produced the reports above; it did not complete the release checklist. After the fixes, record the APK build, Android version and device model, and verify one-time sign-in, session recovery after a cold start and process death, gallery position, revocation on the next protected request, and recovery after Wi-Fi or NAS loss. Check local-network permission denial and recovery where the OS requires that permission.
 - Rerun the cover, export and year-browsing acceptance checks on the same build. Use synthetic albums for repeatable checks and keep household addresses, folder names, invite codes and photos out of shared evidence.

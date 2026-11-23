@@ -19,11 +19,15 @@ from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
 @contextmanager
-def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False, beach_photos=33):
+def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False, beach_photos=33, split_year=False):
     with TemporaryDirectory(prefix="chromantis-android-") as directory:
         root = Path(directory)
         archive = root / "archive"
-        for folder, count in (("2024/2024-07-01_playa", beach_photos), ("2023/2023-10-05_excursion", 2)):
+        albums = [("2024/2024-07-01_playa", beach_photos), ("2023/2023-10-05_excursion", 2)]
+        if split_year:
+            albums.extend((f"2003(1)/album_{number:02d}", 1) for number in range(30))
+            albums.append(("2003(2)/album_00", 1))
+        for folder, count in albums:
             album = archive / folder
             album.mkdir(parents=True)
             for number in range(1, count + 1):
@@ -63,9 +67,12 @@ def main() -> None:
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8443)
     parser.add_argument("--index-only", action="store_true", help="Disconnect the synthetic archive after indexing.")
+    parser.add_argument("--split-year", action="store_true", help="Add 31 albums in two branches of 2003.")
     args = parser.parse_args()
 
-    with open_fixture(args.cert, args.key, args.bind, args.port, index_only=args.index_only) as fixture:
+    with open_fixture(
+        args.cert, args.key, args.bind, args.port, index_only=args.index_only, split_year=args.split_year
+    ) as fixture:
         server, db, identity, invite = fixture
         print(f"Fixture: https://{args.bind}:{server.server_port}", flush=True)
         print(f"SQLite: {db}", flush=True)

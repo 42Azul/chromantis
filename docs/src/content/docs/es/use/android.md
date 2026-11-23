@@ -211,7 +211,7 @@ Usa la misma APK para todas las filas y anota su compilación o commit, la versi
 | Revoca la sesión de prueba y abre otro año. | La siguiente petición protegida pide un código nuevo. Una nueva invitación recupera el acceso. | |
 | Desconecta el Wi-Fi o detén el servidor de prueba al abrir una miniatura sin caché y después restablece la conexión. | Se muestra el fallo y el reintento carga la miniatura. | |
 | Deniega el acceso a la red local si Android ofrece ese control y vuelve a concederlo. | La app se recupera y puede abrir una foto al restaurar el acceso. | |
-| Explora un año con dos ramas en un archivo de prueba que incluya ambas. | Los dos álbumes con el mismo título se abren como galerías distintas, incluido el de una página posterior. | |
+| Explora un año con dos ramas con el servidor de prueba iniciado con `--split-year`. | Los dos álbumes con el mismo título se abren como galerías distintas, incluido el de una página posterior. | |
 | Abre una portada, guarda un original y una selección, y comparte una foto sintética desde el menú de Android. | Se ve la portada, los archivos guardados se abren en la galería y la app receptora abre la foto compartida. | |
 
 Para cada fallo, anota los pasos mínimos, lo que apareció en pantalla y quién hará el seguimiento. Deja pendiente cualquier fila que el archivo de prueba o el dispositivo no permitan comprobar.

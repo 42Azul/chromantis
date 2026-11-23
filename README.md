@@ -69,3 +69,5 @@ gh workflow run android.yml --ref main
 
 Copy the certificate fingerprint from `keytool`. CI rejects a mismatched fingerprint before
 uploading. Keep using the same keystore for updates. The signing key is dedicated to testing.
+
+For Android smoke testing, see the [synthetic HTTPS fixture](docs/src/content/docs/use/android.md), including the optional `--split-year` case.
