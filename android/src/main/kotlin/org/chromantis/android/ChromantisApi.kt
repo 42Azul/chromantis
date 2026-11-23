@@ -228,9 +228,22 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             else thumbnails.get(key) ?: photo(path, preview = true).also { thumbnails.put(key, it) }
         }
 
+    suspend fun albumCover(path: String): Bitmap? {
+        try {
+            return thumbnailRequests.withPermit { readPhoto("/album-cover", path, preview = true) }
+        } catch (error: HttpFailure) {
+            if (error.status !in setOf(403, 404)) throw error
+        }
+        val page = photos(path, 0)
+        if (!page.hasThumbnails) return null
+        return page.entries.firstOrNull()?.let { thumbnail(it.path, it.identity) }
+    }
+
     suspend fun photo(path: String, preview: Boolean = false): Bitmap =
+        readPhoto(if (preview) "/thumbnail" else "/image", path, preview)
+
+    private suspend fun readPhoto(route: String, path: String, preview: Boolean): Bitmap =
         withContext(Dispatchers.IO) {
-            val route = if (preview) "/thumbnail" else "/image"
             request("GET", "$route?path=${encode(path)}") { connection ->
                 val data = connection.readBytes(if (preview) 1 shl 20 else 32 shl 20)
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
