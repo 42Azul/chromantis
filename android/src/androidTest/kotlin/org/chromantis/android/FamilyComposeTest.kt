@@ -185,6 +185,7 @@ class FamilyComposeTest {
             capture("gallery-light")
             click(visiblePhotos.first().title)
             await(label(R.string.save_original))
+            compose.onNodeWithText(label(R.string.share_original)).assertIsDisplayed()
             compose.onNodeWithText(label(R.string.save_original)).assertIsDisplayed()
             capture("original-light")
             compose.runOnIdle { appearance.value = Appearance.DARK }

@@ -1,5 +1,6 @@
 package org.chromantis.android
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -791,32 +792,48 @@ internal fun Thumbnail(
 @Composable
 internal fun OriginalPhoto(api: ChromantisApi, path: String, title: String, onExpired: () -> Unit) {
     LoadContent(onExpired, load = { api.photo(path) }) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val context = LocalContext.current
-            val scope = rememberCoroutineScope()
-            var saving by remember(path) { mutableStateOf(false) }
-            var status by remember(path) { mutableIntStateOf(0) }
-            Button(
-                enabled = !saving && status != R.string.original_saved,
-                onClick = {
-                    saving = true
-                    scope.launch {
-                        val result = attempt {
-                            saveOriginal(context.contentResolver, path, api.originalBytes(path))
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        var working by remember(path) { mutableStateOf(false) }
+        var saved by remember(path) { mutableStateOf(false) }
+        var status by remember(path) { mutableIntStateOf(0) }
+        fun transfer(success: Int = 0, action: suspend (ByteArray) -> Unit) {
+            working = true
+            status = R.string.loading
+            scope.launch {
+                val error = attempt { action(api.originalBytes(path)) }.exceptionOrNull()
+                working = false
+                if (error?.hasStatus(401) == true) onExpired()
+                else status = if (error == null) success else errorLabel(error)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                Button(
+                    enabled = !working && !saved,
+                    onClick = {
+                        transfer(R.string.original_saved) { bytes ->
+                            saveOriginal(context.contentResolver, path, bytes)
+                            saved = true
                         }
-                        saving = false
-                        val error = result.exceptionOrNull()
-                        if (error?.hasStatus(401) == true) onExpired()
-                        else
-                            status =
-                                if (error == null) R.string.original_saved else errorLabel(error)
+                    },
+                ) {
+                    Text(stringResource(R.string.save_original))
+                }
+            }
+            TextButton(
+                enabled = !working,
+                onClick = {
+                    transfer { bytes ->
+                        val send = prepareOriginalShare(context, path, bytes)
+                        context.startActivity(Intent.createChooser(send, null))
                     }
                 },
             ) {
-                Text(stringResource(if (saving) R.string.loading else R.string.save_original))
+                Text(stringResource(R.string.share_original))
             }
-            if (status != 0) Text(stringResource(status))
         }
+        if (status != 0) Text(stringResource(status))
         Image(it.asImageBitmap(), title, Modifier.fillMaxWidth(), contentScale = ContentScale.Fit)
     }
 }

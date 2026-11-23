@@ -574,6 +574,8 @@ Cover selection excludes photos whose indexed size exceeds the renderer limit be
 
 **Android single-photo save:** The original viewer can save the authenticated original bytes to `Pictures/Chromantis` on Android 10 and newer. It uses the client's existing 32 MiB read cap and MediaStore's pending flag, with no broad storage permission. Verification includes an instrumented byte-for-byte MediaStore check and light/dark viewer captures. Physical-device validation, Android 8–9 saving, multiple photos and the share sheet remain open.
 
+**Android single-photo share:** **Compartir** opens Android's share sheet with one authenticated original, using the existing 32 MiB client cap. A private cache retains at most one prepared photo, and the receiving app gets a temporary read grant. The emulator checks intent permissions, original bytes and replacement of the prior cached export. Sharing a selection and the physical WhatsApp check remain open.
+
 #### 3. Recover the second 2003 folder and recognize dates in album names
 
 - Reproduce the reported missing `2003(2)` while `2003(1)` appears. The source adapters and path parser already accept both exact names; trace the exact folder spelling, directory depth, scan skips, indexed paths and year-list pagination before changing the parser. Both branches should appear under year **2003**, with distinct paths even if they contain albums with the same name.
