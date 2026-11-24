@@ -148,13 +148,19 @@ async function verifyBatchReview(source, failedReloads = 0) {
 
   const reloadAttempts = failedReloads;
   await load();
-  selectValues(content.children[0])[0].value = "accepted";
+  const draftRow = panel => panel.children.find(child => child.props?.class === "batch-review-row");
+  const tagInput = panel => draftRow(panel).children.find(child => child.tag === "input");
+  const draftChoice = selectValues(content.children[0])[0];
+  draftChoice.value = "corrected";
+  draftChoice.listeners.change();
+  tagInput(content.children[0]).value = "montaña";
   await action(content.children[0], "Revisar");
   assert(selectValues(content.children.at(-1))[0].value === "pending",
     "The individual review should show its current server state");
   await action(content, "Volver a Por lotes");
-  assert(selectValues(content.children[0])[0].value === "accepted",
-    "Returning without saving should preserve the batch choice");
+  assert(selectValues(content.children[0])[0].value === "corrected" &&
+    tagInput(content.children[0]).value === "montaña" && !tagInput(content.children[0]).hidden,
+    "Returning without saving should restore the correction and its visible replacement field");
   assert(posts.length === 0 && detailPosts.length === 0, "Returning must not write either draft");
   assert(messages["album-review-status"] === "", "Returning must not claim that decisions were saved");
 
@@ -181,7 +187,9 @@ async function verifyBatchReview(source, failedReloads = 0) {
   assert(posts.length === 0, "Filling the group must not write until Save");
   const familyChoices = selectValues(family);
   assert(familyChoices.every(control => !control.value), "A different group must remain untouched");
-  familyChoices[0].value = "rejected";
+  familyChoices[0].value = "corrected";
+  familyChoices[0].listeners.change();
+  tagInput(family).value = "reunión";
   familyChoices[1].value = "accepted";
   familyChoices[2].value = "accepted";
 
@@ -211,15 +219,16 @@ async function verifyBatchReview(source, failedReloads = 0) {
 
   const [restoredFamily] = content.children;
   const restored = selectValues(restoredFamily);
-  assert(restored[0].value === "rejected", "The same album's own revision change should preserve its other selection");
+  assert(restored[0].value === "corrected" && tagInput(restoredFamily).value === "reunión", "The same album's own revision change should preserve its other selection");
   assert(restored[1].value === "accepted", "A choice on an unchanged album should be preserved");
   assert(restored[2].value === "", "A choice on an externally revised album must be cleared");
   assert(restored[3].value === "", "An untouched row must remain pending");
   assert(messages["album-review-status"].includes("han cambiado"), "Discarded choices must be announced");
 
   await submit(restoredFamily);
+  assert(posts[1][0].tag === "reunión", "A restored correction must submit its replacement tag");
   assert(posts[1].map(item => item.revision).join() === "4,8", "Restored choices must submit the current revisions");
-  assert(restored[0].value === "rejected" && restored[1].value === "accepted",
+  assert(restored[0].value === "corrected" && tagInput(restoredFamily).value === "reunión" && restored[1].value === "accepted",
     "A failed save must leave the pending choices available");
   assert(!restoredFamily.querySelectorAll().some(control => control.disabled), "A failed save must restore controls");
 
@@ -231,7 +240,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
   await submit(detail);
   assert(detailPosts.length === 1 && detailPosts[0].id === 2 && detailPosts[0].decisions.familia === "familia",
     "The individual save should affect only the selected album");
-  assert(posts.length === 2 && selectValues(content.children[0])[0].value === "rejected",
+  assert(posts.length === 2 && selectValues(content.children[0])[0].value === "corrected" &&
+    tagInput(content.children[0]).value === "reunión",
     "After the correction, return to the batch with decisions on the other albums still selected");
 
   results.classList = { toggle() {} };
