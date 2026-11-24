@@ -8,9 +8,11 @@ import subprocess
 import tempfile
 import unittest
 from http.client import HTTPSConnection
+from io import BytesIO
 from pathlib import Path
 from threading import Thread
 from urllib.parse import urlencode
+from zipfile import ZipFile
 
 from chromantis.db.family_access import FamilyAccess
 from chromantis.db.repository import Repository
@@ -58,7 +60,8 @@ class AndroidFixtureTests(unittest.TestCase):
                 response = connection.getresponse()
                 payload = response.read()
                 self.assertEqual(response.status, expected, (method, route))
-                if response.getheader("Content-Type", "").startswith("image/"):
+                content_type = response.getheader("Content-Type", "")
+                if content_type.startswith("image/") or content_type == "application/zip":
                     return payload
                 return json.loads(payload), response.getheader("Set-Cookie")
             finally:
@@ -91,6 +94,8 @@ class AndroidFixtureTests(unittest.TestCase):
             gallery, _ = request("GET", "/album-images", params={"path": path})
             self.assertEqual([item["path"] for item in gallery["items"]], [f"{path}/Photo_01.jpg"])
 
+        selection = {"paths": [photo, first["items"][0]["path"]]}
+        request("POST", "/photo-export", 413, body={"album": album})
         archive = Path(db).parent / "archive"
         disconnected = archive.with_name("disconnected")
         archive.rename(disconnected)
@@ -101,6 +106,7 @@ class AndroidFixtureTests(unittest.TestCase):
         cached = request("GET", "/thumbnail", params={"path": photo})
         self.assertTrue(cached.startswith(b"\xff\xd8"))
         request("GET", "/image", 404, params={"path": photo})
+        request("POST", "/photo-export", 404, body=selection)
         offline, _ = request("GET", "/album-images", params={"path": album, "limit": 30, "offset": 30})
         self.assertEqual(offline, second)
         people, _ = request("GET", "/album-review/people")
@@ -135,6 +141,11 @@ class AndroidFixtureTests(unittest.TestCase):
         self.assertCountEqual([item["path"] for item in confirmed["items"]], [item["path"] for item in photos[:2]])
 
         disconnected.rename(archive)
+        payload = request("POST", "/photo-export", body=selection)
+        with ZipFile(BytesIO(payload)) as exported:
+            self.assertEqual(exported.namelist(), ["01-Photo_31.jpg", "02-Photo_01.jpg"])
+            originals = [request("GET", "/image", params={"path": path}) for path in selection["paths"]]
+            self.assertEqual([exported.read(name) for name in exported.namelist()], originals)
         self.assertTrue(request("GET", "/thumbnail", params=uncached).startswith(b"\xff\xd8"))
         self.assertTrue(request("GET", "/album-cover", params=cover).startswith(b"\xff\xd8"))
 
