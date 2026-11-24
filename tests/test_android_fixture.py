@@ -92,7 +92,14 @@ class AndroidFixtureTests(unittest.TestCase):
             self.assertEqual([item["path"] for item in gallery["items"]], [f"{path}/Photo_01.jpg"])
 
         archive = Path(db).parent / "archive"
-        archive.rename(archive.with_name("disconnected"))
+        disconnected = archive.with_name("disconnected")
+        archive.rename(disconnected)
+        uncached = {"path": second["items"][1]["path"]}
+        cover = {"path": "2003(2)/album_00"}
+        request("GET", "/thumbnail", 404, params=uncached)
+        request("GET", "/album-cover", 404, params=cover)
+        cached = request("GET", "/thumbnail", params={"path": photo})
+        self.assertTrue(cached.startswith(b"\xff\xd8"))
         request("GET", "/image", 404, params={"path": photo})
         offline, _ = request("GET", "/album-images", params={"path": album, "limit": 30, "offset": 30})
         self.assertEqual(offline, second)
@@ -109,6 +116,10 @@ class AndroidFixtureTests(unittest.TestCase):
         })
         self.assertEqual([item["path"] for item in matches["items"]], [album])
         self.assertEqual([item["kind"] for item in matches["filters"]["active"]], ["year", "person"])
+
+        disconnected.rename(archive)
+        self.assertTrue(request("GET", "/thumbnail", params=uncached).startswith(b"\xff\xd8"))
+        self.assertTrue(request("GET", "/album-cover", params=cover).startswith(b"\xff\xd8"))
 
         self.assertTrue(FamilyAccess(Repository(db)).revoke(access_id))
         request("GET", "/years", 401)
