@@ -113,6 +113,12 @@ class FtpArchiveSource:
             logger.debug("Downloading FTP file %s", absolute_path)
             try:
                 ftp.retrbinary(f"RETR {absolute_path}", collect)
+            except error_perm as exc:
+                # A RETR 550 can mean a missing file or a denied read.
+                response = str(exc)
+                if response == "550" or response.startswith(("550 ", "550-")):
+                    raise FileNotFoundError("FTP file is unavailable.") from exc
+                raise
             except (ArchiveReadLimit, _PrefixComplete):
                 ftp.close()
                 raise

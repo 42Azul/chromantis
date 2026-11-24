@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from ftplib import error_perm, error_temp
 from http.client import HTTPConnection
 from hashlib import sha256
 from io import BytesIO
@@ -93,6 +94,34 @@ class ThumbnailTests(unittest.TestCase):
             self.assertEqual(self.request(route, token=None, cookie=cookie), (200, "image/jpeg", expected))
         self.app.family_access.revoke(grant)
         self.assertEqual(self.request(route, token=None, cookie=cookie)[0], 401)
+
+    def test_ftp_album_cover_skips_a_retr_550_but_stops_on_source_failure(self):
+        other = self.photo.parent / "second.jpg"
+        other.write_bytes(b"second synthetic original")
+        self.scanner.scan(incremental=True)
+        album = self.photo.parent.relative_to(self.archive).as_posix()
+        paths = sorted((IMAGE_PATH, f"{album}/second.jpg"), key=lambda path: sha256(path.encode()).digest())
+        source = FtpArchiveSource("example", "example", "example", self.source.source_root)
+        cache = ThumbnailCache(self.cache_dir, 0, source, lambda content: content[:7])
+        self.start_server(cache, self.source.read_bytes)
+        route = "/album-cover?" + urlencode({"path": album})
+
+        expected = (self.archive / paths[1]).read_bytes()
+
+        def refuse_first(command, collect):
+            if command.endswith("/" + paths[0]):
+                raise error_perm("550 File unavailable")
+            collect(expected)
+
+        with patch.object(source, "_connect") as connect:
+            ftp = connect.return_value.__enter__.return_value
+            ftp.retrbinary.side_effect = error_temp("421 Service unavailable")
+            self.assertEqual(self.request(route)[0], 502)
+            ftp.retrbinary.assert_called_once()
+            ftp.retrbinary.reset_mock()
+            ftp.retrbinary.side_effect = refuse_first
+            self.assertEqual(self.request(route), (200, "image/jpeg", expected[:7]))
+            self.assertEqual(ftp.retrbinary.call_count, 2)
 
     def test_album_cover_skips_oversized_photos_before_limiting_candidates(self):
         for number in range(12):

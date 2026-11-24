@@ -570,7 +570,7 @@ These are the next automation picks from the physical Android test against the N
 
 **Cover API increment:** The private API now serves a JPEG cover using the existing thumbnail budget. It ranks up to 12 indexed entries by a stable path hash and tries up to three candidates. A missing or unpreviewable candidate can fall back to another, and a source outage stops the attempt. Client integration and phone validation remain pending.
 
-Cover selection excludes photos whose indexed size exceeds the renderer limit before choosing its 12 candidates. A regression with 12 oversized entries before a small photo verifies that the cover is still returned and only the small photo is opened. Entries with unknown size still use the existing bounded reader.
+Cover selection excludes photos whose indexed size exceeds the renderer limit before choosing its 12 candidates. A regression with 12 oversized entries before a small photo verifies that the cover is still returned and only the small photo is opened. Entries with unknown size still use the existing bounded reader. The bounded cover fallback also handles an FTP 550 reply to an individual file read. The synthetic FTP test verifies that the next candidate can supply the cover, and that a temporary source failure stops further attempts.
 
 **Android integration:** Album cards request the stable cover through the existing preview concurrency limit, with the original thumbnail flow as a compatibility fallback. [Android verification](https://github.com/42Azul/chromantis/actions/runs/45091864982) passed 31 JVM and eight emulator tests. Synthetic light and dark screenshots were reviewed. Physical-phone and NAS validation remain pending.
 
