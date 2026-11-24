@@ -59,7 +59,7 @@ Chromantis currently provides:
 - a browser interface for visual search, browsing, people, saved searches, and role-based administration
 - browser-based album review with name-only tag suggestions, manual tags, curated people and limited viewer permissions
 - batch acceptance and rejection of repeated name-based album suggestions without photo reads
-- the batch API also accepts a replacement tag per album in the same transaction. The synthetic regression covers mixed decisions with the archive offline and verifies they survive a full reindex. The browser batch controls still offer acceptance and rejection.
+- the batch API also accepts a replacement tag per album in the same transaction. The synthetic regression covers mixed decisions with the archive offline and verifies they survive a full reindex. The browser batch controls also offer correction per album and retain the replacement tag when returning from the individual editor.
 - local browser-only family sign-in with one-time codes and revocable SQLite sessions
 - album aliases, notes, and title and date corrections shared by the browser and Telegram
 - optional local thumbnails with a disk budget and an index freshness indicator

@@ -908,9 +908,10 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
     const content = $("album-review-content");
     let saving = false;
     let restored = 0;
-    const selected = ({ album, select, label }) => ({
+    const selected = ({ album, select, correction, label }) => ({
       id: album.id, path: album.path, revision: album.revision,
       label, decision: select.value,
+      ...(select.value === "corrected" ? { tag: correction.value.trim() } : {}),
     });
     const openAlbum = album => {
       const pending = renderedRows.filter(row => row.select.value).map(selected);
@@ -928,18 +929,29 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
         const select = element("select", { "aria-label": `Decisión para ${album.title}` },
           element("option", { value: "" }, "Pendiente"),
           element("option", { value: "accepted" }, "Aceptar"),
+          element("option", { value: "corrected" }, "Corregir"),
           element("option", { value: "rejected" }, "Rechazar"));
+        const correction = element("input", {
+          type: "text", maxlength: 40, "aria-label": `Nueva etiqueta para ${album.title}`,
+          placeholder: "Nueva etiqueta",
+        });
+        const updateCorrection = () => {
+          correction.hidden = select.value !== "corrected";
+          correction.required = !correction.hidden;
+        };
         const row = element("div", { class: "batch-review-row" },
           element("div", {}, element("strong", {}, album.title),
             element("p", {}, `${album.event_date || album.year} · encontró «${album.evidence}»`)),
-          select, button("Revisar", () => openAlbum(album)));
+          select, button("Revisar", () => openAlbum(album)), correction);
         const draft = drafts.find(entry => entry.label === group.key && entry.id === album.id &&
           entry.path === album.path && entry.revision === album.revision);
         if (draft) {
           select.value = draft.decision;
+          correction.value = draft.tag || "";
           restored++;
         }
-        const decisionRow = { album, select, row, label: group.key };
+        updateCorrection();
+        const decisionRow = { album, select, correction, updateCorrection, row, label: group.key };
         renderedRows.push(decisionRow);
         return decisionRow;
       });
@@ -956,11 +968,14 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
         }
         updateSelectionCount();
       }
-      for (const { select } of rows) select.addEventListener("change", updateSelectionCount);
+      for (const { select, updateCorrection } of rows) select.addEventListener("change", () => {
+        updateCorrection();
+        updateSelectionCount();
+      });
       updateSelectionCount();
       const form = element("form", { class: "panel batch-review-group" },
         element("h3", {}, `Etiqueta sugerida: ${group.label}`),
-        element("p", {}, "Decide solo los álbumes claros. Deja el resto pendiente o ábrelo para corregir."),
+        element("p", {}, "Decide solo los álbumes claros. Deja el resto pendiente o revisa el álbum completo."),
         ...(rows.length > 1 ? [element("div", { class: "actions" },
           button("Aceptar los pendientes", () => fillPending("accepted")),
           button("Rechazar los pendientes", () => fillPending("rejected")))] : []),
@@ -974,7 +989,7 @@ async function loadAlbumReviewBatch(saved = false, drafts = []) {
           return;
         }
         saving = true;
-        const controls = content.querySelectorAll("button, select");
+        const controls = content.querySelectorAll("button, select, input");
         for (const control of controls) control.disabled = true;
         status.textContent = "";
         try {

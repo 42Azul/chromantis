@@ -237,6 +237,7 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 :is(.review-form, #photo-tags-content) .review-checkbox { display: flex; align-items: center; gap: 5px; }
 .batch-review-group { display: grid; gap: 12px; margin-top: 12px; }
 .batch-review-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.batch-review-row > input { grid-column: 1 / -1; }
 .batch-review-row p { font-size: .82rem; }
 
 @media (max-width: 670px) {

@@ -185,11 +185,18 @@ async function verifyBatchReview(source, failedReloads = 0) {
   familyChoices[1].value = "accepted";
   familyChoices[2].value = "accepted";
 
+  beachChoices[0].value = "corrected";
+  beachChoices[0].listeners.change();
+  const correction = beach.children.find(child => child.props?.class === "batch-review-row")
+    .children.find(child => child.tag === "input");
+  assert(!correction.hidden && correction.required, "A correction needs a replacement tag");
+  correction.value = "  excursión  ";
   const firstSave = submit(beach);
   await submit(family);
   await firstSave;
   assert(posts.length === 1 && posts[0].length === 2, "The submitted group alone should be written once");
-  assert(posts[0].map(item => item.decision).join() === "accepted,rejected", "Mixed batch decisions must be kept");
+  assert(posts[0].map(item => item.decision).join() === "corrected,rejected", "Mixed batch decisions must be kept");
+  assert(posts[0][0].tag === "excursión" && !("tag" in posts[0][1]), "Send a tag only for the correction");
   assert(posts[0].every(item => item.label === "playa"), "A different group was submitted prematurely");
 
   for (let attempt = 0; attempt < reloadAttempts; attempt++) {
