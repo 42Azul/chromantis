@@ -517,14 +517,14 @@ Current architecture map:
 
 - Add a compact pending-album queue that can select several albums and accept or reject one shared suggested tag across the selection.
 - Stream pending indexed names until the queue is full so albums without suggestions cannot hide later actionable albums.
-- Reuse the existing suggestion evidence and decision tables. Keep corrections and ambiguous albums in the current single-album review flow.
+- Reuse the existing suggestion evidence and decision tables. Allow a replacement tag on each corrected row. Leave uncertain albums pending and keep the individual editor available for fuller review.
 - Operate only on indexed names and SQLite; do not request thumbnails or originals during the batch action.
 - Offer group actions to fill undecided rows and show how many decisions will be submitted. Keep existing row choices and require an explicit save.
 - Preserve unsaved selections in other groups after a save and when returning from an individual album review. Restore a selection only if the refreshed queue still offers it with the expected album revision. If the refresh fails, keep the selections available through a read-only retry.
 
 **Dependencies:** Existing deterministic vocabulary, album review permissions and decision persistence only.
 
-**Acceptance:** Select three pending albums, accept a shared suggestion for two and reject it for one, then reindex and verify that all three decisions persist without any archive byte reads.
+**Acceptance:** Accept, correct and reject a shared suggestion across three pending albums in one save with the archive disconnected. Find the corrected album by its replacement tag, then reindex and verify the same search and all three decisions.
 
 ### MVP 18A — Scoped Read-only MCP Trial
 

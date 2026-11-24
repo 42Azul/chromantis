@@ -170,7 +170,7 @@ class AlbumReviewTests(unittest.TestCase):
             "decision": "accepted" if path in accepted_paths else "rejected",
         } for path in (*accepted_paths, rejected_path)]
         corrected_path = accepted_paths.pop()
-        items[1].update(decision="corrected", tag="excursion")
+        items[1].update(decision="corrected", tag="Montaña")
         invalid = [dict(item) for item in items]
         invalid[1]["tag"] = "playa"
         self.assertEqual(self.request("POST", "/album-review/batch", {"items": invalid})[0], 400)
@@ -184,7 +184,8 @@ class AlbumReviewTests(unittest.TestCase):
         for path in accepted_paths:
             self.assertEqual(self.review(path)["suggestions"]["playa"]["state"], "accepted")
         correction = self.review(corrected_path)["suggestions"]["playa"]
-        self.assertEqual((correction["state"], correction["tag"]), ("corrected", "excursion"))
+        self.assertEqual((correction["state"], correction["tag"]), ("corrected", "montana"))
+        self.assertEqual([item.path for item in self.app.search_folders("montaña")], [corrected_path])
         self.assertEqual(self.review(rejected_path)["suggestions"]["playa"]["state"], "rejected")
         self.image_fetcher.assert_not_called()
         self.assertEqual(self.repository.list_audit_events(limit=1)[0].action, "save_album_review_batch")
@@ -194,7 +195,8 @@ class AlbumReviewTests(unittest.TestCase):
         for path in accepted_paths:
             self.assertEqual(self.review(path)["suggestions"]["playa"]["state"], "accepted")
         correction = self.review(corrected_path)["suggestions"]["playa"]
-        self.assertEqual((correction["state"], correction["tag"]), ("corrected", "excursion"))
+        self.assertEqual((correction["state"], correction["tag"]), ("corrected", "montana"))
+        self.assertEqual([item.path for item in self.app.search_folders("montaña")], [corrected_path])
         self.assertEqual(self.review(rejected_path)["suggestions"]["playa"]["state"], "rejected")
 
     def test_ambiguous_albums_do_not_hide_later_batch_suggestions(self):
