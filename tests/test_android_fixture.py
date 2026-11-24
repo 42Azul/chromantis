@@ -117,6 +117,23 @@ class AndroidFixtureTests(unittest.TestCase):
         self.assertEqual([item["path"] for item in matches["items"]], [album])
         self.assertEqual([item["kind"] for item in matches["filters"]["active"]], ["year", "person"])
 
+        # Album membership is separate from confirmed people and tags on individual photos.
+        photos = []
+        for image in second["items"]:
+            tags, _ = request("GET", "/photo-tags", params={"path": image["path"]})
+            entry = tags["items"][0]
+            photos.append({"path": entry["path"], "identity": entry["identity"]})
+        request("PATCH", "/photo-tags", body={"photos": photos[:2], "add_people": [ana["id"]]})
+        request("PATCH", "/photo-tags", body={"photos": photos[1:], "manual_add": ["Romería"]})
+        filters = {"person": "Anita", "tag": "ROMERIA"}
+        combined, _ = request("GET", "/confirmed-images", params=filters)
+        self.assertEqual([item["path"] for item in combined["items"]], [photos[1]["path"]])
+        request("PATCH", "/photo-tags", body={"photos": photos[1:2], "manual_remove": ["romeria"]})
+        combined, _ = request("GET", "/confirmed-images", params=filters)
+        self.assertEqual(combined["items"], [])
+        confirmed, _ = request("GET", "/confirmed-images", params={"person": "Anita"})
+        self.assertCountEqual([item["path"] for item in confirmed["items"]], [item["path"] for item in photos[:2]])
+
         disconnected.rename(archive)
         self.assertTrue(request("GET", "/thumbnail", params=uncached).startswith(b"\xff\xd8"))
         self.assertTrue(request("GET", "/album-cover", params=cover).startswith(b"\xff\xd8"))
