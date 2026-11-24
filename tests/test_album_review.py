@@ -150,7 +150,7 @@ class AlbumReviewTests(unittest.TestCase):
         self.assertEqual(payload["item"]["path"], AMBIGUOUS_PATH)
         self.image_fetcher.assert_not_called()
 
-    def test_batch_accepts_and_rejects_shared_suggestion_offline_and_survives_reindex(self):
+    def test_batch_accepts_corrects_and_rejects_shared_suggestion_offline_and_survives_reindex(self):
         accepted_paths = [ALBUM_PATH, "2024/2024-05-01_beach_picnic"]
         rejected_path = "2024/2024-06-01_playa_dudosa"
         self.add_photo(accepted_paths[1])
@@ -169,6 +169,12 @@ class AlbumReviewTests(unittest.TestCase):
             "label": "playa",
             "decision": "accepted" if path in accepted_paths else "rejected",
         } for path in (*accepted_paths, rejected_path)]
+        corrected_path = accepted_paths.pop()
+        items[1].update(decision="corrected", tag="excursion")
+        invalid = [dict(item) for item in items]
+        invalid[1]["tag"] = "playa"
+        self.assertEqual(self.request("POST", "/album-review/batch", {"items": invalid})[0], 400)
+        self.assertEqual(self.review(accepted_paths[0])["suggestions"]["playa"]["state"], "pending")
         stale = [dict(item) for item in items]
         stale[-1]["revision"] += 1
         self.assertEqual(self.request("POST", "/album-review/batch", {"items": stale})[0], 409)
@@ -177,6 +183,8 @@ class AlbumReviewTests(unittest.TestCase):
 
         for path in accepted_paths:
             self.assertEqual(self.review(path)["suggestions"]["playa"]["state"], "accepted")
+        correction = self.review(corrected_path)["suggestions"]["playa"]
+        self.assertEqual((correction["state"], correction["tag"]), ("corrected", "excursion"))
         self.assertEqual(self.review(rejected_path)["suggestions"]["playa"]["state"], "rejected")
         self.image_fetcher.assert_not_called()
         self.assertEqual(self.repository.list_audit_events(limit=1)[0].action, "save_album_review_batch")
@@ -185,6 +193,8 @@ class AlbumReviewTests(unittest.TestCase):
         self.scanner.scan()
         for path in accepted_paths:
             self.assertEqual(self.review(path)["suggestions"]["playa"]["state"], "accepted")
+        correction = self.review(corrected_path)["suggestions"]["playa"]
+        self.assertEqual((correction["state"], correction["tag"]), ("corrected", "excursion"))
         self.assertEqual(self.review(rejected_path)["suggestions"]["playa"]["state"], "rejected")
 
     def test_ambiguous_albums_do_not_hide_later_batch_suggestions(self):

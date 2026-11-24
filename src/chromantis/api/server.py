@@ -529,14 +529,15 @@ def _batch_review_entries(body: dict[str, object]) -> list[dict[str, object]]:
             raise ValueError("Las decisiones del lote no son válidas.")
         folder_id, revision = _album_revision(value)
         decision = value.get("decision")
-        if not isinstance(decision, str) or decision not in {"accepted", "rejected"}:
-            raise ValueError("Elige aceptar o rechazar cada sugerencia del lote.")
+        if not isinstance(decision, str) or decision not in {"accepted", "corrected", "rejected"}:
+            raise ValueError("Elige aceptar, corregir o rechazar cada sugerencia del lote.")
         entries.append({
             "id": folder_id,
             "path": _text(value, "path"),
             "revision": revision,
             "label": parse_tag(value.get("label")),
             "decision": decision,
+            **({"tag": parse_tag(value.get("tag"))} if decision == "corrected" else {}),
         })
     return entries
 

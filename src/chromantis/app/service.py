@@ -395,7 +395,11 @@ class ApplicationService:
                     raise AuthOperationError(
                         "album_review_changed", "Alguna sugerencia ya ha sido revisada. Recarga el lote.", 409
                     )
-                tag = label if entry["decision"] == "accepted" else None
+                tag = entry.get("tag") if entry["decision"] == "corrected" else None
+                if entry["decision"] == "accepted":
+                    tag = label
+                elif entry["decision"] == "corrected" and (tag is None or tag == label):
+                    raise ValueError("Elige una etiqueta distinta para corregir la sugerencia.")
                 reviewed = apply_tag_decisions(
                     connection, folder["id"], item, {label: tag}, set(), set()
                 )
