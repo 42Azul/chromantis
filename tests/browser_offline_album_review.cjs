@@ -1,4 +1,4 @@
-// Run against tests/android_fixture.py --index-only over loopback HTTPS.
+// Run against tests/android_fixture.py --index-only --split-year over loopback HTTPS.
 // Requires Playwright with Chromium installed.
 const assert = require("node:assert/strict");
 const { chromium } = require("playwright");
@@ -53,6 +53,25 @@ async function main() {
     await page.locator("#query").fill("Ana");
     await page.locator("#archive-search").click();
     await page.locator("#results .folder-card").filter({ hasText: albumSaves[1].path }).waitFor();
+    await page.locator("#browse-years").click();
+    const results = page.locator("#results");
+    const folder = path => results.locator(".folder-card").filter({ hasText: path });
+    const album = page.locator("#album-browse");
+    await folder("2003").click();
+    const first = "2003(1)/album_00";
+    const second = "2003(2)/album_00";
+    await folder(first).click();
+    await album.getByText(first, { exact: true }).waitFor();
+    await album.getByRole("button", { name: "Volver a resultados" }).click();
+    await page.getByRole("button", { name: "Página siguiente" }).click();
+    await folder(second).click();
+    await album.getByText(second, { exact: true }).waitFor();
+    await album.getByRole("button", { name: "Volver a resultados" }).click();
+    await folder(second).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 1);
+    await page.getByRole("button", { name: "Página anterior" }).click();
+    await folder(first).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 30);
     assert.deepEqual(unexpected, []);
   } finally {
     await browser.close();

@@ -71,3 +71,4 @@ Copy the certificate fingerprint from `keytool`. CI rejects a mismatched fingerp
 uploading. Keep using the same keystore for updates. The signing key is dedicated to testing.
 
 For Android smoke testing, see the [synthetic HTTPS fixture](docs/src/content/docs/use/android.md), including the optional `--split-year` case.
+For the family browser smoke test, start that fixture with both `--index-only` and `--split-year`. With Playwright and Chromium available, run `node tests/browser_offline_album_review.cjs` with `FIXTURE_URL` and `FIXTURE_CODE` from the local fixture. Set `CHROMIUM_EXECUTABLE` if using a system Chromium binary.
