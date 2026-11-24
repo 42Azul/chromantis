@@ -516,7 +516,7 @@ Current architecture map:
 **Case:** After an index adds many albums, a curator should resolve repeated name-based suggestions without opening every album or loading photos.
 
 - Add a compact pending-album queue that can select several albums and accept or reject one shared suggested tag across the selection.
-- Stream pending indexed names until the queue is full so albums without suggestions cannot hide later actionable albums.
+- Stream pending indexed album metadata until the queue is full so albums without suggestions cannot hide later actionable albums. Read only saved name decisions for matching albums and leave people and manual tags to the individual editor.
 - Reuse the existing suggestion evidence and decision tables. Allow a replacement tag on each corrected row. Leave uncertain albums pending and keep the individual editor available for fuller review.
 - Operate only on indexed names and SQLite; do not request thumbnails or originals during the batch action.
 - Offer group actions to fill undecided rows and show how many decisions will be submitted. Keep existing row choices and require an explicit save.

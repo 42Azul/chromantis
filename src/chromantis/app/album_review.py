@@ -58,25 +58,28 @@ def review_folder(
 
 def review_batch(connection: Connection, limit: int = 50) -> list[dict]:
     folders = connection.execute(
-        """SELECT f.id, f.folder_name_raw
-           FROM folders f LEFT JOIN album_reviews r ON r.folder_id = f.id
-           WHERE r.reviewed_name IS NOT f.folder_name_raw ORDER BY f.id"""
+        REVIEW_SELECT + "WHERE r.reviewed_name IS NOT f.folder_name_raw ORDER BY f.id"
     )
     groups: dict[str, dict] = {}
     count = 0
     for folder in folders:
-        if not name_suggestions(folder["folder_name_raw"]):
+        suggestions = name_suggestions(folder["folder_name_raw"])
+        if not suggestions:
             continue
-        folder = connection.execute(REVIEW_SELECT + "WHERE f.id = ?", (folder["id"],)).fetchone()
-        item = review_item(connection, folder)
-        for key, suggestion in item["suggestions"].items():
-            if suggestion["state"] != "pending":
+        decided = {
+            row["label"] for row in connection.execute(
+                "SELECT label FROM album_tag_decisions WHERE folder_id = ? AND origin = 'name'",
+                (folder["id"],),
+            )
+        }
+        for key, (label, evidence) in suggestions.items():
+            if key in decided:
                 continue
-            group = groups.setdefault(key, {"key": key, "label": suggestion["label"], "albums": []})
+            group = groups.setdefault(key, {"key": key, "label": label, "albums": []})
             group["albums"].append({
-                field: item[field]
+                field: folder[field]
                 for field in ("id", "path", "title", "event_date", "year", "revision")
-            } | {"evidence": suggestion["evidence"]})
+            } | {"evidence": evidence})
             count += 1
             if count >= limit:
                 return list(groups.values())
