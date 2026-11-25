@@ -155,6 +155,20 @@ class AndroidFixtureTests(unittest.TestCase):
         self.assertEqual([item["path"] for item in combined["items"]], [photos[1]["path"]])
         catalog, _ = request("GET", "/photo-tag-catalog", params={"limit": 1, "name": "ROMÉ"})
         self.assertEqual(catalog, {"items": [{"tag": "romeria", "count": 2}], "next_offset": None})
+        label = catalog["items"][0]["tag"]
+        tag_results, _ = request("GET", "/confirmed-images", params={"tag": label, "limit": 1})
+        self.assertEqual(len(tag_results["items"]), 1)
+        self.assertEqual(tag_results["next_offset"], 1)
+        next_results, _ = request("GET", "/confirmed-images", params={
+            "tag": label, "limit": 1, "offset": tag_results["next_offset"],
+        })
+        self.assertIsNone(next_results["next_offset"])
+        self.assertCountEqual(
+            [item["path"] for item in tag_results["items"] + next_results["items"]],
+            [item["path"] for item in photos[1:]],
+        )
+        partial, _ = request("GET", "/confirmed-images", params={"tag": "rome"})
+        self.assertEqual(partial["items"], [])
         request("PATCH", "/photo-tags", body={"photos": photos[1:2], "manual_remove": ["romeria"]})
         combined, _ = request("GET", "/confirmed-images", params=filters)
         self.assertEqual(combined["items"], [])
