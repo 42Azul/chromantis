@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
+from functools import partial
 from sqlite3 import Connection
 
 from chromantis.app.album_review import (
@@ -531,9 +532,12 @@ class ApplicationService:
     def interpret_text(self, text: str) -> InterpretedRequest:
         return self.interpreter.interpret(text)
 
-    def refine_query(self, base: str, text: str) -> Refinement:
+    def refine_query(self, base: str, text: str, *, tag: str | None = None) -> Refinement:
         aliases = self.repository.list_alias_map()
-        return refine(normalize_album_request(base, lambda: aliases), text, aliases, self.search_folders)
+        return refine(
+            normalize_album_request(base, lambda: aliases), text, aliases,
+            partial(self.search_folders, tag=tag), allow_empty=tag is not None,
+        )
 
     def authorize_with_code(
         self,

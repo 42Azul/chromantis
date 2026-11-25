@@ -71,8 +71,9 @@ def resolve_people(value: str, alias_map: dict[str, ResolvedPerson]) -> tuple[in
 def refine(
     base: str, text: str, alias_map: dict[str, ResolvedPerson],
     folders: Callable[[str, int], list[SearchResult]],
+    *, allow_empty: bool = False,
 ) -> Refinement:
-    if not base.strip():
+    if not base.strip() and not allow_empty:
         raise RefinementError("no_query", "Start a search before refining it.")
     match = INTENT.fullmatch(text.strip())
     if not match:

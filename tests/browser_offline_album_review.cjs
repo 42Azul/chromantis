@@ -214,6 +214,26 @@ async function main() {
     await folder(second).click();
     await album.getByRole("button", { name: "Volver a resultados", exact: true }).click();
     await folder(second).waitFor();
+    const yearFilter = page.getByRole("button", { name: "Quitar filtro de Año: 2003" });
+    await page.locator("#query").fill("solo 2003");
+    await page.locator("#archive-search").click();
+    await yearFilter.waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 1);
+    await yearFilter.click();
+    await yearFilter.waitFor({ state: "hidden" });
+    await page.locator("#query").fill("con Ana");
+    await page.locator("#archive-search").click();
+    const personFilter = page.getByRole("button", { name: "Quitar filtro de Persona: Ana" });
+    await personFilter.waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 0);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await personFilter.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-tag-refinements-${mode}.png` });
+    }
+    await personFilter.click();
+    await folder(second).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 1);
     await page.locator("#query").fill("2024");
     await page.locator("#archive-search").click();
     await page.getByText("No se han encontrado álbumes.", { exact: true }).waitFor();

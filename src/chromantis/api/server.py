@@ -157,7 +157,7 @@ def _dispatch(
             query = data.get("q", "")
             if not isinstance(query, str):
                 raise ValueError("q must be a string.")
-            result = app_service.refine_query(query, _text(data, "text"))
+            result = app_service.refine_query(query, _text(data, "text"), tag=_album_tag(data.get("tag")))
             return 200, {"q": result.query, "choices": [asdict(item) for item in result.choices]}
         if path == PHOTO_TAGS_PATH:
             actor = session if session is not None else chat_id
@@ -746,6 +746,15 @@ def _role(body: dict[str, object], roles: set[str], default: str | None = None) 
     return role
 
 
+def _album_tag(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not 1 <= len(value.strip()) <= 4096:
+        raise ValueError("Invalid album tag.")
+    value = value.strip()
+    return value if re.fullmatch(r"[0-9]{4}-[0-9]{2}", value) else normalize_text(value)
+
+
 def _query_route(
     path: str, params: dict[str, list[str]], app_service: ApplicationService
 ) -> tuple[int, dict[str, object]]:
@@ -780,15 +789,11 @@ def _query_route(
         if not 0 <= offset < 2**63 - limit:
             raise ValueError("Invalid offset.")
         filters = app_service.album_search_filters(query) if params.get("filters") == ["1"] else None
-        raw_tag = params.get("tag", [None])[0]
-        if raw_tag is not None and not 1 <= len(raw_tag.strip()) <= 4096:
-            raise ValueError("Invalid album tag.")
-        tag = None if raw_tag is None else raw_tag if re.fullmatch(r"[0-9]{4}-[0-9]{2}", raw_tag) else normalize_text(raw_tag)
         items = app_service.search_folders(
             filters["q"] if filters else query, limit=limit, offset=offset, chronological=order == "timeline",
             place=params.get("place", [""])[0], date_from=params.get("date_from", [None])[0],
             date_to=params.get("date_to", [None])[0],
-            tag=tag,
+            tag=_album_tag(params.get("tag", [None])[0]),
         )
         payload = {"items": [asdict(item) for item in items]}
         if filters is not None:

@@ -561,7 +561,7 @@ async function refineArchive(text) {
   $("refine-choices").replaceChildren();
   message("archive-status", family ? "Buscando…" : "Loading…");
   try {
-    const { q, choices } = await api("/refine", { method: "POST", data: { q: previous.q, text } });
+    const { q, choices } = await api("/refine", { method: "POST", data: { q: previous.q, text, tag: previous.tag } });
     if (request !== requestNumber) return;
     if (choices.length) {
       message("archive-status", family ? "¿A qué álbum te refieres?" : "Which album did you mean?");
