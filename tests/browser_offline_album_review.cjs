@@ -193,6 +193,23 @@ async function main() {
     assert.equal(await results.locator(".folder-card").count(), 1);
     assert.deepEqual(resultRefreshes, [resultRefreshes[0], resultRefreshes[0]]);
     assert.equal(albumSaves.length, writesBeforeSearchRetry);
+    const catalog = page.locator("#album-tag-catalog");
+    await catalog.locator("summary").click();
+    const tag = catalog.getByRole("button", { name: "reunion · 1", exact: true });
+    await tag.waitFor();
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await tag.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-album-tags-${mode}.png` });
+    }
+    await tag.press("Enter");
+    await folder(second).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 1);
+    await folder(second).click();
+    await album.getByRole("button", { name: "Volver a resultados", exact: true }).click();
+    await folder(second).waitFor();
+    await page.getByRole("button", { name: "Quitar filtro de Etiqueta: reunion" }).click();
+    await page.waitForFunction(() => document.querySelectorAll("#results .folder-card").length > 1);
     assert.deepEqual(unexpected, []);
   } finally {
     await browser.close();

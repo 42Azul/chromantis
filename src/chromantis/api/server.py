@@ -30,6 +30,7 @@ from chromantis.app.album_review import parse_tag
 from chromantis.app.browse import browse
 from chromantis.app.recall import RefinementError
 from chromantis.db.family_access import FamilySession, SESSION_SECONDS
+from chromantis.parsing.path_parser import normalize_text
 from chromantis.source.adapters import ArchiveReadLimit
 from chromantis.source.scanner import ScanBusy
 
@@ -184,7 +185,7 @@ def _dispatch(
             if path == ALBUM_REVIEW_PATH or path.startswith(ALBUM_REVIEW_PATH + "/"):
                 return _album_review_route(method, path, app_service, session, body or {}, params)
             if method == "GET" and path in {
-                "/api/v1/folders", "/api/v1/years", ALBUM_IMAGES_PATH, CONFIRMED_IMAGES_PATH,
+                "/api/v1/folders", "/api/v1/years", "/api/v1/album-tags", ALBUM_IMAGES_PATH, CONFIRMED_IMAGES_PATH,
             }:
                 return _query_route(path, params, app_service)
             return 403, {"error": "El acceso familiar solo permite consultar y etiquetar álbumes."}
@@ -758,6 +759,13 @@ def _query_route(
         year_from = _optional_int(params.get("from", [None])[0])
         year_to = _optional_int(params.get("to", [None])[0])
         return 200, {"items": [asdict(summary) for summary in app_service.list_years(year_from, year_to)]}
+    if path == "/api/v1/album-tags":
+        limit = _bounded_limit(params.get("limit", ["20"])[0], default=20)
+        offset = _optional_int(params.get("offset", [None])[0]) or 0
+        if not 0 <= offset < 2**63 - limit - 1:
+            raise ValueError("Invalid offset.")
+        items = app_service.album_tags(limit=limit + 1, offset=offset)
+        return 200, {"items": items[:limit], "next_offset": offset + limit if len(items) > limit else None}
     if path == "/api/v1/folders":
         query = params.get("q", [""])[0]
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
@@ -768,10 +776,15 @@ def _query_route(
         if not 0 <= offset < 2**63 - limit:
             raise ValueError("Invalid offset.")
         filters = app_service.album_search_filters(query) if params.get("filters") == ["1"] else None
+        raw_tag = params.get("tag", [None])[0]
+        if raw_tag is not None and not 1 <= len(raw_tag.strip()) <= 4096:
+            raise ValueError("Invalid album tag.")
+        tag = None if raw_tag is None else raw_tag if re.fullmatch(r"[0-9]{4}-[0-9]{2}", raw_tag) else normalize_text(raw_tag)
         items = app_service.search_folders(
             filters["q"] if filters else query, limit=limit, offset=offset, chronological=order == "timeline",
             place=params.get("place", [""])[0], date_from=params.get("date_from", [None])[0],
             date_to=params.get("date_to", [None])[0],
+            tag=tag,
         )
         payload = {"items": [asdict(item) for item in items]}
         if filters is not None:

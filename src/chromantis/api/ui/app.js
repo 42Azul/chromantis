@@ -243,6 +243,9 @@ async function loadSharedAlbum(offset = 0) {
 
 function signOut() {
   thumbnailCache.clear();
+  $("album-tag-catalog").open = false;
+  $("album-tags-list").replaceChildren();
+  message("album-tags-status");
   token = "";
   principal = undefined;
   indexStatus = undefined;
@@ -311,6 +314,7 @@ function setArchiveMode(family) {
   $("photo-tag").value = "";
   $("timeline").hidden = false;
   $("family-explorer").hidden = !family;
+  $("album-tag-catalog").hidden = !family;
   for (const id of ["year", "random", "people-nav", "searches-nav"]) $(id).hidden = family;
   $("search-form").classList.toggle("family-search", family);
 }
@@ -464,6 +468,7 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
       const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 }
         : { q: arguments_.q, limit: 31, offset: arguments_.offset || 0 };
       if (family && !timeline) params.filters = 1;
+      if (arguments_.tag) params.tag = arguments_.tag;
       const { items, filters } = await api("/folders" + queryParams(params));
       if (request !== requestNumber) return;
       if (!items.length && params.offset) {
@@ -471,7 +476,7 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
       }
       if (timeline) setRecallSearch();
       else {
-        setRecallSearch("folders", filters?.q ?? arguments_.q, undefined, filters?.active);
+        setRecallSearch("folders", filters?.q ?? arguments_.q, undefined, filters?.active, arguments_.tag);
         if (arguments_.updateInput) $("query").value = filters?.text ?? arguments_.q;
       }
       renderFolders(items.slice(0, 30), timeline, saved => archiveRequest(action, arguments_, saved));
@@ -516,20 +521,21 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
   }
 }
 
-function setRecallSearch(action, q, count, filters = []) {
-  archiveSearch = q ? { action, q, count } : undefined;
+function setRecallSearch(action, q, count, filters = [], tag) {
+  archiveSearch = q || tag ? { action, q, count, tag } : undefined;
   const family = principal?.auth_mode === "family";
   $("refine-hint").hidden = !archiveSearch;
   message("refine-hint", family ? "Puedes acotar esta búsqueda con «antes de 2020» o «con Ana»."
     : "Refine this search with “before 2020” or “with Ana”.");
-  const filterNames = { year: "Año", person: "Persona", album: "Álbum" };
+  const filterNames = { year: "Año", person: "Persona", album: "Álbum", tag: "Etiqueta" };
+  if (tag) filters = [...filters, { kind: "tag", label: tag, without: q }];
   $("active-search-filters").replaceChildren(...filters.map(filter => {
     const label = `${filterNames[filter.kind]}: ${filter.label}`;
     const remove = button(`${label} ×`, async () => {
       const controls = Array.from($("active-search-filters").children);
       for (const control of controls) control.disabled = true;
       try {
-        await archiveRequest("folders", { q: filter.without, updateInput: true });
+        await archiveRequest("folders", { q: filter.without, updateInput: true, tag: filter.kind === "tag" ? undefined : tag });
         if (!remove.isConnected && document.activeElement === document.body) {
           ($("active-search-filters").querySelector("button") || $("archive-search")).focus();
         }
@@ -561,7 +567,7 @@ async function refineArchive(text) {
         button(`${item.title} · ${item.path}`, () => refineArchive(`album ${item.path}`))));
       return;
     }
-    await archiveRequest(previous.action, previous.count ? { q, count: previous.count } : { q });
+    await archiveRequest(previous.action, previous.count ? { q, count: previous.count } : { q, tag: previous.tag });
   } catch (error) {
     if (request !== requestNumber) return;
     const translations = {
@@ -2200,6 +2206,38 @@ $("disconnect").addEventListener("click", async () => {
   }
   signOut();
 });
+async function loadAlbumTags(offset = 0) {
+  const connection = connectionNumber;
+  const catalog = $("album-tag-catalog");
+  const list = $("album-tags-list");
+  list.replaceChildren();
+  message("album-tags-status", "Cargando etiquetas…");
+  try {
+    const { items, next_offset } = await api("/album-tags" + queryParams({ limit: 20, offset }));
+    if (connection !== connectionNumber || !catalog.open) return;
+    message("album-tags-status", items.length ? "" : "No hay etiquetas en esta página.");
+    list.append(...items.map(({ tag, count }) => button(`${tag} · ${count}`, async () => {
+      $("scope").value = "folders";
+      $("scope").dispatchEvent(new Event("change"));
+      $("query").value = "";
+      $("year").value = "";
+      catalog.open = false;
+      await archiveRequest("folders", { q: "", tag });
+      if (!$("archive").hidden) $("results-title").focus();
+    })));
+    if (offset) list.append(button("Etiquetas anteriores", () => loadAlbumTags(offset - 20)));
+    if (next_offset !== null) list.append(button("Más etiquetas", () => loadAlbumTags(next_offset)));
+  } catch {
+    if (connection !== connectionNumber || !catalog.open) return;
+    message("album-tags-status", "No se pudieron cargar las etiquetas.");
+    list.append(button("Reintentar etiquetas", () => loadAlbumTags(offset)));
+  }
+}
+
+$("album-tag-catalog").addEventListener("toggle", () => {
+  if ($("album-tag-catalog").open) loadAlbumTags();
+});
+
 $("scope").addEventListener("change", () => {
   if (principal?.auth_mode !== "family") return;
   const photoMode = familyPhotoSearchModes[$("scope").value];

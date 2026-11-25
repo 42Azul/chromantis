@@ -45,12 +45,14 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Priority:** Fix reproducible blockers in sign-in, browsing, retrieval, saving and sharing first. A physical-device check or missing signing credential can stay open while independent product work ships. Then deliver F1 and F2 in order. Apply F3 to every touched screen from the first increment. Keep the existing MVP entries as the delivery ledger.
 
-#### F1 — Browse and search by tag · Ready Next
+#### F1 — Browse and search by tag · In Progress
 
 - Add a visible **Tags** entry inside Search on Android and the family web. Start with one shared, permission-scoped, paginated catalog from existing indexed and curated tags. List labels and counts for the selected result type. Filter tag names locally when the catalog is complete or through the catalog API when paginated. Render tags on album and photo details as shortcuts into Search.
 - Support exact tag-only search for albums and manually tagged photos, with a clear result-type switch. Add removable year and person filters and retain the query and list position when opening a result. Show album-level evidence on album matches and photo-level evidence on confirmed photo matches. Keep folder navigation and editing in their existing destinations. Reuse tag normalization and SQLite; keep MCP-produced labels discoverable through the same metadata path.
 - First slice: inspect the existing exact-tag API and browser flow, fill the smallest gaps, and ship the catalog plus click-to-search in one client. Then bring the other client to parity.
 - Acceptance: from Search, find **Playa** without knowing it's an existing tag, open matching albums or photos, narrow to a year, clear a filter, open a result and return to the same results. Cover case/accent handling according to existing normalization rules, empty results, pagination, a tag edited through the current curation path, and permission-scoped counts. The catalog works with the archive disconnected.
+
+**First web increment:** Search lists album tags with deduplicated album counts and opens exact matches from indexed and curated labels. The active tag can be cleared and survives a round trip to the album. Verified with the disconnected archive, including a curated label, accent normalization and catalog pagination. Next, add the manual-photo catalog and bring Android to parity.
 
 #### F2 — Make a family collage from search · Ready after F1
 

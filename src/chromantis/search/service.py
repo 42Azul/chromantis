@@ -5,7 +5,7 @@ import logging
 import random
 import re
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from functools import lru_cache
 from itertools import islice
@@ -15,6 +15,12 @@ from chromantis.parsing.path_parser import normalize_text
 from chromantis.search.query_parser import ParsedQuery, parse_query
 
 logger = logging.getLogger(__name__)
+
+_ALBUM_TAG_PAIRS_SQL = """
+    SELECT ft.folder_id, t.tag FROM folder_tags ft JOIN tags t ON t.id = ft.tag_id
+    UNION
+    SELECT folder_id, tag FROM album_tag_decisions WHERE tag IS NOT NULL
+"""
 
 _FOLDER_TAGS_SQL = """(
     SELECT GROUP_CONCAT(tag) FROM (
@@ -106,9 +112,21 @@ class SearchService:
         )
         return detail
 
+    def album_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
+        with self.repository.connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT tags.tag, COUNT(*) AS count
+                FROM ({_ALBUM_TAG_PAIRS_SQL}) tags JOIN album_metadata f ON f.id = tags.folder_id
+                GROUP BY tags.tag ORDER BY tags.tag LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
-        date_to: str | None = None, chronological: bool = False, offset: int = 0,
+        date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,
     ) -> list[SearchResult]:
         query = self._parse_query(raw_query)
         date_from, date_to = _calendar_date(date_from), _calendar_date(date_to)
@@ -118,6 +136,9 @@ class SearchService:
         if place.strip() and (not place_filter or len(place) > 120):
             raise ValueError("Enter a place name of up to 120 characters.")
         predicates, values = [], []
+        if tag is not None:
+            predicates.append(f"f.id IN (SELECT folder_id FROM ({_ALBUM_TAG_PAIRS_SQL}) WHERE tag = ?)")
+            values.append(tag)
         for operator, boundary in ((">=", date_from), ("<=", date_to)):
             if boundary:
                 predicates.append(f"f.event_date {operator} ?")
@@ -151,6 +172,8 @@ class SearchService:
             matches = (self._folder_result(row, query, place_filter) for row in rows)
             found = (item for item in matches if item is not None)
             results = list(islice(found, offset, offset + limit)) if limit >= 0 else list(found)[offset:][:limit]
+        if tag is not None:
+            results = [replace(item, reason=f"Etiqueta: {tag}") for item in results]
         logger.info("Folder search query=%r returned %d results", raw_query, len(results))
         return results
 

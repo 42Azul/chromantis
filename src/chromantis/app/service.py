@@ -73,14 +73,17 @@ class ApplicationService:
     def list_years(self, year_from: int | None = None, year_to: int | None = None) -> list[YearSummary]:
         return self.search.list_year_summaries(year_from=year_from, year_to=year_to)
 
+    def album_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
+        return self.search.album_tags(limit=limit, offset=offset)
+
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
-        date_to: str | None = None, chronological: bool = False, offset: int = 0,
+        date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,
     ) -> list[SearchResult]:
         query = normalize_album_request(raw_query, self.repository.list_alias_map)
         return self.search.search_folders(
             query, limit=limit, place=place, date_from=date_from, date_to=date_to,
-            chronological=chronological, offset=offset,
+            chronological=chronological, offset=offset, tag=tag,
         )
 
     def album_search_filters(self, raw_query: str) -> dict[str, object]:

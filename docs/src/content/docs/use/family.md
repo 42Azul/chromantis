@@ -23,6 +23,8 @@ After starting an album search, send `con Ana y Luis` (or `with Ana and Luis`) t
 
 ![Family search on a phone. The query Ana returns Un día en la playa.](../../../assets/screenshots/web-search.webp)
 
+In **Buscar álbumes**, open **Etiquetas de álbumes** to browse indexed and curated labels with album counts. Select a label for exact matches. Use its active filter button to clear it.
+
 ## Find photos by person
 
 Under **Buscar álbumes**, change the result type to **Fotos por persona** and search a name or alias. Results include individually tagged photos from the web or [Android](./android.md#tag-individual-photos). Use **Álbumes** to search by album links. Previews appear when the thumbnail cache is enabled. Tap a result to open its original.

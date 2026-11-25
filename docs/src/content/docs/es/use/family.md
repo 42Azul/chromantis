@@ -23,6 +23,8 @@ Después de iniciar una búsqueda de álbumes, escribe `con Ana y Luis` para exi
 
 ![Búsqueda familiar en el móvil. Al buscar Ana aparece el álbum Un día en la playa.](../../../../assets/screenshots/web-search.webp)
 
+En **Buscar álbumes**, abre **Etiquetas de álbumes** para ver las etiquetas del índice y las añadidas durante la revisión, con el número de álbumes. Pulsa una etiqueta para ver coincidencias exactas y utiliza el filtro activo para quitarla.
+
 ## Busca fotos por persona
 
 En **Buscar álbumes**, cambia el tipo de resultado a **Fotos por persona** y escribe un nombre o alias. Aparecen las fotos etiquetadas individualmente desde la web o [Android](./android.md#etiqueta-fotos-individuales). Usa **Álbumes** para buscar por vínculos al álbum. Las miniaturas aparecen si está activa la caché. Pulsa una foto para abrir el original.
