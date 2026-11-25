@@ -99,13 +99,26 @@ async function main() {
     await folder("2003").click();
     const first = "2003(1)/album_00";
     const second = "2003(2)/album_00";
-    await folder(first).click();
-    await album.getByText(first, { exact: true }).waitFor();
-    await album.getByRole("button", { name: "Volver a resultados" }).click();
+    const review = page.locator("#album-review-content");
+    const verifySameTitleAlbum = async path => {
+      await folder(path).click();
+      await album.getByText(path, { exact: true }).waitFor();
+      await album.getByRole("button", { name: "Etiquetar álbum" }).click();
+      await review.getByRole("heading", { name: "album 00", exact: true }).waitFor();
+      await review.getByText(`Carpeta: ${path}`, { exact: true }).waitFor();
+    };
+    await verifySameTitleAlbum(first);
+    await review.getByRole("button", { name: "Quitar a Ana del álbum" }).waitFor();
+    await review.getByRole("button", { name: "Volver a resultados", exact: true }).click();
     await page.getByRole("button", { name: "Página siguiente" }).click();
-    await folder(second).click();
-    await album.getByText(second, { exact: true }).waitFor();
-    await album.getByRole("button", { name: "Volver a resultados" }).click();
+    await verifySameTitleAlbum(second);
+    assert.equal(await review.getByRole("button", { name: "Quitar a Ana del álbum" }).count(), 0);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await review.getByRole("heading", { name: "album 00" }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-review-folder-${mode}.png` });
+    }
+    await review.getByRole("button", { name: "Volver a resultados", exact: true }).click();
     await folder(second).waitFor();
     assert.equal(await results.locator(".folder-card").count(), 1);
     await page.getByRole("button", { name: "Página anterior" }).click();

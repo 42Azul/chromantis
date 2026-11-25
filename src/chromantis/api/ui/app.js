@@ -1702,7 +1702,8 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton, f
   const heading = element("h2", { tabindex: "-1" }, album.title);
   const date = element("p", {}, album.event_date || String(album.year));
   $("album-review-content").append(
-    element("div", { class: "panel album-heading" }, heading, date, albumPhotoGallery(album.path),
+    element("div", { class: "panel album-heading" }, heading, date,
+      element("p", { class: "album-review-path" }, `Carpeta: ${album.path}`), albumPhotoGallery(album.path),
       albumContextEditor(album, heading, date, request)),
     form, actionBar
   );

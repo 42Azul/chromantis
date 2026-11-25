@@ -44,6 +44,8 @@ Open an album result, or choose **Ver álbum** on a photo result, to browse its 
 3. Accept, reject, or correct the folder-name suggestions. You can also add one-word manual tags.
 4. Choose **Save and next** (*Guardar y siguiente*). Open **Buscar álbumes** and search for `Ana` to find the album.
 
+The album header shows its indexed folder below the date or year. Use it to distinguish albums with the same title before tagging them.
+
 The save and skip actions stay at the bottom of the view as you scroll through the editor. After saving or skipping, keyboard focus moves to the next album title.
 
 ![Album review with Ana selected, the playa suggestion set to Accept, and the Save and next button at the bottom.](../../../assets/screenshots/web-tag.webp)

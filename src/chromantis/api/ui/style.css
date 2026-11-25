@@ -213,6 +213,7 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 }
 
 .album-heading { margin: 12px 0; overflow-wrap: anywhere; }
+.album-review-path { color: var(--muted); font-size: .9rem; }
 .album-context { margin-top: 12px; max-width: 36rem; }
 .album-context label { display: grid; gap: 4px; }
 .album-context textarea { font: inherit; color: inherit; background: var(--control); border: 1px solid var(--line); border-radius: 6px; padding: .65rem .8rem; resize: vertical; }

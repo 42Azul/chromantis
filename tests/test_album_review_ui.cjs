@@ -260,7 +260,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
   assert(content.querySelectorAll().some(control => control.children[0] === "Guardar y volver a resultados"),
     "The search result editor should offer to save and return");
   selectValues(resultEditor)[0].value = "rejected";
-  const [, , gallery] = content.children.at(-3).children;
+  const [, , path, gallery] = content.children.at(-3).children;
+  assert(path.children[0] === "Carpeta: 2024/fixture-4", "The editor should show the exact indexed folder");
   const [toggle, status, panel] = gallery.children;
   const [toolbar, exportStatus, grid, navigation] = panel.children;
   const [selectPhotos, selectPage, editSelection, download] = toolbar.children;
