@@ -73,11 +73,11 @@ class ApplicationService:
     def list_years(self, year_from: int | None = None, year_to: int | None = None) -> list[YearSummary]:
         return self.search.list_year_summaries(year_from=year_from, year_to=year_to)
 
-    def album_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
-        return self.search.album_tags(limit=limit, offset=offset)
+    def album_tags(self, *, limit: int, offset: int, name: str = "") -> list[dict[str, object]]:
+        return self.search.album_tags(limit=limit, offset=offset, name=name)
 
-    def photo_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
-        return self.search.photo_tags(limit=limit, offset=offset)
+    def photo_tags(self, *, limit: int, offset: int, name: str = "") -> list[dict[str, object]]:
+        return self.search.photo_tags(limit=limit, offset=offset, name=name)
 
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,

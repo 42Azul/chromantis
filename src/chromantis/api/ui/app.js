@@ -245,6 +245,7 @@ function signOut() {
   thumbnailCache.clear();
   $("album-tag-catalog").open = false;
   $("tag-catalog-kind").value = "albums";
+  $("tag-catalog-name").value = "";
   $("album-tags-list").replaceChildren();
   message("album-tags-status");
   token = "";
@@ -2209,7 +2210,7 @@ $("disconnect").addEventListener("click", async () => {
 });
 let tagCatalogRequest = 0;
 
-async function loadTagCatalog(offset = 0) {
+async function loadTagCatalog(offset = 0, name = $("tag-catalog-name").value.trim()) {
   const connection = connectionNumber;
   const request = ++tagCatalogRequest;
   const photos = $("tag-catalog-kind").value === "photos";
@@ -2218,9 +2219,9 @@ async function loadTagCatalog(offset = 0) {
   list.replaceChildren();
   message("album-tags-status", "Cargando etiquetas…");
   try {
-    const { items, next_offset } = await api((photos ? "/photo-tag-catalog" : "/album-tags") + queryParams({ limit: 20, offset }));
+    const { items, next_offset } = await api((photos ? "/photo-tag-catalog" : "/album-tags") + queryParams({ limit: 20, offset, name }));
     if (request !== tagCatalogRequest || connection !== connectionNumber || !catalog.open) return;
-    message("album-tags-status", items.length ? "" : "No hay etiquetas en esta página.");
+    message("album-tags-status", items.length ? "" : name ? "No hay etiquetas con ese nombre." : "No hay etiquetas en esta página.");
     list.append(...items.map(({ tag, count }) => button(`${tag} · ${count}`, async () => {
       $("scope").value = photos ? "tagged" : "folders";
       $("scope").dispatchEvent(new Event("change"));
@@ -2231,14 +2232,19 @@ async function loadTagCatalog(offset = 0) {
       else await archiveRequest("folders", { q: "", tag });
       if (!$("archive").hidden) $("results-title").focus();
     })));
-    if (offset) list.append(button("Etiquetas anteriores", () => loadTagCatalog(offset - 20)));
-    if (next_offset !== null) list.append(button("Más etiquetas", () => loadTagCatalog(next_offset)));
+    if (offset) list.append(button("Etiquetas anteriores", () => loadTagCatalog(offset - 20, name)));
+    if (next_offset !== null) list.append(button("Más etiquetas", () => loadTagCatalog(next_offset, name)));
   } catch {
     if (request !== tagCatalogRequest || connection !== connectionNumber || !catalog.open) return;
     message("album-tags-status", "No se pudieron cargar las etiquetas.");
-    list.append(button("Reintentar etiquetas", () => loadTagCatalog(offset)));
+    list.append(button("Reintentar etiquetas", () => loadTagCatalog(offset, name)));
   }
 }
+
+$("tag-catalog-filter").addEventListener("submit", event => {
+  event.preventDefault();
+  loadTagCatalog();
+});
 
 $("tag-catalog-kind").addEventListener("change", () => loadTagCatalog());
 

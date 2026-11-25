@@ -112,28 +112,29 @@ class SearchService:
         )
         return detail
 
-    def album_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
+    def album_tags(self, *, limit: int, offset: int, name: str = "") -> list[dict[str, object]]:
         with self.repository.connect() as connection:
             rows = connection.execute(
                 f"""
                 SELECT tags.tag, COUNT(*) AS count
                 FROM ({_ALBUM_TAG_PAIRS_SQL}) tags JOIN album_metadata f ON f.id = tags.folder_id
+                WHERE instr(replace(tags.tag, '-', ' '), ?) > 0
                 GROUP BY tags.tag ORDER BY tags.tag LIMIT ? OFFSET ?
                 """,
-                (limit, offset),
+                (normalize_text(name), limit, offset),
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def photo_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
+    def photo_tags(self, *, limit: int, offset: int, name: str = "") -> list[dict[str, object]]:
         with self.repository.connect() as connection:
             rows = connection.execute(
                 """SELECT pt.tag, COUNT(*) AS count
                    FROM photo_manual_tags pt
                    JOIN images i ON i.id = pt.image_id
                    JOIN album_metadata f ON f.id = i.folder_id
-                   WHERE pt.origin = 'manual'
+                   WHERE pt.origin = 'manual' AND instr(pt.tag, ?) > 0
                    GROUP BY pt.tag ORDER BY pt.tag LIMIT ? OFFSET ?""",
-                (limit, offset),
+                (normalize_text(name), limit, offset),
             ).fetchall()
         return [dict(row) for row in rows]
 

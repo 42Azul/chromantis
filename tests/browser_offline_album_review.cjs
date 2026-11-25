@@ -222,6 +222,12 @@ async function main() {
     }, photoPath), 200);
     await catalog.locator("summary").click();
     await catalog.locator("#tag-catalog-kind").selectOption("photos");
+    const labelName = catalog.getByLabel("Nombre de la etiqueta");
+    await labelName.fill("inexistente");
+    await labelName.press("Enter");
+    await catalog.getByText("No hay etiquetas con ese nombre.").waitFor();
+    await labelName.fill("ROMÉ");
+    await labelName.press("Enter");
     const photoTag = catalog.getByRole("button", { name: "romeria · 1", exact: true });
     await photoTag.waitFor();
     assert.equal(await catalog.getByRole("button", { name: "reunion · 1", exact: true }).count(), 0);

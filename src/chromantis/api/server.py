@@ -765,7 +765,10 @@ def _query_route(
         if not 0 <= offset < 2**63 - limit - 1:
             raise ValueError("Invalid offset.")
         catalog = app_service.album_tags if path == "/api/v1/album-tags" else app_service.photo_tags
-        items = catalog(limit=limit + 1, offset=offset)
+        name = params.get("name", [""])[0]
+        if len(name) > 80:
+            raise ValueError("Tag name filter is limited to 80 characters.")
+        items = catalog(limit=limit + 1, offset=offset, name=name)
         return 200, {"items": items[:limit], "next_offset": offset + limit if len(items) > limit else None}
     if path == "/api/v1/folders":
         query = params.get("q", [""])[0]

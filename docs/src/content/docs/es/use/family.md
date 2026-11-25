@@ -23,7 +23,7 @@ Después de iniciar una búsqueda de álbumes, escribe `con Ana y Luis` para exi
 
 ![Búsqueda familiar en el móvil. Al buscar Ana aparece el álbum Un día en la playa.](../../../../assets/screenshots/web-search.webp)
 
-Abre **Etiquetas** en **Buscar álbumes** y elige **Etiquetas de álbumes** o **Etiquetas manuales de fotos**. Cada etiqueta muestra cuántos resultados tiene. Pulsa una para buscar coincidencias exactas de ese tipo. Para quitar una etiqueta de álbum, pulsa su filtro activo.
+Abre **Etiquetas** en **Buscar álbumes** y elige **Etiquetas de álbumes** o **Etiquetas manuales de fotos**. Cada etiqueta muestra cuántos resultados tiene. Pulsa una para buscar coincidencias exactas de ese tipo. Para quitar una etiqueta de álbum, pulsa su filtro activo. Escribe parte del nombre y pulsa **Filtrar etiquetas** para acotar todo el catálogo.
 
 ## Busca fotos por persona
 

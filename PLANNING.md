@@ -56,6 +56,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Manual photo tags on the web:** The same catalog switches between albums and manually tagged photos. It counts only searchable photos and opens the existing exact photo search. The disconnected fixture verifies that a newly saved label is discoverable and only the tagged photo is returned. Next: filter label names in the catalog, then bring Android to parity.
 
+**Catalog name filter:** Both web catalogs filter the full SQLite result set before pagination, ignoring case and accents. The disconnected fixture verifies an empty filter result followed by a partial name that opens the exact photo search. Next: Android catalog parity.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on one client. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
