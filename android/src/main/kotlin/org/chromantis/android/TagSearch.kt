@@ -59,7 +59,7 @@ internal fun TagSearch(
                 onClick = {
                     focus.clearFocus()
                     name = draft.trim()
-                },
+                }
             ) {
                 Text(stringResource(R.string.filter_tags))
             }
@@ -83,8 +83,7 @@ internal fun TagSearch(
                 } else {
                     EntryScreen(
                         load = {
-                            if (photos) api.taggedPhotos(tag, it)
-                            else api.albums("", it, tag = tag)
+                            if (photos) api.taggedPhotos(tag, it) else api.albums("", it, tag = tag)
                         },
                         onExpired = onExpired,
                         onOpen = if (photos) onOpenPhoto else onOpenAlbum,
