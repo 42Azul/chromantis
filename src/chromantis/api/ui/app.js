@@ -594,7 +594,9 @@ function renderAlbumBrowse({ album, refresh }) {
       await showView("archive");
       await refresh(saved);
       if (!$("archive").hidden) {
-        ($("browsing").querySelector("[data-retry-search]") || $("results-title")).focus();
+        const card = Array.from($("results").querySelectorAll("[data-album-path]"))
+          .find(result => result.getAttribute("data-album-path") === album.path);
+        ($("browsing").querySelector("[data-retry-search]") || card || $("results-title")).focus();
       }
     },
   };
@@ -646,6 +648,7 @@ function renderFolders(items, timeline, refresh) {
   $("results").replaceChildren(...items.map(item => {
     const card = button("", () => family ? openAlbumFromResults(item, refresh)
       : archiveRequest("open_folder", { folder: item.path }), "folder-card");
+    if (family) card.setAttribute("data-album-path", item.path);
     if (family && indexStatus?.thumbnails) loadAlbumCover(card, item.path, photoRequests.signal);
     card.append(element("strong", {}, item.title));
     const details = [];

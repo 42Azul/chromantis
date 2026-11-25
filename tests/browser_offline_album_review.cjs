@@ -214,6 +214,12 @@ async function main() {
     await folder(second).click();
     await album.getByRole("button", { name: "Volver a resultados", exact: true }).click();
     await folder(second).waitFor();
+    await page.waitForFunction(path => document.activeElement?.dataset.albumPath === path, second);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await folder(second).focus();
+      await page.screenshot({ path: `/tmp/chromantis-return-result-${mode}.png` });
+    }
     const yearFilter = page.getByRole("button", { name: "Quitar filtro de Año: 2003" });
     await page.locator("#query").fill("solo 2003");
     await page.locator("#archive-search").click();

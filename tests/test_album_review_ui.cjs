@@ -11,6 +11,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
       classList: { toggle() {} },
       focus() {},
       setAttribute(name, value) { this.props[name] = value; },
+      getAttribute(name) { return this.props[name] ?? null; },
       addEventListener(name, listener) { this.listeners[name] = listener; },
       append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
