@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,7 @@ class FamilyComposeTest {
     @get:Rule val compose = createComposeRule()
 
     private fun capture(name: String) {
+        Log.i("ChromantisFixture", "Capture $name")
         if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true") return
         if (Build.VERSION.SDK_INT < 29) return
         val values =
@@ -241,23 +243,29 @@ class FamilyComposeTest {
                     remove = false,
                 )
             }
+            Log.i("ChromantisFixture", "Open tag catalog")
             click(label(R.string.search_tags))
+            await(label(R.string.tag_name_filter))
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("PLÁ")
+            Log.i("ChromantisFixture", "Apply album tag name filter")
             click(label(R.string.filter_tags))
             await("playa · 1")
             capture("tags-dark")
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
             capture("tags-light")
+            Log.i("ChromantisFixture", "Open exact album results")
             click("playa · 1")
             await(context.getString(R.string.exact_tag_results, "playa"))
             val beach = runBlocking { client.albums("", 0, tag = "playa") }.entries.single()
             await(albumDisplayTitle(beach.title))
             click(label(R.string.back))
+            Log.i("ChromantisFixture", "Switch to photo tags")
             click(label(R.string.photo_tag_catalog))
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("ROMÉ")
             click(label(R.string.filter_tags))
             await("romeria · 1")
+            Log.i("ChromantisFixture", "Open exact photo results")
             click("romeria · 1")
             await(photo.title)
             click(label(R.string.settings))
