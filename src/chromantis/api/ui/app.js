@@ -97,7 +97,7 @@ function message(id, text = "") {
   $(id).textContent = text;
 }
 
-async function api(path, { method = "GET", data, signal, raw = false } = {}) {
+async function api(path, { method = "GET", data, signal, raw = false, multipart = false } = {}) {
   const connection = connectionNumber;
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   if (data !== undefined) headers["Content-Type"] = "application/json";
@@ -118,6 +118,7 @@ async function api(path, { method = "GET", data, signal, raw = false } = {}) {
     error.code = payload.code;
     throw error;
   }
+  if (multipart) return response.formData();
   return raw ? response.blob() : response.json();
 }
 
@@ -1349,37 +1350,85 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
   }, "primary");
   const all = button("Seleccionar esta página", () => {
     if (!selecting || toggle.disabled || signal().aborted) return;
+    clearPreparedShare();
     for (const item of candidates) selected.add(item);
     for (const checkbox of grid.querySelectorAll(".photo-selection input")) checkbox.checked = true;
     update();
   });
 
   let exportRequest;
+  let preparedShare;
+  let sharing = false;
+  const supportsShare = typeof navigator.share === "function" && typeof navigator.canShare === "function" &&
+    typeof Response.prototype.formData === "function";
+  const selectedPaths = () => [...selected].map(item => item.path);
   const exportStatus = element("p", { class: "message", role: "status" });
-  const download = button("Descargar selección", () =>
-    exportPhotos({ paths: [...selected].map(item => item.path) }));
+  const download = button("Descargar selección", () => exportPhotos({ paths: selectedPaths() }));
   const downloadAlbum = button("Descargar álbum", () => exportPhotos({ album: albumPath }));
-  const cancelExport = button("Cancelar descarga", () => {
-    exportRequest?.abort();
-    exportStatus.textContent = "Descarga cancelada.";
+  const share = button("Preparar para compartir", async () => {
+    const pageSignal = signal();
+    if (pageSignal.aborted || exportRequest || sharing || !selected.size) return;
+    if (!preparedShare) return exportPhotos({ paths: selectedPaths(), format: "multipart" });
+    const data = preparedShare;
+    sharing = true;
+    update();
+    try {
+      await navigator.share(data.payload);
+      if (preparedShare === data) clearPreparedShare();
+    } catch (error) {
+      if (error.name !== "AbortError" && preparedShare === data) {
+        exportStatus.textContent = "No se pudo compartir. Puedes descargar la selección.";
+      }
+    } finally {
+      sharing = false;
+      if (!pageSignal.aborted) update();
+    }
   });
+  const cancelExport = button("Cancelar transferencia", () => {
+    exportRequest?.abort();
+    exportStatus.textContent = "Transferencia cancelada.";
+  });
+
+  function clearPreparedShare() {
+    if (!preparedShare) return;
+    preparedShare.signal.removeEventListener("abort", clearPreparedShare);
+    preparedShare = undefined;
+    exportStatus.textContent = "";
+  }
 
   async function exportPhotos(data) {
     const pageSignal = signal();
     if (pageSignal.aborted || exportRequest || (!data.album && !data.paths.length)) return;
+    const multipart = data.format === "multipart";
     const request = new AbortController();
     const cancel = () => request.abort();
     pageSignal.addEventListener("abort", cancel, { once: true });
     exportRequest = request;
-    exportStatus.textContent = "Preparando ZIP…";
+    exportStatus.textContent = multipart ? "Preparando fotos…" : "Preparando ZIP…";
     update();
     try {
-      const blob = await api("/photo-export", {
+      const result = await api("/photo-export", {
         method: "POST", data,
-        raw: true, signal: request.signal,
+        raw: true, multipart, signal: request.signal,
       });
       if (request.signal.aborted) return;
-      const url = URL.createObjectURL(blob);
+      if (multipart) {
+        const parts = result.getAll("photo");
+        if (parts.length !== data.paths.length || parts.some(part => !(part instanceof File))) {
+          throw new Error("Incomplete photo export");
+        }
+        const payload = { files: parts.map((part, index) =>
+          new File([part], data.paths[index].split("/").at(-1), { type: part.type })) };
+        if (navigator.canShare(payload)) {
+          preparedShare = { payload, signal: pageSignal };
+          pageSignal.addEventListener("abort", clearPreparedShare, { once: true });
+          exportStatus.textContent = "Fotos listas. Pulsa Compartir selección.";
+        } else {
+          exportStatus.textContent = "Este navegador no puede compartir estas fotos. Puedes descargarlas.";
+        }
+        return;
+      }
+      const url = URL.createObjectURL(result);
       element("a", { href: url, download: "chromantis-photos.zip" }).click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       exportStatus.textContent = "ZIP listo para descargar.";
@@ -1387,8 +1436,9 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
       if (!request.signal.aborted) {
         exportStatus.textContent = error.status === 413
           ? (data.album ? "El álbum supera el límite de 20 fotos o 16 MiB. Descárgalo por selecciones."
-            : "El ZIP supera 16 MiB. Selecciona menos fotos.")
-          : "No se pudo preparar el ZIP. Puedes volver a intentarlo.";
+            : "La selección supera 16 MiB. Selecciona menos fotos.")
+          : multipart ? "No se pudieron preparar las fotos. Puedes volver a intentarlo o descargarlas."
+            : "No se pudo preparar el ZIP. Puedes volver a intentarlo.";
       }
     } finally {
       pageSignal.removeEventListener("abort", cancel);
@@ -1402,7 +1452,12 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
   function update() {
     edit.textContent = `Etiquetar fotos (${selected.size})`;
     edit.disabled = toggle.disabled || !selected.size;
-    all.disabled = toggle.disabled || selected.size === candidates.length;
+    all.disabled = toggle.disabled || !!exportRequest || sharing || selected.size === candidates.length;
+    for (const checkbox of grid.querySelectorAll(".photo-selection input")) {
+      checkbox.disabled = !!exportRequest || sharing;
+    }
+    share.textContent = preparedShare ? "Compartir selección" : "Preparar para compartir";
+    share.disabled = toggle.disabled || !selected.size || !!exportRequest || sharing;
     download.disabled = toggle.disabled || !selected.size || !!exportRequest;
     downloadAlbum.disabled = toggle.disabled || !candidates.length || !!exportRequest;
     cancelExport.hidden = !exportRequest;
@@ -1414,9 +1469,11 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     toggle.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
     edit.hidden = all.hidden = !active;
     download.hidden = !active || !albumPath;
+    share.hidden = download.hidden || !supportsShare;
     if (!active) {
       exportRequest?.abort();
       exportRequest = undefined;
+      clearPreparedShare();
       exportStatus.textContent = "";
       selected.clear();
       for (const checkbox of grid.querySelectorAll(".photo-selection input")) checkbox.checked = false;
@@ -1429,7 +1486,8 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     candidates.push(item);
     const checkbox = element("input", { type: "checkbox", "aria-label": `Seleccionar ${item.path}` });
     checkbox.addEventListener("change", () => {
-      if (!selecting || toggle.disabled || entrySignal.aborted || signal().aborted) return;
+      if (!selecting || toggle.disabled || exportRequest || sharing || entrySignal.aborted || signal().aborted) return;
+      clearPreparedShare();
       if (checkbox.checked) selected.add(item);
       else selected.delete(item);
       update();
@@ -1443,7 +1501,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     candidates = [];
   }
   setSelecting(false);
-  return { toggle, edit, all, download, downloadAlbum, cancelExport, exportStatus, append, setSelecting, update, beginPage };
+  return { toggle, edit, all, download, downloadAlbum, share, cancelExport, exportStatus, append, setSelecting, update, beginPage };
 }
 
 function albumPhotoGallery(path, editable = canCurateAlbums) {
@@ -1464,7 +1522,7 @@ function albumPhotoGallery(path, editable = canCurateAlbums) {
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, ...(editable ? [editSelection] : []), controls.download, controls.downloadAlbum, controls.cancelExport);
+  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, ...(editable ? [editSelection] : []), controls.download, controls.share, controls.downloadAlbum, controls.cancelExport);
   const panel = element("div", { hidden: "" }, toolbar, controls.exportStatus, grid, navigation, ...(editable ? [reviewPhotos] : []));
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);

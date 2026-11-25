@@ -14,6 +14,7 @@ from io import BytesIO
 from ipaddress import ip_address
 from mimetypes import guess_type
 from pathlib import Path
+from secrets import token_hex
 from ssl import SSLSocket
 from threading import Lock
 from urllib.parse import parse_qs, unquote, urlparse
@@ -608,6 +609,7 @@ def _browse_request(
 def _export_photos(
     data: dict[str, object], app: ApplicationService, reader: Callable[[str, int], bytes] | None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
+    multipart = set(data) == {"paths", "format"} and data["format"] == "multipart"
     if set(data) == {"album"}:
         album = data["album"]
         if not isinstance(album, str) or not album.strip() or len(album) > 4096:
@@ -620,7 +622,7 @@ def _export_photos(
         paths = [item.path for item in items]
     else:
         paths = data.get("paths")
-        if (set(data) != {"paths"} or not isinstance(paths, list) or not 1 <= len(paths) <= EXPORT_PHOTOS
+        if ((not multipart and set(data) != {"paths"}) or not isinstance(paths, list) or not 1 <= len(paths) <= EXPORT_PHOTOS
                 or any(not isinstance(path, str) or not path for path in paths)):
             return 400, {"error": f"Select between 1 and {EXPORT_PHOTOS} indexed photos"}
         paths = list(dict.fromkeys(paths))
@@ -629,22 +631,44 @@ def _export_photos(
     if any(not app.repository.is_indexed_image(path) for path in paths):
         return 404, {"error": "Image not found"}
 
-    remaining = EXPORT_BYTES
     buffer = BytesIO()
+    boundary = token_hex(24) if multipart else None
+
+    def originals():
+        remaining = EXPORT_BYTES
+        for path in paths:
+            content = reader(path, remaining)
+            remaining -= len(content)
+            yield path, content
+
     try:
-        with ZipFile(buffer, "w") as archive:
-            for number, path in enumerate(paths, start=1):
-                content = reader(path, remaining)
-                remaining -= len(content)
-                name = path.replace("\\", "/").rsplit("/", 1)[-1]
-                archive.writestr(f"{number:02d}-{name}", content)
+        if boundary:
+            for path, content in originals():
+                buffer.write(
+                    (f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; filename="photo"\r\n'
+                     f"Content-Type: {_image_content_type(path)}\r\n\r\n").encode("ascii")
+                )
+                buffer.write(content)
+                buffer.write(b"\r\n")
+            buffer.write(f"--{boundary}--\r\n".encode("ascii"))
+        else:
+            with ZipFile(buffer, "w") as archive:
+                for number, (path, content) in enumerate(originals(), start=1):
+                    name = path.replace("\\", "/").rsplit("/", 1)[-1]
+                    archive.writestr(f"{number:02d}-{name}", content)
     except ArchiveReadLimit:
         return 413, {"error": "Selection exceeds the 16 MiB export limit"}
     except (FileNotFoundError, ValueError):
         return 404, {"error": "Image no longer available"}
     except (FtpError, OSError, EOFError):
         return 502, {"error": "Archive unavailable"}
-    return 200, PhotoPayload(buffer.getvalue(), "application/zip")
+    content_type = f"multipart/form-data; boundary={boundary}" if boundary else "application/zip"
+    return 200, PhotoPayload(buffer.getvalue(), content_type)
+
+
+def _image_content_type(path: str) -> str:
+    content_type = guess_type(path)[0] or ""
+    return content_type if content_type.startswith("image/") else "application/octet-stream"
 
 
 def _read_image(
@@ -660,10 +684,7 @@ def _read_image(
         return 404, {"error": "Image no longer available"}
     except (FtpError, OSError, EOFError):
         return 502, {"error": "Archive unavailable"}
-    content_type = guess_type(path)[0] or "application/octet-stream"
-    if not content_type.startswith("image/"):
-        content_type = "application/octet-stream"
-    return 200, PhotoPayload(content, content_type)
+    return 200, PhotoPayload(content, _image_content_type(path))
 
 
 def _read_thumbnail(

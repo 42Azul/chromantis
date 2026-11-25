@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from email.parser import BytesParser
 from http.client import HTTPConnection
 from io import BytesIO
 from zipfile import ZipFile
@@ -378,6 +379,33 @@ except ScanBusy:
         self.assertEqual(self.request("POST", route, "read-token", {"paths": [path]})[0], 413)
         reader.side_effect = OSError()
         self.assertEqual(self.request("POST", route, "read-token", {"paths": [path]})[0], 502)
+
+    def test_multipart_export_keeps_original_order_and_respects_export_limits(self) -> None:
+        source = LocalArchiveSource(str(PHOTOS_ROOT))
+        reader = Mock(side_effect=lambda path, limit: source.read_bytes(path, max_bytes=limit))
+        self.start_api(export_reader=reader)
+        paths = [f"2021/2021-08-15_city_trip/IMG_{number:03d}.jpg" for number in (2, 1)]
+        data = {"paths": [*paths, paths[0]], "format": "multipart"}
+        self.assertEqual(self.request("POST", "/photo-export", body=data)[0], 401)
+        self.assertEqual(self.request("POST", "/photo-export", "read-token", {**data, "format": "other"})[0], 400)
+        reader.assert_not_called()
+        connection = HTTPConnection(*self.server.server_address, timeout=2)
+        self.addCleanup(connection.close)
+        connection.request("POST", "/api/v1/photo-export", json.dumps(data),
+                           {"Authorization": "Bearer read-token", "Content-Type": "application/json"})
+        response = connection.getresponse()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.getheader("Cache-Control"), "no-store")
+        header = response.getheader("Content-Type")
+        message = BytesParser().parsebytes(f"Content-Type: {header}\r\n\r\n".encode() + response.read())
+        parts = message.get_payload()
+        self.assertEqual([part.get_content_type() for part in parts], ["image/jpeg", "image/jpeg"])
+        originals = [(PHOTOS_ROOT / path).read_bytes() for path in paths]
+        self.assertEqual([part.get_payload(decode=True) for part in parts], originals)
+        self.assertEqual([call.args for call in reader.call_args_list],
+                         [(paths[0], 16 * 1024 * 1024), (paths[1], 16 * 1024 * 1024 - len(originals[0]))])
+        reader.side_effect = [originals[0], ArchiveReadLimit()]
+        self.assertEqual(self.request("POST", "/photo-export", "read-token", data)[0], 413)
 
     def test_export_rejects_empty_or_oversized_albums_before_reading_originals(self) -> None:
         reader = Mock()

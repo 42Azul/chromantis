@@ -128,4 +128,6 @@ Owner collections use `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collec
 
 Send `POST /api/v1/photo-export` with a JSON body such as `{"paths":["indexed/photo.jpg"]}` to download a ZIP of selected originals. Use the same credentials as for originals, or a same-origin family session. The server deduplicates paths, accepts up to 20 entries and caps original data at 16 MiB. It serves one export at a time, with no disk staging. Oversized selections return 413. Missing files and archive failures return an error instead of a partial ZIP.
 
+Add `"format":"multipart"` to a paths request to receive the originals as repeated `photo` file parts in a `multipart/form-data` response. Parts follow the deduplicated path order. The caller can recover filenames from those paths. The same access checks, size limits and all-or-error behavior apply.
+
 To export a whole album, send an `album` string containing its indexed path instead of `paths`. The same limits apply, and albums with more than 20 indexed photos return 413 before opening originals.

@@ -18,13 +18,17 @@ async function main() {
     await page.addInitScript(() => {
       window.shareMode = "supported";
       window.sharedFiles = [];
-      navigator.canShare = ({ files }) => window.shareMode !== "unsupported" && files.length === 1;
+      navigator.canShare = ({ files }) => window.shareMode !== "unsupported" && files.length > 0;
       navigator.share = async ({ files }) => {
         if (window.shareMode === "cancel") throw new DOMException("Cancelled", "AbortError");
         if (window.shareMode === "error") throw new DOMException("Unavailable", "NotAllowedError");
-        const [file] = files;
-        window.sharedFiles.push({ name: file.name, type: file.type,
-          bytes: [...new Uint8Array(await file.arrayBuffer())] });
+        assertActivation();
+        window.sharedFiles.push(await Promise.all(files.map(async file => ({
+          name: file.name, type: file.type, bytes: [...new Uint8Array(await file.arrayBuffer())],
+        }))));
+        function assertActivation() {
+          if (!navigator.userActivation.isActive) throw new DOMException("Missing activation", "NotAllowedError");
+        }
       };
     });
     const paths = [];
@@ -82,7 +86,7 @@ async function main() {
     }
     await share.click();
     await page.waitForFunction(() => window.sharedFiles.length === 1);
-    assert.deepEqual(await page.evaluate(() => window.sharedFiles[0]), {
+    assert.deepEqual(await page.evaluate(() => window.sharedFiles[0][0]), {
       name: "Photo_01.jpg", type: "image/jpeg", bytes: [...await image.body()],
     });
     assert.equal(paths.filter(path => path === "/api/v1/image").length, 1);
@@ -121,6 +125,42 @@ async function main() {
       ["Photo_02.jpg", "Photo_04.jpg"]);
     assert.equal(download.suggestedFilename(), "chromantis-photos.zip");
     assert.equal(await download.failure(), null);
+    const prepare = page.getByRole("button", { name: "Preparar para compartir" });
+    const shareSelection = page.getByRole("button", { name: "Compartir selección", exact: true });
+    await prepare.click();
+    await page.getByText("Este navegador no puede compartir estas fotos. Puedes descargarlas.").waitFor();
+    assert.equal(await shareSelection.count(), 0);
+    await page.evaluate(() => { window.shareMode = "supported"; });
+    await prepare.click();
+    await shareSelection.waitFor();
+    const fourthPhoto = page.getByRole("checkbox", { name: /Photo_04.jpg/ });
+    await fourthPhoto.uncheck();
+    await prepare.waitFor();
+    assert.equal(await shareSelection.count(), 0);
+    await fourthPhoto.check();
+    await prepare.click();
+    await shareSelection.waitFor();
+    assert.equal(await page.evaluate(() => window.sharedFiles.length), 1);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await shareSelection.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-selection-share-${mode}.png` });
+    }
+    await page.evaluate(() => { window.shareMode = "cancel"; });
+    await shareSelection.click();
+    await page.waitForFunction(() => [...document.querySelectorAll("button")]
+      .some(button => button.textContent === "Compartir selección" && !button.disabled));
+    const exportCount = paths.filter(path => path === "/api/v1/photo-export").length;
+    await page.evaluate(() => { window.shareMode = "supported"; });
+    await shareSelection.click();
+    await page.waitForFunction(() => window.sharedFiles.length === 2);
+    const shared = await page.evaluate(() => window.sharedFiles[1]);
+    const zipped = await download.path();
+    assert.deepEqual(shared, ["Photo_02.jpg", "Photo_04.jpg"].map((name, index) => ({
+      name, type: "image/jpeg",
+      bytes: [...execFileSync("unzip", ["-p", zipped, `0${index + 1}-${name}`])],
+    })));
+    assert.equal(paths.filter(path => path === "/api/v1/photo-export").length, exportCount);
     const albumButton = page.getByRole("button", { name: "Descargar álbum" });
     for (const mode of ["light", "dark"]) {
       await page.locator("#appearance").selectOption(mode);

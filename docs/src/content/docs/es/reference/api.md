@@ -128,4 +128,6 @@ Las colecciones de propietario usan `GET/POST /api/v1/collections`, `GET/DELETE 
 
 Envía `POST /api/v1/photo-export` con un cuerpo JSON como `{"paths":["album/foto.jpg"]}` para descargar un ZIP con los originales seleccionados. Usa las mismas credenciales que para los originales o una sesión familiar del mismo origen. El servidor elimina duplicados, admite hasta 20 entradas y aplica un límite de 16 MiB de originales. Atiende una exportación a la vez, sin escribir archivos temporales. Las selecciones demasiado grandes reciben un 413. Si falta un archivo o el archivo fotográfico está inaccesible, devuelve un error en lugar de un ZIP parcial.
 
+Añade `"format":"multipart"` a una petición con rutas para recibir los originales en partes de archivo `photo` de una respuesta `multipart/form-data`. Las partes siguen el orden de las rutas sin duplicados. El cliente puede recuperar los nombres a partir de esas rutas. Se aplican los mismos permisos y límites, y cualquier fallo cancela toda la respuesta de archivos.
+
 Para exportar un álbum entero, envía su ruta indexada en `album` en lugar de `paths`. Se aplican los mismos límites. Los álbumes con más de 20 fotos indexadas reciben un 413 antes de abrir los originales.

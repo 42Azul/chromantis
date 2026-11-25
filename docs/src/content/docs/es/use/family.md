@@ -84,6 +84,8 @@ Para que otra persona pueda ver un álbum, usa un [enlace revocable](../start/pr
 
 Abre una foto y pulsa **Compartir** para enviar el original cargado al menú del dispositivo si el navegador permite compartir archivos. **Descargar original** guarda el mismo archivo en cualquier navegador.
 
+Con las fotos marcadas, pulsa **Preparar para compartir**. Cuando estén listas, pulsa **Compartir selección** para abrir el menú del dispositivo. Si el dispositivo no admite esos archivos para compartir, **Descargar selección** guarda un ZIP.
+
 En la galería del álbum, marca las fotos de la página actual y pulsa **Descargar selección** para guardar sus originales en un ZIP. Si supera los 16 MiB, marca menos fotos y vuelve a intentarlo. **Cancelar selección** cancela la descarga en el navegador y borra la selección.
 
 **Descargar álbum** incluye todas las fotos indexadas del álbum, incluso las de páginas que aún no hayas abierto. El ZIP admite hasta 20 fotos y 16 MiB. Para álbumes más grandes, descarga selecciones por página.
