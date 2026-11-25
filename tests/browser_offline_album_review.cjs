@@ -15,9 +15,15 @@ async function main() {
     const resultRefreshes = [];
     let failResultRefresh = false;
     const unexpected = [];
+    let explicitOriginal;
+    const originals = [];
     await page.route("**/*", route => {
       const request = route.request();
       const url = new URL(request.url());
+      if (url.origin === FIXTURE_URL && url.pathname === "/api/v1/image" && explicitOriginal) {
+        originals.push(url.searchParams.get("path"));
+        return route.continue();
+      }
       if (url.origin !== FIXTURE_URL || /^\/api\/v1\/(image|thumbnail|album-cover|album-images)$/.test(url.pathname)) {
         unexpected.push(url.pathname);
         return route.abort();
@@ -262,6 +268,23 @@ async function main() {
     await results.locator(".photo-card").getByRole("heading", { name: "Photo_01.jpg" }).waitFor();
     assert.equal(await results.locator(".photo-card").count(), 1);
     assert.equal(await page.locator("#query").inputValue(), "romeria");
+    explicitOriginal = photoPath;
+    await results.getByRole("button", { name: "Abrir Photo_01.jpg", exact: true }).click();
+    const shortcutToPhotos = page.getByRole("button", { name: "Buscar fotos con la etiqueta romeria" });
+    await shortcutToPhotos.waitFor();
+    await page.getByText("No se pudo abrir el original.", { exact: true }).waitFor();
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").evaluate((select, value) => {
+        select.value = value;
+        select.dispatchEvent(new Event("change"));
+      }, mode);
+      await page.screenshot({ path: `/tmp/chromantis-photo-shortcut-${mode}.png` });
+    }
+    await shortcutToPhotos.press("Enter");
+    await page.waitForFunction(() => !document.querySelector("#lightbox").open);
+    await results.locator(".photo-card").getByRole("heading", { name: "Photo_01.jpg" }).waitFor();
+    assert.equal(await results.locator(".photo-card").count(), 1);
+    assert.deepEqual(originals, [photoPath]);
     assert.deepEqual(unexpected, []);
   } finally {
     await browser.close();

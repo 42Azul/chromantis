@@ -62,6 +62,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Album tag shortcuts:** Opening an album from browser results shows its indexed and curated labels. Each opens the exact album search without loading photos. The offline Chromium fixture verifies the shortcut for a curated label. Next: photo detail shortcuts and Android catalog parity.
 
+**Photo tag shortcuts:** Opening a photo in the family browser shows its saved manual labels. Each opens the exact photo search. The offline Chromium fixture verifies that the shortcut works even when the requested original is unavailable and that searching does not reopen it. Next: Android catalog parity when its validation environment is available.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on one client. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.

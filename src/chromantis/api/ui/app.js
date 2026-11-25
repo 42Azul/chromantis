@@ -767,6 +767,7 @@ async function openPhoto(item, filename, previewURL, fetchOriginal, spanish) {
   $("photo-dates").replaceChildren();
   box.showModal();
   loadPhotoDates(item.path, request, spanish);
+  if (principal?.auth_mode === "family") loadPhotoTagShortcuts(item.path, request);
   try {
     if (fetchOriginal) {
       const blob = await api("/image" + queryParams({ path: item.path }), { raw: true, signal: request.signal });
@@ -837,6 +838,27 @@ async function loadPhotoDates(path, request, spanish) {
   }
 }
 
+async function loadPhotoTagShortcuts(path, request) {
+  const box = $("lightbox");
+  try {
+    const { items } = await api("/photo-tags" + queryParams({ path }), { signal: request.signal });
+    if (request.signal.aborted || originalRequest !== request || !box.open) return;
+    const tags = items[0]?.manual_tags || [];
+    const panel = $("photo-tag-shortcuts");
+    panel.replaceChildren(...tags.map(({ tag }) => {
+      const shortcut = button(tag, () => {
+        box.close();
+        return openTagSearch(tag, true);
+      });
+      shortcut.setAttribute("aria-label", `Buscar fotos con la etiqueta ${tag}`);
+      return shortcut;
+    }));
+    panel.hidden = !tags.length;
+  } catch {
+    // The photo viewer still works if saved tags are unavailable.
+  }
+}
+
 $("lightbox").addEventListener("close", () => {
   originalRequest?.abort();
   originalRequest = undefined;
@@ -847,6 +869,8 @@ $("lightbox").addEventListener("close", () => {
   $("share-original").hidden = true;
   $("lightbox").querySelector("img").removeAttribute("src");
   $("photo-dates").replaceChildren();
+  $("photo-tag-shortcuts").replaceChildren();
+  $("photo-tag-shortcuts").hidden = true;
 });
 
 function photoCard(item, signal, {
