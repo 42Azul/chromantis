@@ -27,7 +27,7 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 | People, index tools, chat and later local models | MVP 19C and the rules-first portion of 19D are partly implemented | Continue their scoped work after the family UX/auth increments; measure optional model trials before adopting any NAS workload |
 | Operator-reviewed MCP curation and places/map | The local stdio curation trial is shipped for synthetic albums; curated place labels are already searchable | Evaluate hosted proposals only with approved data, and build the private place list before choosing a map provider; keep these behind the phone-test follow-up |
 
-**Execution order:** the phone-test follow-up below takes precedence: previews, save/share, missing branch/date parsing, then the physical-phone checklist. Preserve the in-flight MVP 19B test work, but do not let screenshot-only work displace reported phone failures. Apply MVP 20A's design and MVP 20B's security criteria while delivering those fixes; broader web redesign and passkeys follow afterward. Native owner tools, local model comparison, face processing and remote MCP remain later work. A physical-device release gate does not block runnable synthetic service/browser improvements.
+**Execution order:** use the family discovery priorities below alongside concrete regressions from the phone-test follow-up. Keep incomplete physical-device checks visible and take the next independent increment when a check is blocked.
 
 ### Android browsing, search, and curation
 
@@ -40,6 +40,35 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 - Keep album and photo tagging under **Organize** and explicit actions from **Folders**. Add a
   direct album picker to Organize so existing albums can be curated without entering Search.
   Validate both a single-photo edit and batch selection with undo on a synthetic phone-sized view.
+
+### Family discovery, visual identity, and keepsakes
+
+**Priority:** Fix reproducible blockers in sign-in, browsing, retrieval, saving and sharing first. A physical-device check or missing signing credential can stay open while independent product work ships. Then deliver F1 and F2 in order. Apply F3 to every touched screen from the first increment. Keep the existing MVP entries as the delivery ledger.
+
+#### F1 — Browse and search by tag · Ready Next
+
+- Add a visible **Tags** entry inside Search on Android and the family web. Start with one shared, permission-scoped, paginated catalog from existing indexed and curated tags. List labels and counts for the selected result type. Filter tag names locally when the catalog is complete or through the catalog API when paginated. Render tags on album and photo details as shortcuts into Search.
+- Support exact tag-only search for albums and manually tagged photos, with a clear result-type switch. Add removable year and person filters and retain the query and list position when opening a result. Show album-level evidence on album matches and photo-level evidence on confirmed photo matches. Keep folder navigation and editing in their existing destinations. Reuse tag normalization and SQLite; keep MCP-produced labels discoverable through the same metadata path.
+- First slice: inspect the existing exact-tag API and browser flow, fill the smallest gaps, and ship the catalog plus click-to-search in one client. Then bring the other client to parity.
+- Acceptance: from Search, find **Playa** without knowing it's an existing tag, open matching albums or photos, narrow to a year, clear a filter, open a result and return to the same results. Cover case/accent handling according to existing normalization rules, empty results, pagination, a tag edited through the current curation path, and permission-scoped counts. The catalog works with the archive disconnected.
+
+#### F2 — Make a family collage from search · Ready after F1
+
+- Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on one client. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
+- Use bounded preview decoding and local composition with existing media permissions. Pull only user-selected images, respect unavailable photos, strip source metadata from the output, and share only after explicit user action. Keep this on demand and benchmark the maximum selection before expanding it.
+- Acceptance: select photos from a tag search, remove one, change the order and export an image containing exactly the displayed set. Validate failed previews, cancellation and mobile memory cost with synthetic photos. Explore a dated contact sheet or a second layout only after the simple grid works.
+
+#### F3 — One Chromantis visual identity · Active design direction
+
+- Apply the shared visual direction in [DESIGN.md](DESIGN.md) to Android and the family web. Start with a matched Search/Tags flow in light and dark mode. Give both clients the same vocabulary, typography roles, rounded icon style and semantic colors while following native navigation patterns.
+- Prototype a small original mantis mark that suggests seeing many colors. Test a monochrome silhouette at launcher size and a restrained color variant for a few intentional moments. Keep the photo archive visually dominant and the home surfaces focused on browsing, searching and resuming.
+- Acceptance: compare the same synthetic journey across phone and browser. Verify contrast, touch and keyboard use, text scaling and an understandable empty state. Publish captures and complete the journey with real controls before marking the work done.
+
+#### Next family experiments
+
+- Let families reopen a useful tag/year/person combination through existing saved searches, then use it to create a collage or add matches to a private collection.
+- Explore **On this day** as an optional view from the dated timeline. Use reliable dates and show their source. Keep a single intentional entry point and validate several years of results before offering it on the home screen.
+- Audit tag usefulness with a synthetic vocabulary containing similar names. Try a curator-only alias or merge workflow if duplicate labels make discovery harder. Keep curation and automation under existing roles and preserve provenance.
 
 ## Current State
 
