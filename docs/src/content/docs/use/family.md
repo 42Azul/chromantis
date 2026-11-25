@@ -88,6 +88,6 @@ With photos selected, choose **Preparar para compartir**. Once the files are rea
 
 In the album gallery, select photos on the current page and choose **Descargar selección** to save their originals as a ZIP. If the selection exceeds 16 MiB, mark fewer photos and retry. **Cancelar selección** cancels the download in the browser and clears the selection.
 
-**Descargar álbum** includes all indexed photos in the album, including photos on pages you have yet to open. The ZIP is limited to 20 photos and 16 MiB. For larger albums, use page selections.
+**Descargar álbum** includes all indexed photos in the album, including pages you have yet to open. If the normal ZIP exceeds 20 photos or 16 MiB, choose **Confirmar descarga grande** to try up to 100 photos and 64 MiB total, with at most 16 MiB per photo. **Cancelar transferencia** stops the browser request. If the album exceeds the larger limit, use selections or download individual originals.
 
 If an album save fails, the message beside **Guardar** explains what happened. Keep the editor open to retry with the same selections.

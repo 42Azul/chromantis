@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import asdict, dataclass
 from ftplib import Error as FtpError
 from hashlib import sha256
@@ -15,8 +16,11 @@ from ipaddress import ip_address
 from mimetypes import guess_type
 from pathlib import Path
 from secrets import token_hex
+from shutil import copyfileobj
 from ssl import SSLSocket
+from tempfile import TemporaryFile
 from threading import Lock
+from typing import BinaryIO
 from urllib.parse import parse_qs, unquote, urlparse
 from zipfile import ZipFile
 
@@ -44,6 +48,8 @@ SHARED_ALBUM_PATH = "/api/v1/shared"
 PHOTO_EXPORT_PATH = "/api/v1/photo-export"
 EXPORT_BYTES = 16 * 1024 * 1024
 EXPORT_PHOTOS = 20
+LARGE_ALBUM_BYTES = 64 * 1024 * 1024
+LARGE_ALBUM_PHOTOS = 100
 
 UI_ROOT = Path(__file__).with_name("ui")
 UI_FILES = {
@@ -56,7 +62,7 @@ UI_FILES = {
 
 @dataclass(frozen=True)
 class PhotoPayload:
-    content: bytes
+    content: bytes | BinaryIO
     content_type: str
 
 
@@ -610,15 +616,17 @@ def _export_photos(
     data: dict[str, object], app: ApplicationService, reader: Callable[[str, int], bytes] | None,
 ) -> tuple[int, dict[str, object] | PhotoPayload]:
     multipart = set(data) == {"paths", "format"} and data["format"] == "multipart"
-    if set(data) == {"album"}:
+    large_album = set(data) == {"album", "large"} and data["large"] is True
+    if set(data) == {"album"} or large_album:
+        max_photos = LARGE_ALBUM_PHOTOS if large_album else EXPORT_PHOTOS
         album = data["album"]
         if not isinstance(album, str) or not album.strip() or len(album) > 4096:
             raise ValueError("album must be a non-empty indexed album path of at most 4096 characters.")
-        items = app.images_in_folder(album, limit=EXPORT_PHOTOS + 1)
+        items = app.images_in_folder(album, limit=max_photos + 1)
         if not items:
             return 404, {"error": "Album has no indexed photos"}
-        if len(items) > EXPORT_PHOTOS:
-            return 413, {"error": "Album exceeds the 20 photo export limit"}
+        if len(items) > max_photos:
+            return 413, {"error": f"Album exceeds the {max_photos} photo export limit"}
         paths = [item.path for item in items]
     else:
         paths = data.get("paths")
@@ -631,39 +639,44 @@ def _export_photos(
     if any(not app.repository.is_indexed_image(path) for path in paths):
         return 404, {"error": "Image not found"}
 
-    buffer = BytesIO()
     boundary = token_hex(24) if multipart else None
 
     def originals():
-        remaining = EXPORT_BYTES
+        remaining = LARGE_ALBUM_BYTES if large_album else EXPORT_BYTES
         for path in paths:
-            content = reader(path, remaining)
+            content = reader(path, min(remaining, EXPORT_BYTES))
             remaining -= len(content)
             yield path, content
 
     try:
-        if boundary:
-            for path, content in originals():
-                buffer.write(
-                    (f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; filename="photo"\r\n'
-                     f"Content-Type: {_image_content_type(path)}\r\n\r\n").encode("ascii")
-                )
-                buffer.write(content)
-                buffer.write(b"\r\n")
-            buffer.write(f"--{boundary}--\r\n".encode("ascii"))
-        else:
-            with ZipFile(buffer, "w") as archive:
-                for number, (path, content) in enumerate(originals(), start=1):
-                    name = path.replace("\\", "/").rsplit("/", 1)[-1]
-                    archive.writestr(f"{number:02d}-{name}", content)
+        with ExitStack() as staging:
+            buffer = staging.enter_context(TemporaryFile() if large_album else BytesIO())
+            if boundary:
+                for path, content in originals():
+                    buffer.write(
+                        (f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; filename="photo"\r\n'
+                         f"Content-Type: {_image_content_type(path)}\r\n\r\n").encode("ascii")
+                    )
+                    buffer.write(content)
+                    buffer.write(b"\r\n")
+                buffer.write(f"--{boundary}--\r\n".encode("ascii"))
+            else:
+                with ZipFile(buffer, "w") as archive:
+                    for number, (path, content) in enumerate(originals(), start=1):
+                        name = path.replace("\\", "/").rsplit("/", 1)[-1]
+                        archive.writestr(f"{number:02d}-{name}", content)
+            content_type = f"multipart/form-data; boundary={boundary}" if boundary else "application/zip"
+            if large_album:
+                staging.pop_all()  # The response writer owns the completed temporary file.
+                return 200, PhotoPayload(buffer, content_type)
+            return 200, PhotoPayload(buffer.getvalue(), content_type)
     except ArchiveReadLimit:
-        return 413, {"error": "Selection exceeds the 16 MiB export limit"}
+        return 413, {"error": ("Album exceeds 64 MiB total or 16 MiB per photo" if large_album
+                               else "Selection exceeds the 16 MiB export limit")}
     except (FileNotFoundError, ValueError):
         return 404, {"error": "Image no longer available"}
     except (FtpError, OSError, EOFError):
-        return 502, {"error": "Archive unavailable"}
-    content_type = f"multipart/form-data; boundary={boundary}" if boundary else "application/zip"
-    return 200, PhotoPayload(buffer.getvalue(), content_type)
+        return 502, {"error": "Could not read or prepare photo export"}
 
 
 def _image_content_type(path: str) -> str:
@@ -932,7 +945,11 @@ def make_api_handler(
                 export_reader,
             )
             if isinstance(payload, PhotoPayload):
-                self._write(status, payload.content, payload.content_type)
+                if isinstance(payload.content, bytes):
+                    self._write(status, payload.content, payload.content_type)
+                else:
+                    with payload.content as file:
+                        self._write(status, file, payload.content_type)
             else:
                 self._write_json(status, payload)
 
@@ -990,7 +1007,14 @@ def make_api_handler(
             body = json.dumps(payload, sort_keys=True).encode("utf-8")
             self._write(status_code, body, "application/json; charset=utf-8", cookie)
 
-        def _write(self, status_code: int, body: bytes, content_type: str, cookie: str | None = None) -> None:
+        def _write(
+            self, status_code: int, body: bytes | BinaryIO, content_type: str, cookie: str | None = None,
+        ) -> None:
+            if isinstance(body, bytes):
+                length = len(body)
+            else:
+                length = body.tell()
+                body.seek(0)
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -1002,13 +1026,16 @@ def make_api_handler(
             )
             if content_type == "application/zip":
                 self.send_header("Content-Disposition", 'attachment; filename="chromantis-photos.zip"')
-            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Length", str(length))
             self.send_header("Cache-Control", "no-store")
             if cookie is not None:
                 self.send_header("Set-Cookie", cookie)
             try:
                 self.end_headers()
-                self.wfile.write(body)
+                if isinstance(body, bytes):
+                    self.wfile.write(body)
+                else:
+                    copyfileobj(body, self.wfile)
             except (BrokenPipeError, ConnectionResetError):
                 self.close_connection = True
 

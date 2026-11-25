@@ -96,6 +96,7 @@ class AndroidFixtureTests(unittest.TestCase):
 
         selection = {"paths": [photo, first["items"][0]["path"]]}
         request("POST", "/photo-export", 413, body={"album": album})
+        large_album = {"album": album, "large": True}
         archive = Path(db).parent / "archive"
         disconnected = archive.with_name("disconnected")
         archive.rename(disconnected)
@@ -107,6 +108,7 @@ class AndroidFixtureTests(unittest.TestCase):
         self.assertTrue(cached.startswith(b"\xff\xd8"))
         request("GET", "/image", 404, params={"path": photo})
         request("POST", "/photo-export", 404, body=selection)
+        request("POST", "/photo-export", 404, body=large_album)
         offline, _ = request("GET", "/album-images", params={"path": album, "limit": 30, "offset": 30})
         self.assertEqual(offline, second)
         people, _ = request("GET", "/album-review/people")
@@ -146,8 +148,13 @@ class AndroidFixtureTests(unittest.TestCase):
             self.assertEqual(exported.namelist(), ["01-Photo_31.jpg", "02-Photo_01.jpg"])
             originals = [request("GET", "/image", params={"path": path}) for path in selection["paths"]]
             self.assertEqual([exported.read(name) for name in exported.namelist()], originals)
+        with ZipFile(BytesIO(request("POST", "/photo-export", body=large_album))) as exported:
+            self.assertEqual(exported.namelist(), [f"{number:02d}-Photo_{number:02d}.jpg" for number in range(1, 34)])
+            for entry, item in zip(exported.namelist(), first["items"] + second["items"]):
+                self.assertEqual(exported.read(entry), (archive / item["path"]).read_bytes())
         self.assertTrue(request("GET", "/thumbnail", params=uncached).startswith(b"\xff\xd8"))
         self.assertTrue(request("GET", "/album-cover", params=cover).startswith(b"\xff\xd8"))
 
         self.assertTrue(FamilyAccess(Repository(db)).revoke(access_id))
         request("GET", "/years", 401)
+        request("POST", "/photo-export", 401, body=large_album)

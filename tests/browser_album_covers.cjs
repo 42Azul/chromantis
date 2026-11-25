@@ -1,4 +1,5 @@
 // Run against open_fixture in tests/android_fixture.py with beach_photos=9 and a fresh invitation.
+// Set BEACH_PHOTOS=33 and use beach_photos=33 to exercise the confirmed large export.
 // Requires unzip to check the downloaded album.
 // Requires Playwright with Chromium installed. Optional CHROMIUM_EXECUTABLE selects a local binary.
 const assert = require("node:assert/strict");
@@ -9,6 +10,7 @@ async function main() {
   const { FIXTURE_URL, FIXTURE_CODE, CHROMIUM_EXECUTABLE } = process.env;
   assert.match(FIXTURE_URL, /^https:\/\/127\.0\.0\.1:\d+$/);
   assert.ok(FIXTURE_CODE);
+  const albumPhotoCount = Number(process.env.BEACH_PHOTOS || 9);
   const browser = await chromium.launch({ executablePath: CHROMIUM_EXECUTABLE });
   try {
     const page = await browser.newPage({
@@ -32,10 +34,15 @@ async function main() {
       };
     });
     const paths = [];
+    let rejectLargeOnce = true;
     await page.route("**/*", route => {
       const url = new URL(route.request().url());
       if (url.origin !== FIXTURE_URL) return route.abort();
       paths.push(url.pathname);
+      if (url.pathname === "/api/v1/photo-export" && route.request().postDataJSON().large && rejectLargeOnce) {
+        rejectLargeOnce = false;
+        return route.fulfill({ status: 503, json: {} });
+      }
       return route.continue();
     });
     await page.goto(FIXTURE_URL);
@@ -161,15 +168,24 @@ async function main() {
       bytes: [...execFileSync("unzip", ["-p", zipped, `0${index + 1}-${name}`])],
     })));
     assert.equal(paths.filter(path => path === "/api/v1/photo-export").length, exportCount);
-    const albumButton = page.getByRole("button", { name: "Descargar álbum" });
+    let albumButton = page.getByRole("button", { name: "Descargar álbum", exact: true });
+    if (albumPhotoCount > 20) {
+      await albumButton.click();
+      albumButton = page.getByRole("button", { name: "Confirmar descarga grande" });
+      await albumButton.waitFor();
+    }
     for (const mode of ["light", "dark"]) {
       await page.locator("#appearance").selectOption(mode);
       await albumButton.scrollIntoViewIfNeeded();
-      await page.screenshot({ path: `/tmp/chromantis-album-export-${mode}.png` });
+      await page.screenshot({ path: `/tmp/chromantis-album-export-${albumPhotoCount}-${mode}.png` });
+    }
+    if (albumPhotoCount > 20) {
+      await albumButton.click();
+      await page.getByText("No se pudo preparar el ZIP. Puedes volver a intentarlo.").waitFor();
     }
     const [album] = await Promise.all([page.waitForEvent("download"), albumButton.click()]);
     const names = execFileSync("unzip", ["-Z1", await album.path()], { encoding: "utf8" }).trim().split("\n");
-    assert.deepEqual(names, Array.from({ length: 9 }, (_, i) => {
+    assert.deepEqual(names, Array.from({ length: albumPhotoCount }, (_, i) => {
       const number = String(i + 1).padStart(2, "0");
       return `${number}-Photo_${number}.jpg`;
     }));

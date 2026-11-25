@@ -1357,6 +1357,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
   });
 
   let exportRequest;
+  let offerLargeAlbum = false;
   let preparedShare;
   let sharing = false;
   const supportsShare = typeof navigator.share === "function" && typeof navigator.canShare === "function" &&
@@ -1364,7 +1365,9 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
   const selectedPaths = () => [...selected].map(item => item.path);
   const exportStatus = element("p", { class: "message", role: "status" });
   const download = button("Descargar selección", () => exportPhotos({ paths: selectedPaths() }));
-  const downloadAlbum = button("Descargar álbum", () => exportPhotos({ album: albumPath }));
+  const downloadAlbum = button("Descargar álbum", () => exportPhotos(
+    offerLargeAlbum ? { album: albumPath, large: true } : { album: albumPath },
+  ));
   const share = button("Preparar para compartir", async () => {
     const pageSignal = signal();
     if (pageSignal.aborted || exportRequest || sharing || !selected.size) return;
@@ -1404,7 +1407,8 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     const cancel = () => request.abort();
     pageSignal.addEventListener("abort", cancel, { once: true });
     exportRequest = request;
-    exportStatus.textContent = multipart ? "Preparando fotos…" : "Preparando ZIP…";
+    exportStatus.textContent = data.large ? "Preparando el ZIP grande. Puede tardar…"
+      : multipart ? "Preparando fotos…" : "Preparando ZIP…";
     update();
     try {
       const result = await api("/photo-export", {
@@ -1431,14 +1435,21 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
       const url = URL.createObjectURL(result);
       element("a", { href: url, download: "chromantis-photos.zip" }).click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      if (data.album) offerLargeAlbum = false;
       exportStatus.textContent = "ZIP listo para descargar.";
     } catch (error) {
-      if (!request.signal.aborted) {
-        exportStatus.textContent = error.status === 413
-          ? (data.album ? "El álbum supera el límite de 20 fotos o 16 MiB. Descárgalo por selecciones."
-            : "La selección supera 16 MiB. Selecciona menos fotos.")
-          : multipart ? "No se pudieron preparar las fotos. Puedes volver a intentarlo o descargarlas."
-            : "No se pudo preparar el ZIP. Puedes volver a intentarlo.";
+      if (request.signal.aborted) return;
+      if (error.status === 413 && data.album && !data.large) {
+        offerLargeAlbum = true;
+        exportStatus.textContent = "El ZIP normal admite 20 fotos o 16 MiB. Confirma la descarga grande (hasta 100 fotos y 64 MiB).";
+      } else if (error.status === 413) {
+        if (data.large) offerLargeAlbum = false;
+        exportStatus.textContent = data.large
+          ? "El álbum supera el límite de descarga grande. Descárgalo por selecciones o abre cada foto."
+          : "La selección supera 16 MiB. Selecciona menos fotos.";
+      } else {
+        exportStatus.textContent = multipart ? "No se pudieron preparar las fotos. Puedes volver a intentarlo o descargarlas."
+          : "No se pudo preparar el ZIP. Puedes volver a intentarlo.";
       }
     } finally {
       pageSignal.removeEventListener("abort", cancel);
@@ -1459,6 +1470,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     share.textContent = preparedShare ? "Compartir selección" : "Preparar para compartir";
     share.disabled = toggle.disabled || !selected.size || !!exportRequest || sharing;
     download.disabled = toggle.disabled || !selected.size || !!exportRequest;
+    downloadAlbum.textContent = offerLargeAlbum ? "Confirmar descarga grande" : "Descargar álbum";
     downloadAlbum.disabled = toggle.disabled || !candidates.length || !!exportRequest;
     cancelExport.hidden = !exportRequest;
   }
@@ -1473,6 +1485,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     if (!active) {
       exportRequest?.abort();
       exportRequest = undefined;
+      offerLargeAlbum = false;
       clearPreparedShare();
       exportStatus.textContent = "";
       selected.clear();

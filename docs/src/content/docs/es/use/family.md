@@ -88,6 +88,6 @@ Con las fotos marcadas, pulsa **Preparar para compartir**. Cuando estén listas,
 
 En la galería del álbum, marca las fotos de la página actual y pulsa **Descargar selección** para guardar sus originales en un ZIP. Si supera los 16 MiB, marca menos fotos y vuelve a intentarlo. **Cancelar selección** cancela la descarga en el navegador y borra la selección.
 
-**Descargar álbum** incluye todas las fotos indexadas del álbum, incluso las de páginas que aún no hayas abierto. El ZIP admite hasta 20 fotos y 16 MiB. Para álbumes más grandes, descarga selecciones por página.
+**Descargar álbum** incluye todas las fotos indexadas del álbum, incluso las páginas que todavía no has abierto. Si el ZIP normal supera las 20 fotos o los 16 MiB, pulsa **Confirmar descarga grande** para intentar descargar hasta 100 fotos y 64 MiB en total, con un máximo de 16 MiB por foto. **Cancelar transferencia** detiene la petición del navegador. Si el álbum supera el límite mayor, usa selecciones o descarga los originales uno a uno.
 
 Si falla el guardado del álbum, verás el aviso junto al botón **Guardar**. Mantén abierto el editor para reintentar con las mismas selecciones.

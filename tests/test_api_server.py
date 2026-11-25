@@ -418,6 +418,24 @@ except ScanBusy:
             lookup.assert_called_once_with("2021/fixture", limit=21)
         reader.assert_not_called()
 
+    def test_large_album_export_is_bounded_and_closes_failed_staging(self) -> None:
+        reader = Mock()
+        self.start_api(export_reader=reader)
+        body = {"album": "2021/2021-08-15_city_trip", "large": True}
+        route = "/photo-export"
+        with unittest.mock.patch.object(self.app_service, "images_in_folder", return_value=[None] * 101) as lookup:
+            self.assertEqual(self.request("POST", route, "read-token", body)[0], 413)
+            lookup.assert_called_once_with(body["album"], limit=101)
+        reader.assert_not_called()
+        staging = BytesIO()
+        reader.side_effect = [b"a" * 7, ArchiveReadLimit()]
+        with unittest.mock.patch("chromantis.api.server.LARGE_ALBUM_BYTES", 10), \
+                unittest.mock.patch("chromantis.api.server.EXPORT_BYTES", 8), \
+                unittest.mock.patch("chromantis.api.server.TemporaryFile", return_value=staging):
+            self.assertEqual(self.request("POST", route, "read-token", body)[0], 413)
+        self.assertEqual([call.args[1] for call in reader.call_args_list], [8, 3])
+        self.assertTrue(staging.closed)
+
     def test_private_album_link_is_scoped_expiring_and_revocable(self) -> None:
         class Thumbnails:
             def get(self, path, fingerprint):
