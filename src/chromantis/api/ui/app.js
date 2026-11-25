@@ -906,10 +906,14 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
     ]);
     if (request !== albumRequest) return;
     message("album-review-status", saved ? "Álbum guardado." : "");
-    if (item) renderAlbumReview(item, people, reviewed, returnTo, returnButton);
-    else $("album-review-content").append(element("p", {},
-      path ? "No se encuentra ese álbum." : reviewed ? "No hay más álbumes revisados." : "No hay más álbumes pendientes en esta vuelta."
-    ));
+    const focusNext = after > 0 && document.activeElement === document.body;
+    if (item) renderAlbumReview(item, people, reviewed, returnTo, returnButton, focusNext);
+    else {
+      const empty = element("p", { tabindex: "-1" },
+        path ? "No se encuentra ese álbum." : reviewed ? "No hay más álbumes revisados." : "No hay más álbumes pendientes en esta vuelta.");
+      $("album-review-content").append(empty);
+      if (focusNext) empty.focus();
+    }
   } catch (error) {
     if (request === albumRequest) message("album-review-status", error.message);
   }
@@ -1592,7 +1596,7 @@ function albumPhotoGallery(path, editable = canCurateAlbums) {
   return element("div", {}, toggle, status, panel);
 }
 
-function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
+function renderAlbumReview(album, directory, reviewed, returnTo, returnButton, focusNext) {
   const request = albumRequest;
   const initial = new Set(album.person_ids);
   const selected = new Set(initial);
@@ -1644,15 +1648,17 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
   tags.append(element("details", {}, element("summary", {}, "Añadir etiquetas"),
     element("label", {}, "Una palabra por etiqueta, separadas por comas", manual)));
 
-  const form = element("form", { class: "panel review-form" }, people, tags);
+  const form = element("form", { id: "album-review-form", class: "panel review-form" }, people, tags);
   const next = saved => returnTo ? returnTo.open(saved) : loadAlbumReview({
     after: album.id, reviewed, directory: saved && newPerson.value.trim() ? undefined : directory, saved,
   });
   const saveStatus = element("p", { id: "album-save-status", class: "message", "aria-live": "polite" });
-  const save = element("button", { class: "primary", type: "submit", "aria-describedby": "album-save-status" },
-    returnTo?.saveLabel || "Guardar y siguiente");
+  const save = element("button", {
+    class: "primary", type: "submit", form: form.id, "aria-describedby": "album-save-status",
+  }, returnTo?.saveLabel || "Guardar y siguiente");
   const skip = returnTo ? null : button("Saltar", () => next(false));
-  form.append(element("div", { class: "actions" }, save, ...(skip ? [skip] : [])), saveStatus);
+  const actionBar = element("div", { class: "panel album-review-actions" },
+    element("div", { class: "actions" }, save, ...(skip ? [skip] : [])), saveStatus);
   form.addEventListener("submit", async event => {
     event.preventDefault();
     if (save.disabled) return;
@@ -1685,15 +1691,17 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton) {
       if (otherAction) otherAction.disabled = false;
     }
   });
-  const heading = element("h2", {}, album.title);
+  const heading = element("h2", { tabindex: "-1" }, album.title);
   const date = element("p", {}, album.event_date || String(album.year));
   $("album-review-content").append(
     element("div", { class: "panel album-heading" }, heading, date, albumPhotoGallery(album.path),
       albumContextEditor(album, heading, date, request)),
-    form
+    form, actionBar
   );
   if (returnButton && document.activeElement === returnButton) {
     people.querySelector('input[type="search"]').focus();
+  } else if (focusNext) {
+    heading.focus();
   }
 }
 

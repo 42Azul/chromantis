@@ -155,7 +155,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
   draftChoice.listeners.change();
   tagInput(content.children[0]).value = "montaña";
   await action(content.children[0], "Revisar");
-  assert(selectValues(content.children.at(-1))[0].value === "pending",
+  assert(selectValues(content.children.find(child => child.tag === "form"))[0].value === "pending",
     "The individual review should show its current server state");
   await action(content, "Volver a Por lotes");
   assert(selectValues(content.children[0])[0].value === "corrected" &&
@@ -233,8 +233,8 @@ async function verifyBatchReview(source, failedReloads = 0) {
   assert(!restoredFamily.querySelectorAll().some(control => control.disabled), "A failed save must restore controls");
 
   await action(restoredFamily.children.filter(child => child.props?.class === "batch-review-row")[1], "Revisar");
-  const detail = content.children.at(-1);
-  assert(detail.querySelectorAll().some(control => control.children[0] === "Guardar y volver al lote"),
+  const detail = content.children.find(child => child.tag === "form");
+  assert(content.querySelectorAll().some(control => control.children[0] === "Guardar y volver al lote"),
     "The individual save should return to the batch");
   selectValues(detail)[0].value = "accepted";
   await submit(detail);
@@ -256,11 +256,11 @@ async function verifyBatchReview(source, failedReloads = 0) {
 
   await openResult();
   await action(content, "Etiquetar álbum");
-  const resultEditor = content.children.at(-1);
-  assert(resultEditor.querySelectorAll().some(control => control.children[0] === "Guardar y volver a resultados"),
+  const resultEditor = content.children.find(child => child.tag === "form");
+  assert(content.querySelectorAll().some(control => control.children[0] === "Guardar y volver a resultados"),
     "The search result editor should offer to save and return");
   selectValues(resultEditor)[0].value = "rejected";
-  const [, , gallery] = content.children.at(-2).children;
+  const [, , gallery] = content.children.at(-3).children;
   const [toggle, status, panel] = gallery.children;
   const [toolbar, exportStatus, grid, navigation] = panel.children;
   const [selectPhotos, selectPage, editSelection, download] = toolbar.children;

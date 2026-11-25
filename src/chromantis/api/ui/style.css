@@ -229,6 +229,13 @@ dialog p { margin-top: 8px; overflow-wrap: anywhere; }
 #timeline-form input { width: 100%; }
 #results.timeline-results { grid-template-columns: minmax(0, 1fr); }
 .review-form { display: grid; gap: 18px; }
+.album-review-actions { margin-top: 8px; padding: 10px 12px; }
+.album-review-actions .actions { margin: 0; }
+.album-review-actions .message { margin: .5rem 0 0; }
+@media (min-height: 420px) {
+  .album-review-actions { position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 2; }
+  #album-review-content :is(button, input, select, summary, textarea) { scroll-margin-bottom: 8rem; }
+}
 .review-form > div + div { margin-top: 0; }
 .review-form label { display: grid; gap: 5px; }
 .review-form input:not([type="checkbox"]) { width: 100%; }

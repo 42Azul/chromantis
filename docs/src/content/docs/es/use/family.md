@@ -44,6 +44,8 @@ Abre un resultado de álbum o pulsa **Ver álbum** en un resultado de foto para 
 3. Acepta, rechaza o corrige las sugerencias del nombre de la carpeta. También puedes añadir etiquetas de una sola palabra.
 4. Pulsa **Guardar y siguiente**. Abre **Buscar álbumes** y busca `Ana` para encontrar el álbum.
 
+Los botones de guardar y saltar quedan al pie de la vista al desplazarte por el editor. Al guardar o saltar, el foco del teclado pasa al título del siguiente álbum.
+
 ![Revisión de un álbum con Ana seleccionada, la sugerencia playa marcada como Aceptar y el botón Guardar y siguiente al pie.](../../../../assets/screenshots/web-tag.webp)
 
 Pulsa **Ver fotos del álbum** para recorrerlo de seis en seis con **Más fotos** y **Fotos anteriores**. Si la caché de miniaturas está desactivada, verás los nombres y podrás pulsar **Abrir foto** para cargar el original. Puedes recorrer las fotos y conservar los cambios del álbum que aún tengas por guardar.

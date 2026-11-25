@@ -723,6 +723,8 @@ Use the [Android guide recording sheet](docs/src/content/docs/use/android.md#phy
 
 **Offline save recovery:** With the synthetic archive disconnected and thumbnails disabled, Chromium verifies that a failed save leaves Ana selected, puts the error beside the save button and allows retrying the same changes. Retrying persists the link and search finds the album by Ana. The test rejects all media requests and external traffic. Both themes were reviewed at 360 px.
 
+**Queue actions:** Save and Skip stay together at the bottom of the viewport while scrolling through an album on a phone-sized screen. The next album title receives focus after a save or skip when focus would otherwise return to the page body. The disconnected-archive Chromium fixture verifies the save action at 200% text size, retry after a failed save, focus after save and skip, and finding the saved album by Ana. Skipping and ordinary review make no media requests.
+
 **Validation:** At 360 px and desktop widths, complete open album → select Ana or her alias → save → find by Ana. Inspect synthetic light/dark captures, keyboard focus, touch targets, large text, empty/error states and the visible save action. Confirm that ordinary navigation and name-only review require no originals or external requests. Record the remaining physical-phone usability check separately.
 
 ### MVP 20B — Family Authentication Review and Passkey Trial

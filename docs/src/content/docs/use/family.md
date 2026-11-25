@@ -44,6 +44,8 @@ Open an album result, or choose **Ver álbum** on a photo result, to browse its 
 3. Accept, reject, or correct the folder-name suggestions. You can also add one-word manual tags.
 4. Choose **Save and next** (*Guardar y siguiente*). Open **Buscar álbumes** and search for `Ana` to find the album.
 
+The save and skip actions stay at the bottom of the view as you scroll through the editor. After saving or skipping, keyboard focus moves to the next album title.
+
 ![Album review with Ana selected, the playa suggestion set to Accept, and the Save and next button at the bottom.](../../../assets/screenshots/web-tag.webp)
 
 Choose **Ver fotos del álbum** to browse six photos at a time. Use **Más fotos** and **Fotos anteriores** to move through the album. When the thumbnail cache is off, start with filenames and use **Abrir foto** to load an original. Browsing keeps your unsaved album edits.

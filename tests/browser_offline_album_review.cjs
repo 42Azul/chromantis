@@ -34,6 +34,21 @@ async function main() {
     await picker.press("Enter");
     await page.getByRole("button", { name: "Quitar a Ana del álbum" }).waitFor();
     const save = page.getByRole("button", { name: "Guardar y siguiente" });
+    await page.setViewportSize({ width: 360, height: 600 });
+    const form = page.locator("#album-review-form");
+    await form.getByText("Añadir etiquetas", { exact: true }).click();
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+      document.querySelector("#album-review-content").scrollIntoView();
+    });
+    assert.ok(await form.evaluate(element => element.getBoundingClientRect().bottom > innerHeight));
+    assert.ok(await save.evaluate(button => {
+      const rect = button.getBoundingClientRect();
+      return rect.top >= 0 && rect.bottom <= innerHeight;
+    }), "The save action should be in view while the form extends below the screen.");
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
+    await page.setViewportSize({ width: 360, height: 800 });
     await save.click();
     const error = page.locator("#album-save-status");
     await error.getByText("No se pudo guardar el álbum.", { exact: false }).waitFor();
@@ -49,6 +64,13 @@ async function main() {
     await page.getByText("Álbum guardado.", { exact: true }).waitFor();
     assert.equal(albumSaves.length, 2);
     assert.deepEqual(albumSaves[0], albumSaves[1]);
+    const headingSelector = "#album-review-content h2";
+    await page.waitForFunction(selector => document.activeElement.matches(selector), headingSelector);
+    const previousHeading = await page.locator(headingSelector).elementHandle();
+    await page.getByRole("button", { name: "Saltar", exact: true }).click();
+    await page.waitForFunction(oldHeading => !oldHeading.isConnected &&
+      document.activeElement.matches("#album-review-content h2"), previousHeading);
+    assert.equal(albumSaves.length, 2, "Skipping must leave the album pending.");
     await page.locator("#archive-nav").click();
     await page.locator("#query").fill("Ana");
     await page.locator("#archive-search").click();
