@@ -12,6 +12,10 @@ This file tracks delivery status, upcoming MVPs, and the implementation directio
 - `Planned Later`: intentionally deferred
 - `Open Risks`: unresolved cross-cutting concerns
 
+## Platform priority
+
+**Android is the primary family client.** Bring the existing web tag discovery flow to Android before optional web polish or the collage. Make the Android build and emulator validation available if they block delivery. Shared service work and serious regressions can proceed independently. Track Android and web delivery separately, and start new family features such as collages in Android after tag parity.
+
 ## Latest Requests and Delivery Order
 
 Reviewed against `main` and the family product requests on 2026-11-22. Keep the existing milestones below as the delivery ledger; this table makes their priority and remaining work explicit.
@@ -49,7 +53,7 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 - Add a visible **Tags** entry inside Search on Android and the family web. Start with one shared, permission-scoped, paginated catalog from existing indexed and curated tags. List labels and counts for the selected result type. Filter tag names locally when the catalog is complete or through the catalog API when paginated. Render tags on album and photo details as shortcuts into Search.
 - Support exact tag-only search for albums and manually tagged photos, with a clear result-type switch. Add removable year and person filters and retain the query and list position when opening a result. Show album-level evidence on album matches and photo-level evidence on confirmed photo matches. Keep folder navigation and editing in their existing destinations. Reuse tag normalization and SQLite; keep MCP-produced labels discoverable through the same metadata path.
-- First slice: inspect the existing exact-tag API and browser flow, fill the smallest gaps, and ship the catalog plus click-to-search in one client. Then bring the other client to parity.
+- Next Android slice: reuse the existing catalog API for album and manual photo tags, with name filtering and click-to-search. Then bring year/person refinements, detail shortcuts and result restoration to Android. Verify the Compose flow on synthetic data and produce an installable APK when signing is available.
 - Acceptance: from Search, find **Playa** without knowing it's an existing tag, open matching albums or photos, narrow to a year, clear a filter, open a result and return to the same results. Cover case/accent handling according to existing normalization rules, empty results, pagination, a tag edited through the current curation path, and permission-scoped counts. The catalog works with the archive disconnected.
 
 **First web increment:** Search lists album tags with deduplicated album counts and opens exact matches from indexed and curated labels. The active tag can be cleared and survives a round trip to the album. Verified with the disconnected archive, including a curated label, accent normalization and catalog pagination. Next, add the manual-photo catalog and bring Android to parity.
@@ -72,7 +76,7 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 #### F2 — Make a family collage from search · Ready after F1
 
-- Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on one client. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
+- Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
 - Use bounded preview decoding and local composition with existing media permissions. Pull only user-selected images, respect unavailable photos, strip source metadata from the output, and share only after explicit user action. Keep this on demand and benchmark the maximum selection before expanding it.
 - Acceptance: select photos from a tag search, remove one, change the order and export an image containing exactly the displayed set. Validate failed previews, cancellation and mobile memory cost with synthetic photos. Explore a dated contact sheet or a second layout only after the simple grid works.
 
