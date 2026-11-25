@@ -1665,8 +1665,13 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton, f
     class: "primary", type: "submit", form: form.id, "aria-describedby": "album-save-status",
   }, returnTo?.saveLabel || "Guardar y siguiente");
   const skip = returnTo ? null : button("Saltar", () => next(false));
+  const reload = button("Descartar mis cambios y recargar", () => loadAlbumReview({
+    path: album.path, reviewed, returnTo, retrying: true,
+  }));
+  reload.hidden = true;
+  reload.setAttribute("aria-describedby", "album-save-status");
   const actionBar = element("div", { class: "panel album-review-actions" },
-    element("div", { class: "actions" }, save, ...(skip ? [skip] : [])), saveStatus);
+    element("div", { class: "actions" }, save, reload, ...(skip ? [skip] : [])), saveStatus);
   form.addEventListener("submit", async event => {
     event.preventDefault();
     if (save.disabled) return;
@@ -1689,13 +1694,19 @@ function renderAlbumReview(album, directory, reviewed, returnTo, returnButton, f
       if (request === albumRequest) await next(true);
     } catch (error) {
       if (request === albumRequest) {
-        saveStatus.textContent = error.status && error.status < 500 ? error.message
-          : "No se pudo guardar el álbum. Tus cambios siguen aquí. Inténtalo de nuevo.";
-        save.disabled = false;
-        if (document.activeElement === document.body) save.focus();
+        if (error.code === "album_review_changed") {
+          reload.hidden = false;
+          saveStatus.textContent = "El álbum cambió desde que lo abriste. Recarga antes de volver a guardar.";
+          if (document.activeElement === document.body) reload.focus();
+        } else {
+          saveStatus.textContent = error.status && error.status < 500 ? error.message
+            : "No se pudo guardar el álbum. Tus cambios siguen aquí. Inténtalo de nuevo.";
+          save.disabled = false;
+          if (document.activeElement === document.body) save.focus();
+        }
       }
     } finally {
-      save.disabled = false;
+      save.disabled = !reload.hidden;
       if (otherAction) otherAction.disabled = false;
     }
   });

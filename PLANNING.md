@@ -729,6 +729,8 @@ Use the [Android guide recording sheet](docs/src/content/docs/use/android.md#phy
 
 **Queue load recovery:** A failed read after a successful save confirms that the album was saved and offers **Reintentar la carga**. The retry keeps the same queue position and issues no additional write. The disconnected-archive Chromium fixture injects both a save failure and a subsequent read failure, then checks that the same read is retried and Ana's saved link is searchable.
 
+**Concurrent review recovery:** The individual editor keeps a stale draft visible and offers an explicit discard-and-reload action for the same album. The disconnected-archive fixture saves a competing tag through the real API, reloads without a write, and then saves the person link while preserving the other edit and the results page.
+
 **Validation:** At 360 px and desktop widths, complete open album → select Ana or her alias → save → find by Ana. Inspect synthetic light/dark captures, keyboard focus, touch targets, large text, empty/error states and the visible save action. Confirm that ordinary navigation and name-only review require no originals or external requests. Record the remaining physical-phone usability check separately.
 
 ### MVP 20B — Family Authentication Review and Passkey Trial

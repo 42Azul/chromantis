@@ -112,15 +112,53 @@ async function main() {
     await review.getByRole("button", { name: "Volver a resultados", exact: true }).click();
     await page.getByRole("button", { name: "Página siguiente" }).click();
     await verifySameTitleAlbum(second);
-    assert.equal(await review.getByRole("button", { name: "Quitar a Ana del álbum" }).count(), 0);
+    const ana = review.getByRole("button", { name: "Quitar a Ana del álbum" });
+    assert.equal(await ana.count(), 0);
+    await picker.fill("Anita");
+    await picker.press("Enter");
+    await ana.waitFor();
+    // Update the same album through the real API while its older revision is open in the editor.
+    const concurrentEdit = await page.evaluate(async path => {
+      const current = await fetch(`/api/v1/album-review?${new URLSearchParams({ path })}`);
+      const { item: { id, revision } } = await current.json();
+      const updated = await fetch("/api/v1/album-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, path, revision, manual_add: ["reunion"] }),
+      });
+      return updated.status;
+    }, second);
+    assert.equal(concurrentEdit, 200);
+    const saveAndReturn = review.getByRole("button", { name: "Guardar y volver a resultados" });
+    await saveAndReturn.click();
+    const reload = review.getByRole("button", { name: "Descartar mis cambios y recargar" });
+    await reload.waitFor();
+    assert.ok(await saveAndReturn.isDisabled());
+    assert.ok(await ana.isVisible());
+    assert.ok(await reload.evaluate(button => button === document.activeElement));
     for (const mode of ["light", "dark"]) {
       await page.locator("#appearance").selectOption(mode);
-      await review.getByRole("heading", { name: "album 00" }).scrollIntoViewIfNeeded();
-      await page.screenshot({ path: `/tmp/chromantis-review-folder-${mode}.png` });
+      await reload.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-review-conflict-${mode}.png` });
     }
-    await review.getByRole("button", { name: "Volver a resultados", exact: true }).click();
+    const writesBeforeReload = albumSaves.length;
+    await reload.press("Enter");
+    await review.getByText(`Carpeta: ${second}`, { exact: true }).waitFor();
+    await review.getByRole("checkbox", { name: "Quitar «reunion»", exact: true }).waitFor();
+    assert.equal(await ana.count(), 0);
+    assert.equal(albumSaves.length, writesBeforeReload);
+    await picker.fill("Anita");
+    await picker.press("Enter");
+    await ana.waitFor();
+    await saveAndReturn.click();
     await folder(second).waitFor();
     assert.equal(await results.locator(".folder-card").count(), 1);
+    const finalReview = await page.evaluate(async path => {
+      const response = await fetch(`/api/v1/album-review?${new URLSearchParams({ path })}`);
+      return (await response.json()).item;
+    }, second);
+    assert.deepEqual(finalReview.manual_tags, ["reunion"]);
+    assert.deepEqual(finalReview.person_ids, albumSaves[1].add_people);
     await page.getByRole("button", { name: "Página anterior" }).click();
     await folder(first).waitFor();
     assert.equal(await results.locator(".folder-card").count(), 30);

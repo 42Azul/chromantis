@@ -95,3 +95,5 @@ En la galería del álbum, marca las fotos de la página actual y pulsa **Descar
 **Descargar álbum** incluye todas las fotos indexadas del álbum, incluso las páginas que todavía no has abierto. Si el ZIP normal supera las 20 fotos o los 16 MiB, pulsa **Confirmar descarga grande** para intentar descargar hasta 100 fotos y 64 MiB en total, con un máximo de 16 MiB por foto. **Cancelar transferencia** detiene la petición del navegador. Si el álbum supera el límite mayor, usa selecciones o descarga los originales uno a uno.
 
 Si falla el guardado del álbum, verás el aviso junto al botón **Guardar**. Mantén abierto el editor para reintentar con las mismas selecciones. Si el álbum se guardó y falla la carga del siguiente, pulsa **Reintentar la carga** para continuar desde el mismo punto. Solo se vuelve a intentar la lectura.
+
+Si otra persona guarda cambios en el mismo álbum mientras lo editas, puedes seguir viendo tu borrador. Pulsa **Descartar mis cambios y recargar** para abrir la última versión guardada y volver a aplicar los cambios que quieras conservar.
