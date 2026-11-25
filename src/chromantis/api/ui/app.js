@@ -2293,7 +2293,7 @@ $("search-form").addEventListener("submit", event => {
   const keywords = year ? text.replace(/\b(?:19|20)\d{2}(?:\s*[-–]\s*(?:19|20)\d{2})?\b/g, "").trim() : text;
   const q = [keywords, year].filter(Boolean).join(" ");
   const folders = principal?.auth_mode === "family" || $("scope").value === "folders";
-  archiveRequest(folders ? "folders" : "search", { q });
+  archiveRequest(folders ? "folders" : "search", { q, tag: archiveSearch?.tag });
 });
 $("timeline-form").addEventListener("submit", event => {
   event.preventDefault();

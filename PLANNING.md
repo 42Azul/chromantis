@@ -58,6 +58,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Catalog name filter:** Both web catalogs filter the full SQLite result set before pagination, ignoring case and accents. The disconnected fixture verifies an empty filter result followed by a partial name that opens the exact photo search. Next: Android catalog parity.
 
+**Combine album tag and search:** Submitting an album search keeps the active exact tag until it is cleared. The offline browser fixture verifies that a nonmatching year returns no albums, a matching year returns the tagged album, and clearing the tag expands the results. Android parity still needs a Gradle/SDK and emulator environment for build and theme verification.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on one client. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.

@@ -208,6 +208,17 @@ async function main() {
     await folder(second).click();
     await album.getByRole("button", { name: "Volver a resultados", exact: true }).click();
     await folder(second).waitFor();
+    await page.locator("#query").fill("2024");
+    await page.locator("#archive-search").click();
+    await page.getByText("No se han encontrado álbumes.", { exact: true }).waitFor();
+    await page.locator("#query").fill("2003");
+    await page.locator("#archive-search").click();
+    await folder(second).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 1);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await page.screenshot({ path: `/tmp/chromantis-tag-and-year-${mode}.png` });
+    }
     await page.getByRole("button", { name: "Quitar filtro de Etiqueta: reunion" }).click();
     await page.waitForFunction(() => document.querySelectorAll("#results .folder-card").length > 1);
     const photoPath = `${second}/Photo_01.jpg`;
