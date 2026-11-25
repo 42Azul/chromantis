@@ -712,9 +712,12 @@ async function openPhoto(item, filename, previewURL, fetchOriginal, spanish) {
   const box = $("lightbox");
   const image = box.querySelector("img");
   const download = $("download-original");
+  const share = $("share-original");
   const request = new AbortController();
   originalRequest = request;
-  download.hidden = true;
+  download.hidden = share.hidden = true;
+  share.onclick = null;
+  share.disabled = false;
   image.removeAttribute("src");
   image.hidden = !previewURL;
   if (previewURL) image.src = previewURL;
@@ -723,6 +726,7 @@ async function openPhoto(item, filename, previewURL, fetchOriginal, spanish) {
   box.lang = spanish ? "es" : "en";
   message("close-photo", spanish ? "Cerrar" : "Close");
   message("download-original", spanish ? "Descargar original" : "Download original");
+  message("share-original", spanish ? "Compartir" : "Share");
   message("original-status", fetchOriginal ? (spanish ? "Cargando original…" : "Loading original…") : "");
   $("photo-dates").replaceChildren();
   box.showModal();
@@ -735,6 +739,27 @@ async function openPhoto(item, filename, previewURL, fetchOriginal, spanish) {
       image.src = originalURL;
       image.hidden = false;
       archiveHealth();
+      if (typeof navigator.share === "function" && typeof navigator.canShare === "function") {
+        const data = { files: [new File([blob], filename, { type: blob.type })] };
+        if (navigator.canShare(data)) {
+          share.hidden = false;
+          share.onclick = async () => {
+            if (request.signal.aborted || originalRequest !== request || !box.open) return;
+            share.disabled = true;
+            message("original-status");
+            try {
+              await navigator.share(data);
+            } catch (error) {
+              if (error.name !== "AbortError" && originalRequest === request && box.open) {
+                message("original-status", spanish ? "No se pudo compartir. Puedes descargar el original."
+                  : "Could not share. You can download the original.");
+              }
+            } finally {
+              if (originalRequest === request) share.disabled = false;
+            }
+          };
+        }
+      }
     }
     download.href = originalURL || previewURL;
     download.download = filename;
@@ -782,6 +807,8 @@ $("lightbox").addEventListener("close", () => {
   if (originalURL) URL.revokeObjectURL(originalURL);
   originalURL = undefined;
   $("download-original").removeAttribute("href");
+  $("share-original").onclick = null;
+  $("share-original").hidden = true;
   $("lightbox").querySelector("img").removeAttribute("src");
   $("photo-dates").replaceChildren();
 });

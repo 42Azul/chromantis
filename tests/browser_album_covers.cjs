@@ -15,6 +15,18 @@ async function main() {
       ignoreHTTPSErrors: true,
       viewport: { width: 390, height: 844 },
     });
+    await page.addInitScript(() => {
+      window.shareMode = "supported";
+      window.sharedFiles = [];
+      navigator.canShare = ({ files }) => window.shareMode !== "unsupported" && files.length === 1;
+      navigator.share = async ({ files }) => {
+        if (window.shareMode === "cancel") throw new DOMException("Cancelled", "AbortError");
+        if (window.shareMode === "error") throw new DOMException("Unavailable", "NotAllowedError");
+        const [file] = files;
+        window.sharedFiles.push({ name: file.name, type: file.type,
+          bytes: [...new Uint8Array(await file.arrayBuffer())] });
+      };
+    });
     const paths = [];
     await page.route("**/*", route => {
       const url = new URL(route.request().url());
@@ -47,6 +59,50 @@ async function main() {
     assert.ok(!paths.slice(searchRequests).some(path => path.startsWith("/api/v1/album-review")));
     assert.ok(!paths.includes("/api/v1/album-images"));
     await browse.getByRole("button", { name: "Ver fotos del álbum" }).click();
+    const photo = browse.getByRole("button", { name: "Abrir Photo_01.jpg", exact: true });
+    const viewer = page.locator("#lightbox");
+    const share = viewer.getByRole("button", { name: "Compartir" });
+    const original = viewer.getByRole("link", { name: "Descargar original" });
+    const [image] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/image"),
+      photo.click(),
+    ]);
+    await share.waitFor();
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    assert.ok(await viewer.evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth),
+      "The original viewer controls should fit with doubled text.");
+    await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
+    assert.equal(await page.evaluate(() => window.sharedFiles.length), 0);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").evaluate((select, value) => {
+        select.value = value;
+        select.dispatchEvent(new Event("change"));
+      }, mode);
+      await page.screenshot({ path: `/tmp/chromantis-original-share-${mode}.png` });
+    }
+    await share.click();
+    await page.waitForFunction(() => window.sharedFiles.length === 1);
+    assert.deepEqual(await page.evaluate(() => window.sharedFiles[0]), {
+      name: "Photo_01.jpg", type: "image/jpeg", bytes: [...await image.body()],
+    });
+    assert.equal(paths.filter(path => path === "/api/v1/image").length, 1);
+    await page.evaluate(() => { window.shareMode = "cancel"; });
+    await share.click();
+    await page.waitForFunction(() => !document.querySelector("#share-original").disabled);
+    assert.equal(await viewer.locator("#original-status").textContent(), "");
+    await page.evaluate(() => { window.shareMode = "error"; });
+    await share.click();
+    await viewer.getByText("No se pudo compartir. Puedes descargar el original.").waitFor();
+    await viewer.getByRole("button", { name: "Cerrar" }).click();
+    await page.waitForFunction(() => document.querySelector("#share-original").onclick === null);
+    await page.evaluate(() => { window.shareMode = "unsupported"; });
+    await photo.click();
+    await original.waitFor();
+    assert.equal(await share.count(), 0);
+    const [originalDownload] = await Promise.all([page.waitForEvent("download"), original.click()]);
+    assert.equal(originalDownload.suggestedFilename(), "Photo_01.jpg");
+    assert.equal(await originalDownload.failure(), null);
+    await viewer.getByRole("button", { name: "Cerrar" }).click();
     await page.getByRole("button", { name: "Seleccionar fotos", exact: true }).click();
     await page.getByRole("checkbox", { name: /Photo_02.jpg/ }).check();
     await page.getByRole("checkbox", { name: /Photo_04.jpg/ }).check();
@@ -117,7 +173,8 @@ async function main() {
     await page.locator("#query").fill("Ana");
     await page.locator("#search-form button[type=submit]").click();
     await page.locator("#results .folder-card").filter({ hasText: "2024/2024-07-01_playa" }).waitFor();
-    assert.ok(!paths.includes("/api/v1/image"), "The browsing and name-only review flow should not open originals.");
+    assert.equal(paths.filter(path => path === "/api/v1/image").length, 2,
+      "Only the two explicit viewer opens should request originals.");
   } finally {
     await browser.close();
   }

@@ -82,6 +82,8 @@ Con una sesión de propietario, usa **Add photo to collection** o **Add album to
 
 Para que otra persona pueda ver un álbum, usa un [enlace revocable](../start/private-access.md#comparte-un-solo-álbum).
 
+Abre una foto y pulsa **Compartir** para enviar el original cargado al menú del dispositivo si el navegador permite compartir archivos. **Descargar original** guarda el mismo archivo en cualquier navegador.
+
 En la galería del álbum, marca las fotos de la página actual y pulsa **Descargar selección** para guardar sus originales en un ZIP. Si supera los 16 MiB, marca menos fotos y vuelve a intentarlo. **Cancelar selección** cancela la descarga en el navegador y borra la selección.
 
 **Descargar álbum** incluye todas las fotos indexadas del álbum, incluso las de páginas que aún no hayas abierto. El ZIP admite hasta 20 fotos y 16 MiB. Para álbumes más grandes, descarga selecciones por página.
