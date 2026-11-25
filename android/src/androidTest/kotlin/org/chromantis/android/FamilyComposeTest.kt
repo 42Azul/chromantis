@@ -234,6 +234,34 @@ class FamilyComposeTest {
             click(label(R.string.cancel))
             compose.onNodeWithContentDescription(label(R.string.back)).performClick()
             await(albumDisplayTitle(album.title))
+            val photo = visiblePhotos.first()
+            runBlocking {
+                client.savePhotoTags(
+                    client.photoTags(listOf(photo.path)),
+                    null,
+                    "Romería",
+                    remove = false,
+                )
+            }
+            click(label(R.string.search_tags))
+            compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("PLÁ")
+            click(label(R.string.filter_tags))
+            await("playa · 1")
+            capture("tags-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            capture("tags-light")
+            click("playa · 1")
+            await(context.getString(R.string.exact_tag_results, "playa"))
+            val beach = runBlocking { client.albums("", 0, tag = "playa") }.entries.single()
+            await(albumDisplayTitle(beach.title))
+            click(label(R.string.back))
+            click(label(R.string.photo_tag_catalog))
+            compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
+            compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("ROMÉ")
+            click(label(R.string.filter_tags))
+            await("romeria · 1")
+            click("romeria · 1")
+            await(photo.title)
             click(label(R.string.settings))
             click(label(R.string.sign_out))
             await(label(R.string.connect_title))

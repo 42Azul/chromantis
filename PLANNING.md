@@ -78,6 +78,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android catalog client:** The Kotlin client reads paginated album and manual-photo tag catalogs and opens exact album or photo matches through the shared API. JVM coverage checks the label, count and pagination response. The native integration test is prepared for the offline HTTPS fixture. Next: connect the Compose catalog, run it on an emulator and inspect both themes before shipping the screen.
 
+**Android catalog screen:** In Search, open Tags, switch between album labels and manual photo labels, filter by name and open exact matches. The Compose fixture covers both catalogs and captures the tag screen in light and dark. Next: add year/person filters to tag results and shortcuts from the album and photo details.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.

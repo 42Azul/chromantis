@@ -337,6 +337,9 @@ internal fun Explorer(
                                 focus.clearFocus()
                                 pages = pages + Page(Level.CONFIRMED, confirmedTitle)
                             },
+                            onOpenPhoto = {
+                                pages = pages + Page(Level.ORIGINAL, it.title, it.path)
+                            },
                             onOpen = {
                                 galleryStartOffset = 0
                                 pages = pages + Page(Level.PHOTOS, it.title, it.path)

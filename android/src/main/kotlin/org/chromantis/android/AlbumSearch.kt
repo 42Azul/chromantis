@@ -52,6 +52,7 @@ internal fun AlbumSearch(
     api: ChromantisApi,
     onExpired: () -> Unit,
     onConfirmedPhotos: () -> Unit,
+    onOpenPhoto: (Entry) -> Unit,
     onOpen: (Entry) -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
@@ -100,6 +101,12 @@ internal fun AlbumSearch(
         val text = draft.trim()
         if (text.isEmpty() || busy) return
         if (query.isNullOrEmpty()) start(text) else refine(text)
+    }
+
+    var showTags by rememberSaveable { mutableStateOf(false) }
+    if (showTags) {
+        TagSearch(api, onExpired, onOpen, onOpenPhoto) { showTags = false }
+        return
     }
 
     val activeQuery = query
@@ -162,6 +169,9 @@ internal fun AlbumSearch(
             enabled = !busy,
             onSubmit = ::submit,
         )
+        OutlinedButton(onClick = { showTags = true }, enabled = !busy) {
+            Text(stringResource(R.string.search_tags))
+        }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
         if (activeQuery == null) {

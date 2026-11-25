@@ -175,5 +175,11 @@
         <item quantity="one">%d original guardado</item>
         <item quantity="other">%d originales guardados</item>
     </plurals>
+    <string name="search_tags">Etiquetas</string>
+    <string name="album_tag_catalog">Etiquetas de álbumes</string>
+    <string name="photo_tag_catalog">Etiquetas manuales de fotos</string>
+    <string name="tag_name_filter">Nombre de la etiqueta</string>
+    <string name="filter_tags">Filtrar etiquetas</string>
+    <string name="exact_tag_results">Etiqueta: %s</string>
 </resources>
 
