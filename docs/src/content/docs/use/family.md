@@ -23,7 +23,7 @@ After starting an album search, send `con Ana y Luis` (or `with Ana and Luis`) t
 
 ![Family search on a phone. The query Ana returns Un día en la playa.](../../../assets/screenshots/web-search.webp)
 
-Open **Etiquetas** in **Buscar álbumes** and choose **Etiquetas de álbumes** or **Etiquetas manuales de fotos**. Each label shows its result count. Select one to search for exact matches of that type. Use the active filter button to clear an album tag. Enter part of a name and choose **Filtrar etiquetas** to narrow the full catalog. If an album tag is active, enter a year or another search term and choose **Buscar** to narrow those results.
+Open **Etiquetas** in **Buscar álbumes** and choose **Etiquetas de álbumes** or **Etiquetas manuales de fotos**. Each label shows its result count. Select one to search for exact matches of that type. Use the active filter button to clear an album tag. Enter part of a name and choose **Filtrar etiquetas** to narrow the full catalog. If an album tag is active, enter a year or another search term and choose **Buscar** to narrow those results. You can also select a label from an open album to find other albums with that tag.
 
 ## Find photos by person
 

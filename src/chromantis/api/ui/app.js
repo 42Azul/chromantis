@@ -601,9 +601,16 @@ function renderAlbumBrowse({ album, refresh }) {
   if (canCurateAlbums) {
     actions.append(button("Etiquetar álbum", () => showView("album-review", { path: album.path, returnTo })));
   }
+  const tags = album.tags?.length ? [element("div", {
+    class: "actions", role: "group", "aria-label": "Etiquetas del álbum",
+  }, ...album.tags.map(tag => {
+    const shortcut = button(tag, () => openTagSearch(tag));
+    shortcut.setAttribute("aria-label", `Buscar álbumes con la etiqueta ${tag}`);
+    return shortcut;
+  }))] : [];
   $("album-browse").replaceChildren(element("div", { class: "panel album-heading" },
     heading, ...(album.event_date ? [element("p", {}, album.event_date)] : []),
-    element("p", {}, album.path), actions, albumPhotoGallery(album.path, false)));
+    element("p", {}, album.path), actions, ...tags, albumPhotoGallery(album.path, false)));
   heading.focus();
 }
 
@@ -2208,6 +2215,18 @@ $("disconnect").addEventListener("click", async () => {
   }
   signOut();
 });
+async function openTagSearch(tag, photos = false) {
+  if ($("archive").hidden) await showView("archive");
+  $("scope").value = photos ? "tagged" : "folders";
+  $("scope").dispatchEvent(new Event("change"));
+  $("query").value = photos ? tag : "";
+  $("year").value = "";
+  $("album-tag-catalog").open = false;
+  if (photos) await archiveRequest("tagged", { term: tag });
+  else await archiveRequest("folders", { q: "", tag });
+  if (!$("archive").hidden) $("results-title").focus();
+}
+
 let tagCatalogRequest = 0;
 
 async function loadTagCatalog(offset = 0, name = $("tag-catalog-name").value.trim()) {
@@ -2222,16 +2241,7 @@ async function loadTagCatalog(offset = 0, name = $("tag-catalog-name").value.tri
     const { items, next_offset } = await api((photos ? "/photo-tag-catalog" : "/album-tags") + queryParams({ limit: 20, offset, name }));
     if (request !== tagCatalogRequest || connection !== connectionNumber || !catalog.open) return;
     message("album-tags-status", items.length ? "" : name ? "No hay etiquetas con ese nombre." : "No hay etiquetas en esta página.");
-    list.append(...items.map(({ tag, count }) => button(`${tag} · ${count}`, async () => {
-      $("scope").value = photos ? "tagged" : "folders";
-      $("scope").dispatchEvent(new Event("change"));
-      $("query").value = photos ? tag : "";
-      $("year").value = "";
-      catalog.open = false;
-      if (photos) await archiveRequest("tagged", { term: tag });
-      else await archiveRequest("folders", { q: "", tag });
-      if (!$("archive").hidden) $("results-title").focus();
-    })));
+    list.append(...items.map(({ tag, count }) => button(`${tag} · ${count}`, () => openTagSearch(tag, photos))));
     if (offset) list.append(button("Etiquetas anteriores", () => loadTagCatalog(offset - 20, name)));
     if (next_offset !== null) list.append(button("Más etiquetas", () => loadTagCatalog(next_offset, name)));
   } catch {

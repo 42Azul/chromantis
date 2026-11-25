@@ -43,6 +43,7 @@ class SearchResult:
     place: str | None = None
     event_date_source: str | None = None
     identity: str | None = None
+    tags: tuple[str, ...] = ()
 
 
 class SearchService:
@@ -414,6 +415,7 @@ class SearchService:
             reasons = list(dict.fromkeys([*reasons, f'place="{place}"']))
         return SearchResult(
             kind="folder",
+            tags=tuple(sorted(tokens)),
             path=row["folder_path"],
             title=row["title"],
             reason=", ".join(reasons),

@@ -219,6 +219,17 @@ async function main() {
       await page.locator("#appearance").selectOption(mode);
       await page.screenshot({ path: `/tmp/chromantis-tag-and-year-${mode}.png` });
     }
+    await folder(second).click();
+    const shortcut = album.getByRole("button", { name: "Buscar álbumes con la etiqueta reunion" });
+    await shortcut.waitFor();
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await page.screenshot({ path: `/tmp/chromantis-album-shortcut-${mode}.png` });
+    }
+    await shortcut.press("Enter");
+    await folder(second).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 1);
+    assert.equal(await page.locator("#query").inputValue(), "");
     await page.getByRole("button", { name: "Quitar filtro de Etiqueta: reunion" }).click();
     await page.waitForFunction(() => document.querySelectorAll("#results .folder-card").length > 1);
     const photoPath = `${second}/Photo_01.jpg`;
