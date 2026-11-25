@@ -76,6 +76,9 @@ class ApplicationService:
     def album_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
         return self.search.album_tags(limit=limit, offset=offset)
 
+    def photo_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
+        return self.search.photo_tags(limit=limit, offset=offset)
+
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
         date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,

@@ -84,7 +84,11 @@
         </div>
 
         <details id="album-tag-catalog" lang="es" hidden>
-          <summary>Etiquetas de álbumes</summary>
+          <summary>Etiquetas</summary>
+          <label>Mostrar <select id="tag-catalog-kind">
+            <option value="albums">Etiquetas de álbumes</option>
+            <option value="photos">Etiquetas manuales de fotos</option>
+          </select></label>
           <p id="album-tags-status" class="message" aria-live="polite"></p>
           <div id="album-tags-list" class="actions"></div>
         </details>

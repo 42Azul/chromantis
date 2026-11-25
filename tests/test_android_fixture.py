@@ -69,6 +69,7 @@ class AndroidFixtureTests(unittest.TestCase):
 
         request("GET", "/years", 401)
         request("GET", "/album-tags", 401)
+        request("GET", "/photo-tag-catalog", 401)
         _, session = request("POST", "/family/session", body={"code": invitation})
         self.assertIn("Secure", session.split("; "))
         request("POST", "/family/session", 401, body={"code": invitation})
@@ -148,6 +149,8 @@ class AndroidFixtureTests(unittest.TestCase):
         filters = {"person": "Anita", "tag": "ROMERIA"}
         combined, _ = request("GET", "/confirmed-images", params=filters)
         self.assertEqual([item["path"] for item in combined["items"]], [photos[1]["path"]])
+        catalog, _ = request("GET", "/photo-tag-catalog", params={"limit": 1})
+        self.assertEqual(catalog, {"items": [{"tag": "romeria", "count": 2}], "next_offset": None})
         request("PATCH", "/photo-tags", body={"photos": photos[1:2], "manual_remove": ["romeria"]})
         combined, _ = request("GET", "/confirmed-images", params=filters)
         self.assertEqual(combined["items"], [])

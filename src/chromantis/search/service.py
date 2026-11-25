@@ -124,6 +124,19 @@ class SearchService:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def photo_tags(self, *, limit: int, offset: int) -> list[dict[str, object]]:
+        with self.repository.connect() as connection:
+            rows = connection.execute(
+                """SELECT pt.tag, COUNT(*) AS count
+                   FROM photo_manual_tags pt
+                   JOIN images i ON i.id = pt.image_id
+                   JOIN album_metadata f ON f.id = i.folder_id
+                   WHERE pt.origin = 'manual'
+                   GROUP BY pt.tag ORDER BY pt.tag LIMIT ? OFFSET ?""",
+                (limit, offset),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
         date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,

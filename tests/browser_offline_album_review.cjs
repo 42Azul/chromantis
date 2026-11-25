@@ -210,6 +210,30 @@ async function main() {
     await folder(second).waitFor();
     await page.getByRole("button", { name: "Quitar filtro de Etiqueta: reunion" }).click();
     await page.waitForFunction(() => document.querySelectorAll("#results .folder-card").length > 1);
+    const photoPath = `${second}/Photo_01.jpg`;
+    assert.equal(await page.evaluate(async path => {
+      const current = await fetch(`/api/v1/photo-tags?${new URLSearchParams({ path })}`);
+      const { items: [{ identity }] } = await current.json();
+      const saved = await fetch("/api/v1/photo-tags", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photos: [{ path, identity }], manual_add: ["Romería"] }),
+      });
+      return saved.status;
+    }, photoPath), 200);
+    await catalog.locator("summary").click();
+    await catalog.locator("#tag-catalog-kind").selectOption("photos");
+    const photoTag = catalog.getByRole("button", { name: "romeria · 1", exact: true });
+    await photoTag.waitFor();
+    assert.equal(await catalog.getByRole("button", { name: "reunion · 1", exact: true }).count(), 0);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await photoTag.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-photo-tag-catalog-${mode}.png` });
+    }
+    await photoTag.press("Enter");
+    await results.locator(".photo-card").getByRole("heading", { name: "Photo_01.jpg" }).waitFor();
+    assert.equal(await results.locator(".photo-card").count(), 1);
+    assert.equal(await page.locator("#query").inputValue(), "romeria");
     assert.deepEqual(unexpected, []);
   } finally {
     await browser.close();
