@@ -61,6 +61,20 @@ class FamilyClientIntegrationTest {
             val second = client.photos(album.path, first.nextOffset!!)
             assertEquals(3, second.entries.size)
             assertEquals(null, second.nextOffset)
+            val label = client.tagCatalog(photos = false, name = "PLÁ", offset = 0).items.single()
+            assertEquals(CatalogTag("playa", 1), label)
+            assertEquals(album.path, client.albums("", 0, tag = label.label).entries.single().path)
+            val photoPath = second.entries.first().path
+            client.savePhotoTags(
+                client.photoTags(listOf(photoPath)),
+                null,
+                "Romería",
+                remove = false,
+            )
+            val photoLabel =
+                client.tagCatalog(photos = true, name = "ROMÉ", offset = 0).items.single()
+            assertEquals(CatalogTag("romeria", 1), photoLabel)
+            assertEquals(photoPath, client.taggedPhotos(photoLabel.label, 0).entries.single().path)
             // No archive is mounted: metadata works, opening a photo fails explicitly.
             expectStatus(404) { client.photo(second.entries.first().path) }
             val ana = client.people().single { "Anita" in it.aliases }

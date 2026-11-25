@@ -102,10 +102,18 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             }
         }
 
-    suspend fun albums(query: String, offset: Int, includeFilters: Boolean = false): EntryPage {
+    suspend fun albums(
+        query: String,
+        offset: Int,
+        includeFilters: Boolean = false,
+        tag: String = "",
+    ): EntryPage {
         val filters = if (includeFilters) "&filters=1" else ""
+        val tagFilter = if (tag.isBlank()) "" else "&tag=${encode(tag)}"
         val response =
-            json("/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters")
+            json(
+                "/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters$tagFilter"
+            )
         val entries =
             response.getJSONArray("items").mapObjects {
                 Entry(it.getString("title"), it.getString("path"))
@@ -116,6 +124,16 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
             searchFilters = albumSearchFilters(response),
         )
     }
+
+    suspend fun tagCatalog(photos: Boolean, name: String, offset: Int): TagCatalogPage {
+        val route = if (photos) "/photo-tag-catalog" else "/album-tags"
+        return decodeTagCatalog(
+            json("$route?name=${encode(name.trim())}&limit=$pageSize&offset=$offset")
+        )
+    }
+
+    suspend fun taggedPhotos(tag: String, offset: Int): EntryPage =
+        imagePage("/confirmed-images?tag=${encode(tag)}", offset)
 
     suspend fun photos(path: String, offset: Int): EntryPage {
         return imagePage("/album-images?path=${encode(path)}", offset)
@@ -421,3 +439,15 @@ internal fun photoTagEdit(
         payload.put(if (remove) "manual_remove" else "manual_add", JSONArray(listOf(tag.trim())))
     return payload
 }
+
+internal data class CatalogTag(val label: String, val count: Int)
+
+internal data class TagCatalogPage(val items: List<CatalogTag>, val nextOffset: Int?)
+
+internal fun decodeTagCatalog(response: JSONObject): TagCatalogPage =
+    TagCatalogPage(
+        response.getJSONArray("items").mapObjects {
+            CatalogTag(it.getString("tag"), it.getInt("count"))
+        },
+        if (response.isNull("next_offset")) null else response.getInt("next_offset"),
+    )

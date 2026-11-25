@@ -398,7 +398,9 @@ internal fun Explorer(
                         val browsingFromSearch = workspace.level == Level.ASK
                         if (!browsingFromSearch) {
                             TextButton(
-                                onClick = { pages = pages + Page(Level.REVIEW, reviewTitle, page.path) }
+                                onClick = {
+                                    pages = pages + Page(Level.REVIEW, reviewTitle, page.path)
+                                }
                             ) {
                                 Text(stringResource(R.string.review_album))
                             }

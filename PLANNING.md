@@ -76,6 +76,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android catalog fixture:** The offline HTTPS fixture now verifies that an exact manual photo tag returned by the catalog opens only its photos, without a person filter, across pages. A partial label returns no exact matches. Next: connect the Compose catalog to these endpoints and verify it on an emulator.
 
+**Android catalog client:** The Kotlin client reads paginated album and manual-photo tag catalogs and opens exact album or photo matches through the shared API. JVM coverage checks the label, count and pagination response. The native integration test is prepared for the offline HTTPS fixture. Next: connect the Compose catalog, run it on an emulator and inspect both themes before shipping the screen.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
