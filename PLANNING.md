@@ -66,6 +66,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Removable refinements on tag-only album searches:** The exact tag is enough to start a refinement, and album disambiguation respects that tag. The offline fixture applies and removes year and person filters independently, including an empty combined search. Next: Android catalog parity when build and theme verification is available.
 
+**Search field after a refinement:** The family browser restores the base query after applying a guided album filter. The offline Chromium fixture verifies the field is empty for a tag-only search while the year or person remains visible as a removable filter. Next: Android catalog parity when its build and theme verification environment is available.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on one client. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.

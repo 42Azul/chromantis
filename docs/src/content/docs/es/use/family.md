@@ -17,7 +17,7 @@ En una sesión familiar, abre **Buscar álbumes** para navegar por año o buscar
 
 Usa la cronología para buscar por lugar o fecha. La fecha puede venir de la carpeta indexada o de una corrección guardada. Si están disponibles, el visor indica por separado la fecha de captura y la de modificación del archivo.
 
-Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Si coinciden varios álbumes, elige uno. Escribe una consulta nueva para empezar de cero. Prueba `fotos de la playa con Ana antes de 2020` para añadir persona y año a la vez. Pulsa **×** al lado del año, la persona o el álbum para quitar solo ese filtro.
+Puedes acotar la búsqueda con `antes de 2020`, `solo 2019` o `con Ana`. Una vez aplicado el filtro, el campo vuelve a mostrar la consulta de partida. Si coinciden varios álbumes, elige uno. Escribe una consulta nueva para empezar de cero. Prueba `fotos de la playa con Ana antes de 2020` para añadir persona y año a la vez. Pulsa **×** al lado del año, la persona o el álbum para quitar solo ese filtro.
 
 Después de iniciar una búsqueda de álbumes, escribe `con Ana y Luis` para exigir vínculos de ambas personas en el mismo álbum. También admite comas y alias guardados; los alias repetidos de una persona cuentan una sola vez. Puedes empezar con `fotos de la playa con Ana y Luis antes de 2020`. Si algún nombre no existe, se rechaza el filtro completo y se conserva la búsqueda anterior. Cada persona tiene su propio filtro para quitarlo. Son vínculos al álbum; usa **Fotos por persona** para las confirmaciones individuales de una foto.
 

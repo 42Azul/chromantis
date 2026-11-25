@@ -218,6 +218,7 @@ async function main() {
     await page.locator("#query").fill("solo 2003");
     await page.locator("#archive-search").click();
     await yearFilter.waitFor();
+    assert.equal(await page.locator("#query").inputValue(), "");
     assert.equal(await results.locator(".folder-card").count(), 1);
     await yearFilter.click();
     await yearFilter.waitFor({ state: "hidden" });

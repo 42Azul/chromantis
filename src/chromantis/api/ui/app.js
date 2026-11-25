@@ -569,7 +569,9 @@ async function refineArchive(text) {
         button(`${item.title} · ${item.path}`, () => refineArchive(`album ${item.path}`))));
       return;
     }
-    await archiveRequest(previous.action, previous.count ? { q, count: previous.count } : { q, tag: previous.tag });
+    await archiveRequest(previous.action, previous.count
+      ? { q, count: previous.count }
+      : { q, tag: previous.tag, updateInput: family });
   } catch (error) {
     if (request !== requestNumber) return;
     const translations = {
