@@ -68,7 +68,7 @@ With thumbnails enabled, **Revisar foto a foto** reviews the current gallery pag
 
 An album link records that someone appears somewhere in the album. To mark the exact photos where someone appears, use **Etiquetar foto** or [individual photo tagging in Android](./android.md#tag-individual-photos).
 
-Use **Saltar** to leave a doubtful album pending. To correct a link in a family session, find the album by its title in **Buscar álbumes** and open the result. Choose **Etiquetar álbum**. Tap **Ana ×** under the selected people, then choose **Guardar y volver a resultados**. The search refreshes and the album drops out if it no longer matches. Choose **Volver a resultados** to leave the editor without saving your people and tag changes. You can also open reviewed albums from **Ya revisados**.
+Use **Saltar** to leave a doubtful album pending. To correct a link in a family session, find the album by its title in **Buscar álbumes** and open the result. Choose **Etiquetar álbum**. Tap **Ana ×** under the selected people, then choose **Guardar y volver a resultados**. The search refreshes and the album drops out if it no longer matches. Choose **Volver a resultados** to leave the editor without saving your people and tag changes. You can also open reviewed albums from **Ya revisados**. If saving succeeds but the results fail to refresh, choose **Reintentar la búsqueda** to rerun the same search without sending the edit again.
 
 ## Review suggestions in batches
 

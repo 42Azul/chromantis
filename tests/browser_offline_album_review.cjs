@@ -12,6 +12,8 @@ async function main() {
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 360, height: 800 } });
     const albumSaves = [];
     const nextLoads = [];
+    const resultRefreshes = [];
+    let failResultRefresh = false;
     const unexpected = [];
     await page.route("**/*", route => {
       const request = route.request();
@@ -28,6 +30,11 @@ async function main() {
           albumSaves.length === 2 && Number(url.searchParams.get("after")) === albumSaves[1].id) {
         nextLoads.push(url.search);
         if (nextLoads.length === 1) return route.fulfill({ status: 503, json: {} });
+      }
+      if (url.pathname === "/api/v1/folders" && failResultRefresh) {
+        resultRefreshes.push(url.search);
+        if (resultRefreshes.length === 1) return route.fulfill({ status: 503, json: {} });
+        failResultRefresh = false;
       }
       return route.continue();
     });
@@ -162,6 +169,30 @@ async function main() {
     await page.getByRole("button", { name: "Página anterior" }).click();
     await folder(first).waitFor();
     assert.equal(await results.locator(".folder-card").count(), 30);
+    await page.locator("#query").fill("Ana");
+    await page.locator("#archive-search").click();
+    await folder(first).waitFor();
+    await folder(second).waitFor();
+    await verifySameTitleAlbum(second);
+    await ana.click();
+    failResultRefresh = true;
+    await saveAndReturn.click();
+    const retrySearch = page.getByRole("button", { name: "Reintentar la búsqueda" });
+    await retrySearch.waitFor();
+    await page.getByText("Álbum guardado. No se pudieron actualizar los resultados.", { exact: true }).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 0, "Stale hits should disappear after a correction.");
+    assert.ok(await retrySearch.evaluate(button => button === document.activeElement));
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await page.screenshot({ path: `/tmp/chromantis-search-refresh-${mode}.png` });
+    }
+    const writesBeforeSearchRetry = albumSaves.length;
+    await retrySearch.press("Enter");
+    await folder(first).waitFor();
+    assert.equal(await folder(second).count(), 0, "The corrected album should no longer match Ana.");
+    assert.equal(await results.locator(".folder-card").count(), 1);
+    assert.deepEqual(resultRefreshes, [resultRefreshes[0], resultRefreshes[0]]);
+    assert.equal(albumSaves.length, writesBeforeSearchRetry);
     assert.deepEqual(unexpected, []);
   } finally {
     await browser.close();

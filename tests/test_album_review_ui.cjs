@@ -14,6 +14,7 @@ async function verifyBatchReview(source, failedReloads = 0) {
       addEventListener(name, listener) { this.listeners[name] = listener; },
       append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
+      querySelector() { return null; },
       querySelectorAll(selector) {
         if (selector === ".photo-selection input") {
           return this.children.flatMap(card => card.children.map(label => label.children[0]));

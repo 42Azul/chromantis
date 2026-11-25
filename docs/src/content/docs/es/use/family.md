@@ -68,7 +68,7 @@ Con las miniaturas activadas, **Revisar foto a foto** recorre la página actual 
 
 El vínculo indica que la persona aparece en alguna foto del álbum. Para marcar las fotos exactas en las que aparece, usa **Etiquetar foto** o el [etiquetado por foto en Android](./android.md#etiqueta-fotos-individuales).
 
-Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Etiquetar álbum** y después **Ana ×** entre las personas seleccionadas y después **Guardar y volver a resultados**. La búsqueda se actualiza y el álbum desaparece si ha dejado de coincidir. Pulsa **Volver a resultados** para salir del editor sin guardar los cambios de personas y etiquetas. También puedes abrir álbumes ya revisados desde **Ya revisados**.
+Pulsa **Saltar** si tienes dudas. Para corregir un vínculo en una sesión familiar, busca el título del álbum en **Buscar álbumes** y abre el resultado. Pulsa **Etiquetar álbum** y después **Ana ×** entre las personas seleccionadas y después **Guardar y volver a resultados**. La búsqueda se actualiza y el álbum desaparece si ha dejado de coincidir. Pulsa **Volver a resultados** para salir del editor sin guardar los cambios de personas y etiquetas. También puedes abrir álbumes ya revisados desde **Ya revisados**. Si el álbum se guardó pero falló la actualización de los resultados, pulsa **Reintentar la búsqueda** para repetir la misma búsqueda sin volver a enviar la edición.
 
 ## Revisa sugerencias por lotes
 

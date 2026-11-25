@@ -731,6 +731,8 @@ Use the [Android guide recording sheet](docs/src/content/docs/use/android.md#phy
 
 **Concurrent review recovery:** The individual editor keeps a stale draft visible and offers an explicit discard-and-reload action for the same album. The disconnected-archive fixture saves a competing tag through the real API, reloads without a write, and then saves the person link while preserving the other edit and the results page.
 
+**Search after a correction:** If refreshing results after a save fails, the browser confirms the save, clears stale results and offers a read-only retry of the same search. The disconnected-archive fixture removes Ana from one of two same-title albums, simulates a failed refresh, then checks that the unchanged album is the only one returned and no write is repeated.
+
 **Validation:** At 360 px and desktop widths, complete open album → select Ana or her alias → save → find by Ana. Inspect synthetic light/dark captures, keyboard focus, touch targets, large text, empty/error states and the visible save action. Confirm that ordinary navigation and name-only review require no originals or external requests. Record the remaining physical-phone usability check separately.
 
 ### MVP 20B — Family Authentication Review and Passkey Trial

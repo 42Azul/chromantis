@@ -420,10 +420,11 @@ async function showView(view, albumOptions) {
   }
 }
 
-async function archiveRequest(action, arguments_ = {}) {
+async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
   const request = ++requestNumber;
   const family = principal?.auth_mode === "family";
   $("refine-choices").replaceChildren();
+  $("browsing").querySelector("[data-retry-search]")?.remove();
   message("archive-status", family ? "Buscando…" : "Loading…");
   try {
     const photoMode = family && familyPhotoSearchModes[action];
@@ -454,7 +455,7 @@ async function archiveRequest(action, arguments_ = {}) {
       }));
       if (request !== requestNumber) return;
       if (!page.items.length && offset) {
-        return archiveRequest(action, { ...arguments_, offset: Math.max(0, offset - pageSize) });
+        return archiveRequest(action, { ...arguments_, offset: Math.max(0, offset - pageSize) }, albumSaved);
       }
       setRecallSearch();
       renderFamilyPhotoResults(page, action, term, offset, pageSize, tag);
@@ -466,14 +467,14 @@ async function archiveRequest(action, arguments_ = {}) {
       const { items, filters } = await api("/folders" + queryParams(params));
       if (request !== requestNumber) return;
       if (!items.length && params.offset) {
-        return archiveRequest(action, { ...arguments_, offset: Math.max(0, params.offset - 30) });
+        return archiveRequest(action, { ...arguments_, offset: Math.max(0, params.offset - 30) }, albumSaved);
       }
       if (timeline) setRecallSearch();
       else {
         setRecallSearch("folders", filters?.q ?? arguments_.q, undefined, filters?.active);
         if (arguments_.updateInput) $("query").value = filters?.text ?? arguments_.q;
       }
-      renderFolders(items.slice(0, 30), timeline, () => archiveRequest(action, arguments_));
+      renderFolders(items.slice(0, 30), timeline, saved => archiveRequest(action, arguments_, saved));
       if (action === "year_albums") {
         message("results-title", `Álbumes de ${arguments_.q}`);
         $("browsing").append(button("Volver a años", () => archiveRequest("years")));
@@ -494,7 +495,24 @@ async function archiveRequest(action, arguments_ = {}) {
       }
     }
   } catch (error) {
-    if (request === requestNumber) message("archive-status", error.message);
+    if (request !== requestNumber) return;
+    if (albumSaved && family) {
+      resetPhotos();
+      $("results").replaceChildren();
+      message("result-count");
+      message("archive-status", "Álbum guardado. No se pudieron actualizar los resultados.");
+      const retry = button("Reintentar la búsqueda", async () => {
+        retry.disabled = true;
+        await archiveRequest(action, arguments_, true);
+        if (!retry.isConnected && document.activeElement === document.body && !$("archive").hidden) {
+          ($("browsing").querySelector("[data-retry-search]") || $("results-title")).focus();
+        }
+      });
+      retry.setAttribute("data-retry-search", "");
+      $("browsing").replaceChildren(retry);
+    } else {
+      message("archive-status", error.message);
+    }
   }
 }
 
@@ -562,14 +580,16 @@ function renderAlbumBrowse({ album, refresh }) {
   const returnTo = {
     label: "Volver a resultados",
     saveLabel: "Guardar y volver a resultados",
-    async open() {
+    async open(saved = false) {
       await showView("archive");
-      await refresh();
-      if (!$("archive").hidden) $("results-title").focus();
+      await refresh(saved);
+      if (!$("archive").hidden) {
+        ($("browsing").querySelector("[data-retry-search]") || $("results-title")).focus();
+      }
     },
   };
   const heading = element("h1", { tabindex: "-1" }, album.title);
-  const actions = element("div", { class: "actions" }, button(returnTo.label, returnTo.open));
+  const actions = element("div", { class: "actions" }, button(returnTo.label, () => returnTo.open()));
   if (canCurateAlbums) {
     actions.append(button("Etiquetar álbum", () => showView("album-review", { path: album.path, returnTo })));
   }
@@ -658,10 +678,10 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
     if (canCurateAlbums) selection.append(card, item);
     if (item.folder_path) {
       const parent = { path: item.folder_path, title: item.folder_path.split("/").at(-1), event_date: item.event_date };
-      const album = button("Ver álbum", () => openAlbumFromResults(parent, () => {
+      const album = button("Ver álbum", () => openAlbumFromResults(parent, saved => {
         $("query").value = term;
         $("photo-tag").value = tag || "";
-        return refresh();
+        return archiveRequest(action, { ...search, offset }, saved);
       }), "photo-album-button");
       album.setAttribute("aria-label", `Ver álbum de ${item.path.split("/").at(-1)}`);
       card.append(album);
