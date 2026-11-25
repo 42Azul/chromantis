@@ -12,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
@@ -54,13 +53,12 @@ class FamilyComposeTest {
         val uri = requireNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
         try {
             requireNotNull(resolver.openOutputStream(uri)).use {
-                check(
-                    compose
-                        .onRoot()
-                        .captureToImage()
-                        .asAndroidBitmap()
-                        .compress(Bitmap.CompressFormat.PNG, 100, it)
-                )
+                compose.waitForIdle()
+                val bitmap =
+                    requireNotNull(
+                        InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                    )
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
             }
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
