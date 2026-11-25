@@ -889,11 +889,12 @@ function setAlbumReviewMode(mode) {
   $("batch-albums").setAttribute("aria-pressed", String(mode === "batch"));
 }
 
-async function loadAlbumReview({ after = 0, reviewed = false, directory, saved = false, path, returnTo } = {}) {
+async function loadAlbumReview(options = {}) {
+  const { after = 0, reviewed = false, directory, saved = false, path, returnTo, retrying = false } = options;
   closeAlbumReview();
   const request = albumRequest;
   setAlbumReviewMode(path ? "album" : reviewed ? "reviewed" : "pending");
-  message("album-review-status", "Cargando álbum…");
+  message("album-review-status", saved ? "Álbum guardado. Cargando el siguiente…" : "Cargando álbum…");
   const returnButton = returnTo ? button(returnTo.label, () => returnTo.open(false)) : null;
   if (returnButton) {
     $("album-review-content").append(returnButton);
@@ -906,7 +907,7 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
     ]);
     if (request !== albumRequest) return;
     message("album-review-status", saved ? "Álbum guardado." : "");
-    const focusNext = after > 0 && document.activeElement === document.body;
+    const focusNext = (after > 0 || retrying) && document.activeElement === document.body;
     if (item) renderAlbumReview(item, people, reviewed, returnTo, returnButton, focusNext);
     else {
       const empty = element("p", { tabindex: "-1" },
@@ -915,7 +916,14 @@ async function loadAlbumReview({ after = 0, reviewed = false, directory, saved =
       if (focusNext) empty.focus();
     }
   } catch (error) {
-    if (request === albumRequest) message("album-review-status", error.message);
+    if (request !== albumRequest) return;
+    message("album-review-status", saved ? "Álbum guardado. No se pudo cargar el siguiente."
+      : error.status && error.status < 500 ? error.message : "No se pudo cargar el álbum.");
+    const retry = button("Reintentar la carga", () => {
+      if (request === albumRequest) return loadAlbumReview({ ...options, retrying: true });
+    });
+    $("album-review-content").append(retry);
+    if (document.activeElement === document.body) retry.focus();
   }
 }
 

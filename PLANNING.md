@@ -725,6 +725,8 @@ Use the [Android guide recording sheet](docs/src/content/docs/use/android.md#phy
 
 **Queue actions:** Save and Skip stay together at the bottom of the viewport while scrolling through an album on a phone-sized screen. The next album title receives focus after a save or skip when focus would otherwise return to the page body. The disconnected-archive Chromium fixture verifies the save action at 200% text size, retry after a failed save, focus after save and skip, and finding the saved album by Ana. Skipping and ordinary review make no media requests.
 
+**Queue load recovery:** A failed read after a successful save confirms that the album was saved and offers **Reintentar la carga**. The retry keeps the same queue position and issues no additional write. The disconnected-archive Chromium fixture injects both a save failure and a subsequent read failure, then checks that the same read is retried and Ana's saved link is searchable.
+
 **Validation:** At 360 px and desktop widths, complete open album → select Ana or her alias → save → find by Ana. Inspect synthetic light/dark captures, keyboard focus, touch targets, large text, empty/error states and the visible save action. Confirm that ordinary navigation and name-only review require no originals or external requests. Record the remaining physical-phone usability check separately.
 
 ### MVP 20B — Family Authentication Review and Passkey Trial

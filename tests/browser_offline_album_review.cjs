@@ -11,6 +11,7 @@ async function main() {
   try {
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 360, height: 800 } });
     const albumSaves = [];
+    const nextLoads = [];
     const unexpected = [];
     await page.route("**/*", route => {
       const request = route.request();
@@ -22,6 +23,11 @@ async function main() {
       if (url.pathname === "/api/v1/album-review" && request.method() === "POST") {
         albumSaves.push(request.postDataJSON());
         if (albumSaves.length === 1) return route.fulfill({ status: 503, json: {} });
+      }
+      if (url.pathname === "/api/v1/album-review" && request.method() === "GET" &&
+          albumSaves.length === 2 && Number(url.searchParams.get("after")) === albumSaves[1].id) {
+        nextLoads.push(url.search);
+        if (nextLoads.length === 1) return route.fulfill({ status: 503, json: {} });
       }
       return route.continue();
     });
@@ -61,7 +67,18 @@ async function main() {
       await page.screenshot({ path: `/tmp/chromantis-offline-error-${mode}.png` });
     }
     await save.click();
+    await page.getByText("Álbum guardado. No se pudo cargar el siguiente.", { exact: true }).waitFor();
+    const retry = page.getByRole("button", { name: "Reintentar la carga" });
+    assert.ok(await retry.evaluate(button => button === document.activeElement));
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await retry.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/chromantis-queue-retry-${mode}.png` });
+    }
+    await retry.press("Enter");
     await page.getByText("Álbum guardado.", { exact: true }).waitFor();
+    assert.equal(nextLoads.length, 2);
+    assert.equal(nextLoads[0], nextLoads[1]);
     assert.equal(albumSaves.length, 2);
     assert.deepEqual(albumSaves[0], albumSaves[1]);
     const headingSelector = "#album-review-content h2";
