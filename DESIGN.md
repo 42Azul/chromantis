@@ -4,6 +4,28 @@ Chromantis is a family photo library for finding and classifying an existing arc
 The Android client uses Kotlin, Compose and Material 3. Code stays in English; the
 family interface is Spanish. Use the same service, people and permission model.
 
+## Shared family identity
+
+- Give Android and the family web one Chromantis identity. Use the same wordmark,
+  label vocabulary, icon family, spacing roles and semantic color roles. Use native
+  Compose and web implementations and document the light/dark palette together.
+- Explore an original mantis silhouette with a small spectrum accent around the
+  eyes or wings. It should read at launcher size and in one color. Use the mark
+  in the launcher and compact brand area. A larger illustration may help one
+  intentional empty state when it supports a real action.
+- Let photographs provide most of the color. Use the spectrum accent sparingly and
+  keep text, focus, selection and errors distinct in both themes. Pair color with
+  labels or shapes for state.
+- Give the start screen direct access to Folders, Search and Organize. Show a
+  resume action when there is a real last location. Use one primary action per
+  context. Keep collages in search results or selected photos, and tag discovery
+  within Search. Skip hero copy, ornamental cards, sticker-like mascots on every
+  screen and repeated shortcuts.
+- Keep the same task and labels across clients. In Search, start with a clear
+  query field and **Tags**, distinguish photo results from albums, and use
+  removable filters. Preserve position on return. Offer conversational refinement
+  only where it helps the active search.
+
 ## Visual and interaction rules
 
 - Give the library a readable hierarchy: app identity, page title, content, then actions.
