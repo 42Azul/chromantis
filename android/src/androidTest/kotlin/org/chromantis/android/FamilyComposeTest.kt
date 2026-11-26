@@ -346,6 +346,7 @@ class FamilyComposeTest {
                     .fetchSemanticsNodes()
                     .isNotEmpty()
             }
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
             capture("search-collage-light", compose.onNode(isDialog()))
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("search-collage-dark", compose.onNode(isDialog()))
