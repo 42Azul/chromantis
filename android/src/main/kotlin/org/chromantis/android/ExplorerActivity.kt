@@ -15,6 +15,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -36,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -77,6 +80,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -183,6 +188,7 @@ internal enum class Level {
     ALBUMS,
     SEARCH,
     CONFIRMED,
+    ALBUM_TAG,
     INDEX,
     PHOTOS,
     ORIGINAL,
@@ -346,6 +352,18 @@ internal fun Explorer(
                             },
                         )
                     }
+                    Level.ALBUM_TAG ->
+                        AlbumSearch(
+                            api,
+                            expire,
+                            onConfirmedPhotos = {},
+                            onOpenPhoto = {},
+                            onOpen = {
+                                galleryStartOffset = 0
+                                pages = pages + Page(Level.PHOTOS, it.title, it.path)
+                            },
+                            tag = requireNotNull(page.path),
+                        )
                     Level.CONFIRMED ->
                         ConfirmedPhotoSearch(api, expire) {
                             pages = pages + Page(Level.ORIGINAL, it.title, it.path)
@@ -398,7 +416,12 @@ internal fun Explorer(
                     }
                     Level.PHOTOS -> {
                         Text(page.path.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                        val browsingFromSearch = workspace.level == Level.ASK
+                        val browsingFromSearch =
+                            workspace.level == Level.ASK ||
+                                pages.any { it.level == Level.ALBUM_TAG }
+                        AlbumTagShortcuts(api, requireNotNull(page.path), expire) { tag ->
+                            pages = pages + Page(Level.ALBUM_TAG, search, tag)
+                        }
                         if (!browsingFromSearch) {
                             TextButton(
                                 onClick = {
@@ -428,6 +451,33 @@ internal fun Explorer(
             }
         }
         if (depth == 0) destinations()
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AlbumTagShortcuts(
+    api: ChromantisApi,
+    path: String,
+    onExpired: () -> Unit,
+    onOpen: (String) -> Unit,
+) {
+    var tags by remember(api, path) { mutableStateOf(emptyList<String>()) }
+    LaunchedEffect(api, path) {
+        attempt { api.albumTags(path) }
+            .onSuccess { tags = it }
+            .onFailure { if (it.hasStatus(401)) onExpired() }
+    }
+    if (tags.isEmpty()) return
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        tags.forEach { tag ->
+            val description = stringResource(R.string.search_album_by_tag, tag)
+            AssistChip(
+                onClick = { onOpen(tag) },
+                label = { Text(tag) },
+                modifier = Modifier.semantics { contentDescription = description },
+            )
+        }
     }
 }
 

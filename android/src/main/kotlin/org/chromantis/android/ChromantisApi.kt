@@ -133,6 +133,15 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
         )
     }
 
+    suspend fun albumTags(path: String): List<String> {
+        val query = encode("album:" + JSONObject.quote(path))
+        val items = json("/folders?q=$query&limit=1").getJSONArray("items")
+        val item = items.optJSONObject(0) ?: return emptyList()
+        if (item.optString("path") != path) return emptyList()
+        val tags = item.optJSONArray("tags") ?: return emptyList()
+        return (0 until tags.length()).map(tags::getString)
+    }
+
     suspend fun taggedPhotos(tag: String, offset: Int, year: Int? = null): EntryPage =
         imagePage("/confirmed-images?tag=${encode(tag)}${photoYearParameter(year)}", offset)
 

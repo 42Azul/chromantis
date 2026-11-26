@@ -185,6 +185,27 @@ class FamilyComposeTest {
                 }
             }
             capture("gallery-light")
+            val tagShortcut = context.getString(R.string.search_album_by_tag, "excursion")
+            compose.waitUntil(15000) {
+                compose
+                    .onAllNodesWithContentDescription(tagShortcut)
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
+            capture("album-shortcut-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("album-shortcut-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            compose.onNodeWithContentDescription(tagShortcut).performClick()
+            await(context.getString(R.string.exact_tag_results, "excursion"))
+            await(albumDisplayTitle(album.title))
+            click(albumDisplayTitle(album.title))
+            await(label(R.string.select_photos))
+            compose.onNodeWithText(label(R.string.review_album)).assertDoesNotExist()
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await(context.getString(R.string.exact_tag_results, "excursion"))
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await(label(R.string.review_album))
             click(label(R.string.select_photos))
             visiblePhotos.forEach { click(it.title) }
             compose.onNodeWithText(label(R.string.share_selection)).assertIsDisplayed()
