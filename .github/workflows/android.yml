@@ -157,10 +157,10 @@ jobs:
         if: failure()
         run: |
           if [ -f "$RUNNER_TEMP/emulator.log" ]; then tail -100 "$RUNNER_TEMP/emulator.log"; fi
-          adb logcat -d -s ChromantisFixture:I AndroidRuntime:E || true
+          timeout 15s adb logcat -d -s ChromantisFixture:I AndroidRuntime:E || true
           find android/build/outputs/androidTest-results -name '*.xml' -exec cat {} + 2>/dev/null || true
       - name: Stop disposable emulator
         if: always()
         run: |
-          adb emu kill || true
+          timeout 15s adb emu kill || true
           if [ -f "$RUNNER_TEMP/fixture.pid" ]; then kill "$(cat "$RUNNER_TEMP/fixture.pid")" || true; fi

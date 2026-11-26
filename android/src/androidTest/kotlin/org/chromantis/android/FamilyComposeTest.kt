@@ -413,7 +413,9 @@ class FamilyComposeTest {
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("Merienda")
             click(label(R.string.filter_tags))
             await("Merienda · 40")
-            compose.onNodeWithText("Merienda · 40").performSemanticsAction(SemanticsActions.OnClick)
+            compose
+                .onNodeWithText("Merienda · 40")
+                .performSemanticsAction(SemanticsActions.OnClick)
             await(context.getString(R.string.exact_tag_results, "merienda"))
             refineTags("solo 2025")
             await("Año: 2025")
