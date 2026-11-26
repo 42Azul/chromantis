@@ -333,17 +333,15 @@ class FamilyComposeTest {
             click(label(R.string.filter_tags))
             await("Romeria · 3")
             Log.i("ChromantisFixture", "Open exact photo results")
-            click("Romeria · 3")
-            await(photo.title)
-            await(otherPhoto.title)
+            compose.onNodeWithText("Romeria · 3").performSemanticsAction(SemanticsActions.OnClick)
+            await(label(R.string.select_photos))
             compose
                 .onNodeWithText(label(R.string.select_photos))
                 .performSemanticsAction(SemanticsActions.OnClick)
-            await(extraPhoto.title)
-            click(otherPhoto.title)
-            click(photo.title)
-            compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(extraPhoto.title))
-            click(extraPhoto.title)
+            for (entry in listOf(otherPhoto, photo, extraPhoto)) {
+                compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(entry.title))
+                click(entry.title)
+            }
             click(label(R.string.make_collage))
             val removeExtra =
                 context.getString(
