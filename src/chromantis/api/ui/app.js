@@ -1420,18 +1420,32 @@ async function openPhotoCollage(paths, pageSignal) {
   const canvas = element("canvas", { role: "img", "aria-label": "Vista previa del collage", hidden: "" });
   const title = element("h2", {}, "Crear collage");
   const status = element("p", { class: "message", role: "status" }, "Preparando collage…");
+  let jpeg;
   const download = button("Descargar collage", () => {
-    canvas.toBlob(blob => {
-      if (!blob || request.signal.aborted) return;
-      const url = URL.createObjectURL(blob);
-      element("a", { href: url, download: "chromantis-collage.jpg" }).click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }, "image/jpeg", 0.92);
+    if (!jpeg || request.signal.aborted) return;
+    const url = URL.createObjectURL(jpeg);
+    element("a", { href: url, download: jpeg.name }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }, "primary");
   download.disabled = true;
+  const share = button("Compartir collage", async () => {
+    if (!jpeg || request.signal.aborted || share.disabled) return;
+    share.disabled = true;
+    status.textContent = "";
+    try {
+      await navigator.share({ files: [jpeg] });
+    } catch (error) {
+      if (!request.signal.aborted && error.name !== "AbortError") {
+        status.textContent = "No se pudo compartir el collage. Puedes descargarlo.";
+      }
+    } finally {
+      if (!request.signal.aborted) share.disabled = false;
+    }
+  });
+  share.hidden = true;
   const dialog = element("dialog", { class: "photo-collage", "aria-label": "Crear collage" },
     title, status, canvas, element("div", { class: "actions" },
-      button("Cerrar", () => dialog.close()), download));
+      button("Cerrar", () => dialog.close()), share, download));
   const close = () => {
     request.abort();
     pageSignal.removeEventListener("abort", close);
@@ -1469,8 +1483,18 @@ async function openPhotoCollage(paths, pageSignal) {
     }
   }
   canvas.hidden = false;
-  status.textContent = "";
-  download.disabled = false;
+  canvas.toBlob(blob => {
+    if (request.signal.aborted) return;
+    if (!blob) {
+      status.textContent = "No se pudo preparar el archivo del collage.";
+      return;
+    }
+    jpeg = new File([blob], "chromantis-collage.jpg", { type: blob.type });
+    status.textContent = "";
+    download.disabled = false;
+    share.hidden = typeof navigator.share !== "function" || typeof navigator.canShare !== "function" ||
+      !navigator.canShare({ files: [jpeg] });
+  }, "image/jpeg", 0.92);
 }
 
 function photoSelectionControls(grid, signal, onSaved, albumPath, allowCollage = !!albumPath) {

@@ -10,6 +10,18 @@ async function main() {
   const browser = await chromium.launch({ executablePath: CHROMIUM_EXECUTABLE });
   try {
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+    await page.addInitScript(() => {
+      window.shareMode = "unsupported";
+      window.collageShares = [];
+      navigator.canShare = ({ files }) => window.shareMode !== "unsupported" &&
+        files.length === 1 && files[0].type === "image/jpeg";
+      navigator.share = async ({ files }) => {
+        if (!navigator.userActivation.isActive) throw new DOMException("Inactive", "NotAllowedError");
+        if (window.shareMode === "cancel") throw new DOMException("Canceled", "AbortError");
+        if (window.shareMode === "error") throw new DOMException("Unavailable", "NotAllowedError");
+        window.collageShares.push([...new Uint8Array(await files[0].arrayBuffer())]);
+      };
+    });
     const paths = [];
     let failThumbnail = false;
     await page.route("**/*", route => {
@@ -41,6 +53,7 @@ async function main() {
       const dialog = page.getByRole("dialog", { name: "Crear collage" });
       const preview = dialog.getByRole("img", { name: "Vista previa del collage" });
       await preview.waitFor();
+      assert.equal(await dialog.getByRole("button", { name: "Compartir collage" }).count(), 0);
       const pixels = await preview.evaluate(canvas => [
         canvas.width, canvas.height,
         canvas.getContext("2d").getImageData(240, 240, 1, 1).data[0],
@@ -100,6 +113,7 @@ async function main() {
     for (const path of taggedPaths) {
       await page.getByRole("checkbox", { name: `Seleccionar ${path}`, exact: true }).check();
     }
+    await page.evaluate(() => { window.shareMode = "supported"; });
     const before = paths.length;
     for (const mode of ["light", "dark"]) {
       await page.locator("#appearance").selectOption(mode);
@@ -112,13 +126,26 @@ async function main() {
       ]);
       assert.ok(reds[0] >= 15 && reds[0] <= 31);
       assert.ok(reds[1] >= 84 && reds[1] <= 100);
+      const share = dialog.getByRole("button", { name: "Compartir collage" });
+      await share.waitFor();
       await dialog.screenshot({ path: `/tmp/chromantis-search-collage-${mode}.png` });
       if (mode === "dark") {
+        await page.evaluate(() => { window.shareMode = "cancel"; });
+        await share.click();
+        assert.equal(await dialog.locator('[role="status"]').textContent(), "");
+        await page.evaluate(() => { window.shareMode = "error"; });
+        await share.click();
+        await dialog.getByText("No se pudo compartir el collage. Puedes descargarlo.").waitFor();
+        await page.evaluate(() => { window.shareMode = "supported"; });
+        await share.click();
+        await page.waitForFunction(() => window.collageShares.length === 1);
         const [file] = await Promise.all([
           page.waitForEvent("download"),
           dialog.getByRole("button", { name: "Descargar collage" }).click(),
         ]);
-        assert.equal(readFileSync(await file.path()).subarray(0, 3).toString("hex"), "ffd8ff");
+        const downloaded = readFileSync(await file.path());
+        assert.equal(downloaded.subarray(0, 3).toString("hex"), "ffd8ff");
+        assert.deepEqual(Buffer.from(await page.evaluate(() => window.collageShares[0])), downloaded);
       }
       await dialog.getByRole("button", { name: "Cerrar" }).click();
       await dialog.waitFor({ state: "hidden" });

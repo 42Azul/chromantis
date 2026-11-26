@@ -118,6 +118,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Web collage from photo tags:** The exact photo results offer the same two-to-four-photo collage action. Chromium verifies two photos with a shared manual label from different albums and years, their selection order, JPEG download in the browser, and return to the same selection in both themes. Next: evaluate the existing browser share capability for a generated JPEG.
 
+**Web collage sharing:** On browsers that accept JPEG files via Web Share, the preview offers sharing on an explicit press and keeps download available. The Chromium fixture substitutes a share target and verifies user activation, matching download bytes, cancellation, failure, and unsupported-browser fallback. Next: verify the native browser picker and total Android memory cost on a physical phone, and consider web preview ordering after that check.
+
 #### F3 — One Chromantis visual identity · Active design direction
 
 - Apply the shared visual direction in [DESIGN.md](DESIGN.md) to Android and the family web. Start with a matched Search/Tags flow in light and dark mode. Give both clients the same vocabulary, typography roles, rounded icon style and semantic colors while following native navigation patterns.
