@@ -197,4 +197,6 @@
     <string name="collage_remove">Quitar</string>
     <string name="collage_move_photo">Subir %1$s de %2$s</string>
     <string name="collage_remove_photo">Quitar %1$s de %2$s</string>
+    <string name="share_collage">Compartir</string>
+    <string name="collage_share_error">No se pudo compartir el collage. Puedes intentarlo de nuevo.</string>
 </resources>

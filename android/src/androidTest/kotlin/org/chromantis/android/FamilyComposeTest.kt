@@ -2,10 +2,12 @@ package org.chromantis.android
 
 import android.content.ContentValues
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import android.view.accessibility.AccessibilityEvent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -22,6 +24,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import javax.net.ssl.HttpsURLConnection
@@ -369,6 +372,31 @@ class FamilyComposeTest {
             capture("search-collage-light", compose.onNode(isDialog()))
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("search-collage-dark", compose.onNode(isDialog()))
+            val automation = instrumentation.uiAutomation
+            automation
+                .executeAndWaitForEvent(
+                    { click(label(R.string.share_collage)) },
+                    { event ->
+                        event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+                            event.packageName != context.packageName
+                    },
+                    10000,
+                )
+                .recycle()
+            val shared =
+                File(context.cacheDir, "original-share").walkTopDown().single {
+                    it.isFile && it.name.startsWith("Chromantis-collage-")
+                }
+            val jpeg = checkNotNull(BitmapFactory.decodeFile(shared.path))
+            check(jpeg.width == 960 && jpeg.height == 480)
+            // The revised preview puts the fixture's photo 01 before photo 03.
+            check(android.graphics.Color.red(jpeg.getPixel(240, 240)) in 12..34)
+            check(android.graphics.Color.red(jpeg.getPixel(720, 240)) in 57..81)
+            jpeg.recycle()
+            automation.executeShellCommand("input keyevent 4").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).readBytes()
+            }
+            await(label(R.string.save_collage))
             click(label(R.string.save_collage))
             await(label(R.string.collage_saved))
             click(label(R.string.close_collage))

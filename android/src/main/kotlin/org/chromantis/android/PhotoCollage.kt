@@ -1,5 +1,6 @@
 package org.chromantis.android
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -79,7 +80,7 @@ internal fun PhotoCollage(
     var ordered by remember(paths) { mutableStateOf(paths) }
     var preview by remember(ordered) { mutableStateOf<Bitmap?>(null) }
     var message by remember(ordered) { mutableStateOf(R.string.collage_loading) }
-    var saving by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
     var saved by remember(ordered) { mutableStateOf(false) }
     LaunchedEffect(api, ordered) {
         attempt { renderCollage(api, ordered) }
@@ -93,8 +94,39 @@ internal fun PhotoCollage(
             }
     }
     val image = preview
+    fun export(bitmap: Bitmap, share: Boolean) {
+        exporting = true
+        message = if (share) R.string.preparing_share else R.string.collage_saving
+        scope.launch {
+            val result = attempt {
+                val bytes =
+                    withContext(Dispatchers.Default) {
+                        val stream = ByteArrayOutputStream()
+                        if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 92, stream))
+                            throw IOException("Could not encode collage.")
+                        stream.toByteArray()
+                    }
+                val name = "Chromantis-collage-${System.currentTimeMillis()}.jpg"
+                if (share) {
+                    val send = prepareOriginalShare(context, name, bytes)
+                    context.startActivity(Intent.createChooser(send, null))
+                } else {
+                    saveOriginal(context.contentResolver, name, bytes)
+                }
+            }
+            exporting = false
+            if (!share) saved = result.isSuccess
+            message =
+                when {
+                    result.isFailure && share -> R.string.collage_share_error
+                    result.isFailure -> R.string.collage_save_error
+                    saved -> R.string.collage_saved
+                    else -> 0
+                }
+        }
+    }
     AlertDialog(
-        onDismissRequest = { if (!saving) onClose() },
+        onDismissRequest = { if (!exporting) onClose() },
         title = { Text(stringResource(R.string.make_collage)) },
         text = {
             Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
@@ -123,7 +155,7 @@ internal fun PhotoCollage(
                         }
                         if (index > 0) {
                             TextButton(
-                                enabled = !saving,
+                                enabled = !exporting,
                                 modifier = Modifier.semantics { contentDescription = moveLabel },
                                 onClick = {
                                     ordered =
@@ -137,7 +169,7 @@ internal fun PhotoCollage(
                         }
                         if (ordered.size > 2) {
                             TextButton(
-                                enabled = !saving,
+                                enabled = !exporting,
                                 modifier = Modifier.semantics { contentDescription = removeLabel },
                                 onClick = { ordered = ordered.filterNot { it == path } },
                             ) {
@@ -150,39 +182,18 @@ internal fun PhotoCollage(
         },
         confirmButton = {
             if (image != null) {
-                Button(
-                    enabled = !saving && !saved,
-                    onClick = {
-                        saving = true
-                        message = R.string.collage_saving
-                        scope.launch {
-                            val result = attempt {
-                                val bytes =
-                                    withContext(Dispatchers.Default) {
-                                        val stream = ByteArrayOutputStream()
-                                        if (!image.compress(Bitmap.CompressFormat.JPEG, 92, stream))
-                                            throw IOException("Could not encode collage.")
-                                        stream.toByteArray()
-                                    }
-                                saveOriginal(
-                                    context.contentResolver,
-                                    "Chromantis-collage-${System.currentTimeMillis()}.jpg",
-                                    bytes,
-                                )
-                            }
-                            saving = false
-                            saved = result.isSuccess
-                            message =
-                                if (saved) R.string.collage_saved else R.string.collage_save_error
-                        }
-                    },
-                ) {
+                Button(enabled = !exporting && !saved, onClick = { export(image, share = false) }) {
                     Text(stringResource(R.string.save_collage))
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onClose, enabled = !saving) {
+            if (image != null) {
+                TextButton(onClick = { export(image, share = true) }, enabled = !exporting) {
+                    Text(stringResource(R.string.share_collage))
+                }
+            }
+            TextButton(onClick = onClose, enabled = !exporting) {
                 Text(stringResource(R.string.close_collage))
             }
         },

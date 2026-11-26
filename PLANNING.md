@@ -108,6 +108,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android collage editing:** The preview lets families move a photo earlier or remove it while keeping at least two. The synthetic photo-tag walkthrough selects three photos, removes one, changes the ordering and saves the revised JPEG. Next: share the revised JPEG directly from Android and verify unavailable previews and cancellation. Web collage is pending.
 
+**Android collage sharing:** The edited preview opens the Android share sheet with a temporary JPEG via the existing read-only URI grant. The synthetic photo-tag walkthrough verifies the chooser, the exported JPEG dimensions and edited photo order, and return to the same preview. Next: verify unavailable previews, cancellation during loading and the maximum selection's memory cost. Web collage is pending.
+
 #### F3 — One Chromantis visual identity · Active design direction
 
 - Apply the shared visual direction in [DESIGN.md](DESIGN.md) to Android and the family web. Start with a matched Search/Tags flow in light and dark mode. Give both clients the same vocabulary, typography roles, rounded icon style and semantic colors while following native navigation patterns.

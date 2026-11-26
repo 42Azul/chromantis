@@ -18,7 +18,7 @@ Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appea
 
 Album-search follow-ups also accept `con Ana y Luis` or names separated by commas. The updated local service requires both people to be linked to the album, resolves saved aliases, and keeps the previous search if any name is unknown. Each person remains a separate removable filter.
 
-In an album or on the current page of a photo tag search, select two to four photos and tap **Crear collage** to preview them in selection order. Use **Subir** to move a photo earlier and **Quitar** to remove a photo while keeping at least two. Tap **Guardar collage** to save a new JPEG to the phone gallery. This requires Android 10 or later and server previews.
+In an album or on the current page of a photo tag search, select two to four photos and tap **Crear collage** to preview them in selection order. Use **Subir** to move a photo earlier and **Quitar** to remove a photo while keeping at least two. Tap **Guardar collage** to save a new JPEG to the phone gallery. Use **Compartir** to open the Android share sheet with only the edited JPEG. This requires Android 10 or later and server previews.
 
 ## A short walkthrough
 
