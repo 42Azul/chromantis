@@ -73,7 +73,7 @@ Admins and owners can curate people with these routes. Each successful write ret
 | --- | --- | --- |
 | `GET /api/v1/photo-tags` | Repeat the URL-encoded `path` parameter for 1–50 indexed photos | Existing album curators |
 | `PATCH /api/v1/photo-tags` | Photo identities and a shared set of changes | Existing album curators |
-| `GET /api/v1/confirmed-images` | `person` (name or alias) or `person_id`, and/or `tag` (exact manual photo tag), plus optional `limit` and `offset` | Search readers and active family sessions |
+| `GET /api/v1/confirmed-images` | `person` (name or alias) or `person_id`, and/or `tag` (exact manual photo tag), plus optional `year` (effective album year), `limit` and `offset` | Search readers and active family sessions |
 
 The tagging routes return `{"items": [...]}` in selection order. Each item has `path`, `identity`, `people` entries with `person_id` and `origin`, and `manual_tags` entries with `tag` and `origin`. Use existing person IDs from `GET /api/v1/album-review/people`. Use each `path` from the gallery and copy its `identity` from the tagging response when saving.
 

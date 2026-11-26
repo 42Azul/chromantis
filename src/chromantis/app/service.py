@@ -144,15 +144,16 @@ class ApplicationService:
 
     def search_confirmed_images(
         self, person: str | int, *, limit: int = 10, offset: int = 0, tag: str | None = None,
+        year: int | None = None,
     ) -> list[SearchResult]:
         return self.search.search_confirmed_images(
-            person, limit=limit, offset=offset, tag=parse_tag(tag) if tag is not None else None,
+            person, limit=limit, offset=offset, tag=parse_tag(tag) if tag is not None else None, year=year,
         )
 
     def search_manually_tagged_images(
-        self, tag: str, *, limit: int = 10, offset: int = 0,
+        self, tag: str, *, limit: int = 10, offset: int = 0, year: int | None = None,
     ) -> list[SearchResult]:
-        return self.search.search_manually_tagged_images(parse_tag(tag), limit=limit, offset=offset)
+        return self.search.search_manually_tagged_images(parse_tag(tag), limit=limit, offset=offset, year=year)
 
     def images_in_folder(
         self, folder_path: str, limit: int = 10, exclude_paths: tuple[str, ...] = (), *, offset: int = 0,

@@ -73,7 +73,7 @@ Los administradores y propietarios pueden editar personas. Cada escritura correc
 | --- | --- | --- |
 | `GET /api/v1/photo-tags` | Repite `path` codificado para URL para entre 1 y 50 fotos indexadas | Con permiso de etiquetado |
 | `PATCH /api/v1/photo-tags` | Identidades de las fotos y cambios que se aplican a todas | Con permiso de etiquetado |
-| `GET /api/v1/confirmed-images` | `person` (nombre o alias) o `person_id`, y/o `tag` (etiqueta manual exacta de foto), con `limit` y `offset` opcionales | Lectores y sesiones familiares activas |
+| `GET /api/v1/confirmed-images` | `person` (nombre o alias) o `person_id`, y/o `tag` (etiqueta manual exacta de foto), con `year` (año efectivo del álbum), `limit` y `offset` opcionales | Lectores y sesiones familiares activas |
 
 Las rutas de etiquetado devuelven `{"items": [...]}` en el orden de la selección. Cada elemento tiene `path`, `identity`, entradas `people` con `person_id` y `origin`, y entradas `manual_tags` con `tag` y `origin`. Usa los IDs de `GET /api/v1/album-review/people`, la ruta de cada foto de la galería y su `identity` en la respuesta de etiquetado.
 

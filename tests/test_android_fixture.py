@@ -175,6 +175,25 @@ class AndroidFixtureTests(unittest.TestCase):
         confirmed, _ = request("GET", "/confirmed-images", params={"person": "Anita"})
         self.assertCountEqual([item["path"] for item in confirmed["items"]], [item["path"] for item in photos[:2]])
 
+        earlier, _ = request("GET", "/photo-tags", params={
+            "path": "2023/2023-10-05_excursion/Photo_01.jpg",
+        })
+        other = earlier["items"][0]
+        request("PATCH", "/photo-tags", body={
+            "photos": [{"path": other["path"], "identity": other["identity"]}],
+            "manual_add": [label], "add_people": [ana["id"]],
+        })
+        for criteria in ({"tag": label}, filters):
+            result, _ = request("GET", "/confirmed-images", params={**criteria, "year": 2023, "limit": 1})
+            self.assertEqual([item["path"] for item in result["items"]], [other["path"]])
+            self.assertIsNone(result["next_offset"])
+        result, _ = request("GET", "/confirmed-images", params={"tag": label, "year": 2024})
+        self.assertEqual([item["path"] for item in result["items"]], [photos[2]["path"]])
+        result, _ = request("GET", "/confirmed-images", params={**filters, "year": 2024})
+        self.assertEqual(result["items"], [])
+        request("GET", "/confirmed-images", 400, params={"tag": label, "year": "24"})
+        request("GET", "/confirmed-images", 400, params=[("tag", label), ("year", 2023), ("year", 2024)])
+
         disconnected.rename(archive)
         payload = request("POST", "/photo-export", body=selection)
         with ZipFile(BytesIO(payload)) as exported:

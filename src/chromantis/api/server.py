@@ -814,12 +814,16 @@ def _query_route(
         offset = _optional_int(params.get("offset", [None])[0]) or 0
         if not 0 <= offset < 2**63 - limit:
             raise ValueError("Invalid offset.")
+        years = params.get("year", [])
+        if len(years) > 1 or (years and re.fullmatch(r"[1-9][0-9]{3}", years[0]) is None):
+            raise ValueError("Provide one four-digit year.")
+        year = int(years[0]) if years else None
         if tags and not identifiers:
-            items = app_service.search_manually_tagged_images(tags[0], limit=limit + 1, offset=offset)
+            items = app_service.search_manually_tagged_images(tags[0], limit=limit + 1, offset=offset, year=year)
         else:
             person = _positive_id(identifiers[0]) if "person_id" in params else identifiers[0]
             items = app_service.search_confirmed_images(
-                person, limit=limit + 1, offset=offset, tag=tags[0] if tags else None,
+                person, limit=limit + 1, offset=offset, tag=tags[0] if tags else None, year=year,
             )
         return 200, {
             "items": [asdict(item) for item in items[:limit]],
