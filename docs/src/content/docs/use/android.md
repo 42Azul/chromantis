@@ -18,6 +18,8 @@ Open **Settings** (*Ajustes*) to choose light, dark, or the Android system appea
 
 Album-search follow-ups also accept `con Ana y Luis` or names separated by commas. The updated local service requires both people to be linked to the album, resolves saved aliases, and keeps the previous search if any name is unknown. Each person remains a separate removable filter.
 
+In an album, select two to four photos and tap **Crear collage** to preview them in selection order. Tap **Guardar collage** to save a new JPEG to the phone gallery. This requires Android 10 or later and server previews.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.

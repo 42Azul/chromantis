@@ -216,6 +216,20 @@ class FamilyComposeTest {
             click(label(R.string.save_selection))
             await("2 originales guardados")
             compose.onNodeWithText(label(R.string.save_selection)).assertIsNotEnabled()
+            click(label(R.string.make_collage))
+            compose.waitUntil(15000) {
+                compose
+                    .onAllNodesWithContentDescription(label(R.string.collage_preview))
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
+            capture("collage-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("collage-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            click(label(R.string.save_collage))
+            await(label(R.string.collage_saved))
+            click(label(R.string.close_collage))
             capture("share-selection-light")
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("share-selection-dark")

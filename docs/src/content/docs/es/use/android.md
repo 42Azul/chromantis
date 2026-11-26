@@ -18,6 +18,8 @@ En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elecc
 
 Los seguimientos de una búsqueda de álbumes también admiten `con Ana y Luis` o nombres separados por comas. El servicio local actualizado exige vínculos de ambas personas al álbum, resuelve sus alias y conserva la búsqueda anterior si algún nombre no existe. Cada persona mantiene un filtro independiente para quitarlo.
 
+En un álbum, selecciona de dos a cuatro fotos y pulsa **Crear collage** para verlas en el orden de selección. Pulsa **Guardar collage** para guardar un JPEG nuevo en la galería del móvil. Requiere Android 10 o posterior y miniaturas activadas en el servicio.
+
 ## Un recorrido breve
 
 Estas capturas muestran las pantallas Compose rediseñadas en una actividad de pruebas desechable, con fotos sintéticas. Otro ejemplo independiente comprueba que se puede buscar y etiquetar con el archivo desconectado. No contienen datos familiares. Las barras del sistema y la posición del teclado pueden variar en tu móvil.

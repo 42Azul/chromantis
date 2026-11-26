@@ -703,6 +703,7 @@ internal fun EntryScreen(
             var selected by rememberSaveable { mutableStateOf<List<String>?>(null) }
             var edit by remember { mutableStateOf(false) }
             var review by remember { mutableStateOf(false) }
+            var collage by remember { mutableStateOf(false) }
             var saved by rememberSaveable { mutableStateOf(false) }
             val selection = selected
             BackHandler(selection != null && !edit) { selected = null }
@@ -750,6 +751,18 @@ internal fun EntryScreen(
                         }
                         if (allowExportSelection && photoApi != null) {
                             ExportSelection(photoApi, selection, onExpired)
+                            if (
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                                    page.hasThumbnails &&
+                                    selection.size in 2..MAX_COLLAGE_PHOTOS
+                            ) {
+                                TextButton(onClick = { collage = true }) {
+                                    Text(stringResource(R.string.make_collage))
+                                }
+                                if (collage) {
+                                    PhotoCollage(photoApi, selection, onExpired) { collage = false }
+                                }
+                            }
                         }
                     }
                 }

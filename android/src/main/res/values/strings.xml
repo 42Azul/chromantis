@@ -185,5 +185,12 @@
     <string name="tag_name_filter">Nombre de la etiqueta</string>
     <string name="filter_tags">Filtrar etiquetas</string>
     <string name="exact_tag_results">Etiqueta: %s</string>
+    <string name="make_collage">Crear collage</string>
+    <string name="collage_preview">Vista previa del collage</string>
+    <string name="collage_loading">Preparando collage…</string>
+    <string name="collage_saving">Guardando collage…</string>
+    <string name="collage_saved">Collage guardado en la galería</string>
+    <string name="collage_save_error">No se pudo guardar el collage. Puedes intentarlo de nuevo.</string>
+    <string name="save_collage">Guardar collage</string>
+    <string name="close_collage">Cerrar</string>
 </resources>
-

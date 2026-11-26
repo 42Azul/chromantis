@@ -96,11 +96,13 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android paginated album return:** The Android Compose walkthrough filters the album catalog, opens exact matches, applies a year, and opens an album near the end of page two. Back preserves the year, page and list position in both appearances. Web tag discovery was delivered separately above. Next: Android collage from a bounded gallery or search selection.
 
-#### F2 — Make a family collage from search · Ready
+#### F2 — Make a family collage from search · In Progress
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
 - Use bounded preview decoding and local composition with existing media permissions. Pull only user-selected images, respect unavailable photos, strip source metadata from the output, and share only after explicit user action. Keep this on demand and benchmark the maximum selection before expanding it.
 - Acceptance: select photos from a tag search, remove one, change the order and export an image containing exactly the displayed set. Validate failed previews, cancellation and mobile memory cost with synthetic photos. Explore a dated contact sheet or a second layout only after the simple grid works.
+
+**Android gallery collage:** Select two to four photos in one gallery on Android 10 or later with previews enabled. The phone assembles their bounded previews in selection order, shows the result, and saves a new JPEG locally on request. The synthetic Compose fixture opens the preview in both themes and saves it to MediaStore. Next: offer the action in exact photo search and add ordering, removal and sharing. Web collage is pending.
 
 #### F3 — One Chromantis visual identity · Active design direction
 
