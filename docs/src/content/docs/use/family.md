@@ -94,6 +94,8 @@ With photos selected, choose **Preparar para compartir**. Once the files are rea
 
 In the album gallery, select photos on the current page and choose **Descargar selección** to save their originals as a ZIP. If the selection exceeds 16 MiB, mark fewer photos and retry. **Cancelar selección** cancels the download in the browser and clears the selection.
 
+In an album, choose **Seleccionar fotos** and select two to four photos on the current page. Open **Crear collage**, then **Descargar collage** to save the JPEG. The browser uses the album’s thumbnails.
+
 **Descargar álbum** includes all indexed photos in the album, including pages you have yet to open. If the normal ZIP exceeds 20 photos or 16 MiB, choose **Confirmar descarga grande** to try up to 100 photos and 64 MiB total, with at most 16 MiB per photo. **Cancelar transferencia** stops the browser request. If the album exceeds the larger limit, use selections or download individual originals.
 
 If an album save fails, the message beside **Guardar** explains what happened. Keep the editor open to retry with the same selections. If the album was saved and the next one fails to load, choose **Reintentar la carga** to continue from the same point. This retries only the read.

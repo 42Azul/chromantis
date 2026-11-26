@@ -114,6 +114,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android collage bounds:** The preview marks the photo whose thumbnail failed. The synthetic Compose fixture verifies the marker and recovery. The Android renderer test exercises four 480 × 480 inputs sequentially, with one live source bitmap and a 960 × 960 output bitmap (4.39 MiB combined pixel allocations, excluding codec and UI overhead). A controlled suspension verifies cancellation stops later thumbnail requests. Next: verify end-to-end memory on a physical phone before increasing the limit and evaluate a web collage. Web collage is pending.
 
+**Web album collage:** Select two to four photos on one album page to preview a grid and download a JPEG. The browser builds it locally from the existing thumbnail endpoint. The synthetic Chromium walkthrough verifies selection order, JPEG download, both themes, and return to the same selection. Next: offer the same action from photo-tag results and evaluate a native share action in supported browsers.
+
 #### F3 — One Chromantis visual identity · Active design direction
 
 - Apply the shared visual direction in [DESIGN.md](DESIGN.md) to Android and the family web. Start with a matched Search/Tags flow in light and dark mode. Give both clients the same vocabulary, typography roles, rounded icon style and semantic colors while following native navigation patterns.

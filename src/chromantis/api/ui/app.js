@@ -1412,6 +1412,64 @@ async function openPhotoReview(items, signal) {
   }
 }
 
+async function openPhotoCollage(paths, pageSignal) {
+  const request = new AbortController();
+  const canvas = element("canvas", { role: "img", "aria-label": "Vista previa del collage", hidden: "" });
+  const title = element("h2", {}, "Crear collage");
+  const status = element("p", { class: "message", role: "status" }, "Preparando collage…");
+  const download = button("Descargar collage", () => {
+    canvas.toBlob(blob => {
+      if (!blob || request.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      element("a", { href: url, download: "chromantis-collage.jpg" }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, "image/jpeg", 0.92);
+  }, "primary");
+  download.disabled = true;
+  const dialog = element("dialog", { class: "photo-collage", "aria-label": "Crear collage" },
+    title, status, canvas, element("div", { class: "actions" },
+      button("Cerrar", () => dialog.close()), download));
+  const close = () => {
+    request.abort();
+    pageSignal.removeEventListener("abort", close);
+    dialog.remove();
+    canvas.width = canvas.height = 0;
+  };
+  dialog.addEventListener("close", close, { once: true });
+  pageSignal.addEventListener("abort", close, { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+  const tile = 480;
+  canvas.width = tile * 2;
+  canvas.height = tile * Math.ceil(paths.length / 2);
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#f5f3ee";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  for (const [index, path] of paths.entries()) {
+    try {
+      const blob = await api("/thumbnail" + queryParams({ path }), { raw: true, signal: request.signal });
+      if (request.signal.aborted) return;
+      const bitmap = await createImageBitmap(blob);
+      try {
+        if (request.signal.aborted) return;
+        const scale = (tile - 12) / Math.max(bitmap.width, bitmap.height);
+        const width = bitmap.width * scale;
+        const height = bitmap.height * scale;
+        context.drawImage(bitmap, index % 2 * tile + (tile - width) / 2,
+          Math.floor(index / 2) * tile + (tile - height) / 2, width, height);
+      } finally {
+        bitmap.close();
+      }
+    } catch (error) {
+      if (!request.signal.aborted) status.textContent = `No se pudo cargar ${path.split("/").at(-1)}.`;
+      return;
+    }
+  }
+  canvas.hidden = false;
+  status.textContent = "";
+  download.disabled = false;
+}
+
 function photoSelectionControls(grid, signal, onSaved, albumPath) {
   const selected = new Set();
   let candidates = [];
@@ -1440,6 +1498,11 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     typeof Response.prototype.formData === "function";
   const selectedPaths = () => [...selected].map(item => item.path);
   const exportStatus = element("p", { class: "message", role: "status" });
+  const collage = button("Crear collage", () => {
+    const pageSignal = signal();
+    if (pageSignal.aborted || collage.disabled) return;
+    return openPhotoCollage(selectedPaths(), pageSignal);
+  });
   const download = button("Descargar selección", () => exportPhotos({ paths: selectedPaths() }));
   const downloadAlbum = button("Descargar álbum", () => exportPhotos(
     offerLargeAlbum ? { album: albumPath, large: true } : { album: albumPath },
@@ -1549,6 +1612,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     downloadAlbum.textContent = offerLargeAlbum ? "Confirmar descarga grande" : "Descargar álbum";
     downloadAlbum.disabled = toggle.disabled || !candidates.length || !!exportRequest;
     cancelExport.hidden = !exportRequest;
+    collage.disabled = toggle.disabled || selected.size < 2 || selected.size > 4 || !!exportRequest || sharing;
   }
 
   function setSelecting(active) {
@@ -1556,6 +1620,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     grid.classList.toggle("selecting-photos", active);
     toggle.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
     edit.hidden = all.hidden = !active;
+    collage.hidden = !active || !albumPath || !indexStatus?.thumbnails || typeof createImageBitmap !== "function";
     download.hidden = !active || !albumPath;
     share.hidden = download.hidden || !supportsShare;
     if (!active) {
@@ -1590,7 +1655,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     candidates = [];
   }
   setSelecting(false);
-  return { toggle, edit, all, download, downloadAlbum, share, cancelExport, exportStatus, append, setSelecting, update, beginPage };
+  return { toggle, edit, all, collage, download, downloadAlbum, share, cancelExport, exportStatus, append, setSelecting, update, beginPage };
 }
 
 function albumPhotoGallery(path, editable = canCurateAlbums) {
@@ -1611,7 +1676,7 @@ function albumPhotoGallery(path, editable = canCurateAlbums) {
   const previous = button("Fotos anteriores", () => load(Math.max(0, offset - limit)));
   const next = button("Más fotos", () => load(nextOffset));
   const navigation = element("div", { class: "actions", hidden: "" }, previous, next);
-  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, ...(editable ? [editSelection] : []), controls.download, controls.share, controls.downloadAlbum, controls.cancelExport);
+  const toolbar = element("div", { class: "actions" }, selectPhotos, controls.all, ...(editable ? [editSelection] : []), controls.download, controls.share, controls.downloadAlbum, controls.cancelExport, controls.collage);
   const panel = element("div", { hidden: "" }, toolbar, controls.exportStatus, grid, navigation, ...(editable ? [reviewPhotos] : []));
   const toggle = button("Ver fotos del álbum", () => {
     if (panel.hidden) return load(0);
