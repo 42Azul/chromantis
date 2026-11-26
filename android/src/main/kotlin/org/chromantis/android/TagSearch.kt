@@ -81,12 +81,9 @@ internal fun TagSearch(
                         onOpen = { selected = it.path },
                     )
                 } else if (photos) {
-                    EntryScreen(
-                        load = { api.taggedPhotos(tag, it) },
-                        onExpired = onExpired,
-                        onOpen = onOpenPhoto,
-                        photoApi = api,
-                    )
+                    Column(Modifier.fillMaxSize()) {
+                        ConfirmedPhotoSearch(api, onExpired, exactTag = tag, onOpen = onOpenPhoto)
+                    }
                 } else {
                     AlbumSearch(
                         api = api,

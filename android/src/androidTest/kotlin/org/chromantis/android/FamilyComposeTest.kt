@@ -237,11 +237,19 @@ class FamilyComposeTest {
             compose.onNodeWithContentDescription(label(R.string.back)).performClick()
             await(albumDisplayTitle(album.title))
             val photo = visiblePhotos.first()
+            val otherPhoto = visiblePhotos.last()
             runBlocking {
+                val ana = client.people().single { "Anita" in it.aliases }
                 client.savePhotoTags(
-                    client.photoTags(listOf(photo.path)),
+                    client.photoTags(listOf(photo.path, otherPhoto.path)),
                     null,
                     "Romería",
+                    remove = false,
+                )
+                client.savePhotoTags(
+                    client.photoTags(listOf(photo.path)),
+                    ana.id,
+                    "",
                     remove = false,
                 )
             }
@@ -283,10 +291,21 @@ class FamilyComposeTest {
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("ROMÉ")
             click(label(R.string.filter_tags))
-            await("Romeria · 1")
+            await("Romeria · 2")
             Log.i("ChromantisFixture", "Open exact photo results")
-            click("Romeria · 1")
+            click("Romeria · 2")
             await(photo.title)
+            await(otherPhoto.title)
+            compose.onNodeWithText(label(R.string.people_filter)).performTextInput("Anita")
+            compose.onNodeWithText(label(R.string.people_filter)).performImeAction()
+            await("Persona: Anita")
+            await(photo.title)
+            compose.onNodeWithText(otherPhoto.title).assertDoesNotExist()
+            capture("photo-tag-person-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            capture("photo-tag-person-light")
+            compose.onNodeWithContentDescription("Quitar filtro de Persona: Anita").performClick()
+            await(otherPhoto.title)
             click(label(R.string.settings))
             click(label(R.string.sign_out))
             await(label(R.string.connect_title))

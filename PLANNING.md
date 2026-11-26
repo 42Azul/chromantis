@@ -82,6 +82,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android album tag refinements:** Exact album results reuse guided year and person filters and keep the selected tag when removing either filter. The synthetic Compose fixture exercises adding both filters, zero matches and removing each filter. Next: photo search filters and tag shortcuts from album and photo details.
 
+**Android photo tag and person:** From the photo tag results, a name or alias narrows the exact match to confirmed photos. Removing the person filter restores the tag results. The synthetic Android fixture checks two photos with a shared tag and only one person confirmation. Next: add a photo year filter through the shared query and open exact searches from detail tags.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
