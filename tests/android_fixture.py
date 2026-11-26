@@ -19,7 +19,10 @@ from chromantis.source import ArchiveScanner, LocalArchiveSource
 
 
 @contextmanager
-def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False, beach_photos=33, split_year=False):
+def open_fixture(
+    cert, key, bind="127.0.0.1", port=8443, *,
+    index_only=False, beach_photos=33, split_year=False, tagged_albums=False,
+):
     with TemporaryDirectory(prefix="chromantis-android-") as directory:
         root = Path(directory)
         archive = root / "archive"
@@ -27,6 +30,8 @@ def open_fixture(cert, key, bind="127.0.0.1", port=8443, *, index_only=False, be
         if split_year:
             albums.extend((f"2003(1)/album_{number:02d}", 1) for number in range(30))
             albums.append(("2003(2)/album_00", 1))
+        if tagged_albums:
+            albums.extend((f"2025/2025-01-01_merienda_{number:02d}", 1) for number in range(1, 41))
         for folder, count in albums:
             album = archive / folder
             album.mkdir(parents=True)
@@ -86,4 +91,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

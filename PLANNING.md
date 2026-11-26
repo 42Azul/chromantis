@@ -49,7 +49,7 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Priority:** Fix reproducible blockers in sign-in, browsing, retrieval, saving and sharing first. A physical-device check or missing signing credential can stay open while independent product work ships. Then deliver F1 and F2 in order. Apply F3 to every touched screen from the first increment. Keep the existing MVP entries as the delivery ledger.
 
-#### F1 — Browse and search by tag · In Progress
+#### F1 — Browse and search by tag · Delivered on Android and web
 
 - Add a visible **Tags** entry inside Search on Android and the family web. Start with one shared, permission-scoped, paginated catalog from existing indexed and curated tags. List labels and counts for the selected result type. Filter tag names locally when the catalog is complete or through the catalog API when paginated. Render tags on album and photo details as shortcuts into Search.
 - Support exact tag-only search for albums and manually tagged photos, with a clear result-type switch. Add removable year and person filters and retain the query and list position when opening a result. Show album-level evidence on album matches and photo-level evidence on confirmed photo matches. Keep folder navigation and editing in their existing destinations. Reuse tag normalization and SQLite; keep MCP-produced labels discoverable through the same metadata path.
@@ -94,7 +94,9 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android paginated return:** The paged album list and photo grid retain their scroll state while the result page reloads. The synthetic Compose walkthrough checks the second page of an exact photo tag search with a year filter, opening a photo near the end and returning to the same visible result. Next: verify the equivalent scroll-position behavior for paginated album tags, then start the Android collage.
 
-#### F2 — Make a family collage from search · Ready after F1
+**Android paginated album return:** The Android Compose walkthrough filters the album catalog, opens exact matches, applies a year, and opens an album near the end of page two. Back preserves the year, page and list position in both appearances. Web tag discovery was delivered separately above. Next: Android collage from a bounded gallery or search selection.
+
+#### F2 — Make a family collage from search · Ready
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
 - Use bounded preview decoding and local composition with existing media permissions. Pull only user-selected images, respect unavailable photos, strip source metadata from the output, and share only after explicit user action. Keep this on demand and benchmark the maximum selection before expanding it.

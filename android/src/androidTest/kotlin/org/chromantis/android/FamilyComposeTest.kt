@@ -406,6 +406,36 @@ class FamilyComposeTest {
             capture("search-return-light")
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("search-return-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            click(label(R.string.back))
+            click(label(R.string.album_tag_catalog))
+            compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
+            compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("Merienda")
+            click(label(R.string.filter_tags))
+            await("Merienda · 40")
+            compose.onNodeWithText("Merienda · 40").performSemanticsAction(SemanticsActions.OnClick)
+            await(context.getString(R.string.exact_tag_results, "merienda"))
+            refineTags("solo 2025")
+            await("Año: 2025")
+            await(label(R.string.next))
+            click(label(R.string.next))
+            await(label(R.string.previous))
+            val lastSnackAlbum =
+                runBlocking {
+                    client.albums("2025", ChromantisApi.pageSize, tag = "merienda").entries.last()
+                }
+            val lastSnackTitle = albumDisplayTitle(lastSnackAlbum.title)
+            compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(lastSnackTitle))
+            click(lastSnackTitle)
+            await(lastSnackAlbum.path)
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await(lastSnackTitle)
+            compose.onNodeWithText(lastSnackTitle).assertIsDisplayed()
+            compose.onNodeWithText("Año: 2025").assertIsDisplayed()
+            compose.onNodeWithText(label(R.string.previous)).assertIsDisplayed()
+            capture("album-search-return-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("album-search-return-dark")
             click(label(R.string.settings))
             click(label(R.string.sign_out))
             await(label(R.string.connect_title))
