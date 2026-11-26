@@ -92,6 +92,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android photo tag shortcuts:** The viewer reads saved manual labels independently of the original photo and opens exact photo results from each label. The synthetic Compose fixture opens a label and returns to the photo and the prior result list, with both themes captured. Next: verify list position and active filters on return from paginated Android searches.
 
+**Android paginated return:** The paged album list and photo grid retain their scroll state while the result page reloads. The synthetic Compose walkthrough checks the second page of an exact photo tag search with a year filter, opening a photo near the end and returning to the same visible result. Next: verify the equivalent scroll-position behavior for paginated album tags, then start the Android collage.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.

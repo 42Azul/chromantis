@@ -366,6 +366,46 @@ class FamilyComposeTest {
             await("Persona: Anita")
             await(photo.title)
             compose.onNodeWithText(otherPhoto.title).assertDoesNotExist()
+            // Exercise a scrolled second page with a filter active.
+            val lastBeachPhoto = runBlocking {
+                val first = client.photos(beach.path, 0)
+                val second = client.photos(beach.path, requireNotNull(first.nextOffset))
+                for (page in listOf(first, second)) {
+                    client.savePhotoTags(
+                        client.photoTags(page.entries.map { it.path }),
+                        null,
+                        "Paseo",
+                        remove = false,
+                    )
+                }
+                second.entries.last()
+            }
+            click(label(R.string.back))
+            compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
+            compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("Paseo")
+            click(label(R.string.filter_tags))
+            await("Paseo · 59")
+            click("Paseo · 59")
+            await(label(R.string.next))
+            compose.onNodeWithText(label(R.string.photo_album_year)).performTextInput("2024")
+            click(label(R.string.apply_photo_year))
+            await("Año: 2024")
+            await(label(R.string.next))
+            click(label(R.string.next))
+            await(label(R.string.previous))
+            compose
+                .onNode(hasScrollToIndexAction())
+                .performScrollToNode(hasText(lastBeachPhoto.title))
+            click(lastBeachPhoto.title)
+            await(label(R.string.save_original))
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await(lastBeachPhoto.title)
+            compose.onNodeWithText(lastBeachPhoto.title).assertIsDisplayed()
+            compose.onNodeWithText("Año: 2024").assertIsDisplayed()
+            compose.onNodeWithText(label(R.string.previous)).assertIsDisplayed()
+            capture("search-return-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("search-return-dark")
             click(label(R.string.settings))
             click(label(R.string.sign_out))
             await(label(R.string.connect_title))

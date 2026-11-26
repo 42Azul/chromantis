@@ -28,7 +28,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -688,6 +690,9 @@ internal fun EntryScreen(
     var offset by rememberSaveable { mutableIntStateOf(initialOffset) }
     var reload by remember { mutableIntStateOf(0) }
     key(offset, reload) {
+        // Register scroll state before the asynchronous page load, including on Back.
+        val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+        val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
         LoadContent(onExpired, load = { load(offset) }) { page ->
             if (onPageLoaded != null) {
                 LaunchedEffect(page) {
@@ -751,6 +756,7 @@ internal fun EntryScreen(
                 if (photoApi != null) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(110.dp),
+                        state = gridState,
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -796,6 +802,7 @@ internal fun EntryScreen(
                 } else {
                     LazyColumn(
                         Modifier.weight(1f),
+                        state = listState,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         items(page.entries, key = { it.path }) { entry ->
