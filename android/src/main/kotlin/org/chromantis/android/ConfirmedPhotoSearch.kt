@@ -141,6 +141,7 @@ internal fun ConfirmedPhotoSearch(
                 onExpired = onExpired,
                 onOpen = onOpen,
                 photoApi = api,
+                allowCollage = activeTag.isNotBlank(),
             )
         }
     }

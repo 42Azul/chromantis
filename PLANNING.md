@@ -104,6 +104,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android gallery collage:** Select two to four photos in one gallery on Android 10 or later with previews enabled. The phone assembles their bounded previews in selection order, shows the result, and saves a new JPEG locally on request. The synthetic Compose fixture opens the preview in both themes and saves it to MediaStore. Next: offer the action in exact photo search and add ordering, removal and sharing. Web collage is pending.
 
+**Android collage from photo search:** Exact photo tag results reuse selection and local JPEG export across albums on the current page. The real Compose fixture selects two tagged photos from different years, previews both themes, saves, and resumes the same search. Next: allow removing and reordering photos in the preview and share the resulting JPEG. Web collage is pending.
+
 #### F3 — One Chromantis visual identity · Active design direction
 
 - Apply the shared visual direction in [DESIGN.md](DESIGN.md) to Android and the family web. Start with a matched Search/Tags flow in light and dark mode. Give both clients the same vocabulary, typography roles, rounded icon style and semantic colors while following native navigation patterns.

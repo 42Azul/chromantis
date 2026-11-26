@@ -682,11 +682,11 @@ internal fun EntryScreen(
     folderApi: ChromantisApi? = null,
     allowPhotoEdits: Boolean = false,
     allowExportSelection: Boolean = false,
+    allowCollage: Boolean = allowExportSelection,
     initialOffset: Int = 0,
     onPageLoaded: ((Int) -> Unit)? = null,
     header: @Composable (EntryPage) -> Unit = {},
 ) {
-    val canSelect = allowPhotoEdits || allowExportSelection
     var offset by rememberSaveable { mutableIntStateOf(initialOffset) }
     var reload by remember { mutableIntStateOf(0) }
     key(offset, reload) {
@@ -694,6 +694,9 @@ internal fun EntryScreen(
         val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
         val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
         LoadContent(onExpired, load = { load(offset) }) { page ->
+            val canCollage =
+                allowCollage && page.hasThumbnails && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            val canSelect = allowPhotoEdits || allowExportSelection || canCollage
             if (onPageLoaded != null) {
                 LaunchedEffect(page) {
                     if (page.entries.isEmpty() && offset > 0) offset = 0
@@ -751,17 +754,17 @@ internal fun EntryScreen(
                         }
                         if (allowExportSelection && photoApi != null) {
                             ExportSelection(photoApi, selection, onExpired)
-                            if (
-                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                                    page.hasThumbnails &&
-                                    selection.size in 2..MAX_COLLAGE_PHOTOS
-                            ) {
-                                TextButton(onClick = { collage = true }) {
-                                    Text(stringResource(R.string.make_collage))
-                                }
-                                if (collage) {
-                                    PhotoCollage(photoApi, selection, onExpired) { collage = false }
-                                }
+                        }
+                        if (
+                            canCollage &&
+                                selection.size in 2..MAX_COLLAGE_PHOTOS &&
+                                photoApi != null
+                        ) {
+                            TextButton(onClick = { collage = true }) {
+                                Text(stringResource(R.string.make_collage))
+                            }
+                            if (collage) {
+                                PhotoCollage(photoApi, selection, onExpired) { collage = false }
                             }
                         }
                     }

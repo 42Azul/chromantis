@@ -89,7 +89,7 @@ jobs:
           gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true
       - name: Print synthetic Compose screenshots
         run: |
-          for name in sign-in-light folders-light classify-light albums-light gallery-light share-selection-light share-selection-dark original-light original-dark review-light folders-dark search-dark tags-light tags-dark tag-refinements-light tag-refinements-dark photo-tag-person-light photo-tag-person-dark photo-tag-year-light photo-tag-year-dark album-shortcut-light album-shortcut-dark photo-shortcut-light photo-shortcut-dark search-return-light search-return-dark album-search-return-light album-search-return-dark collage-light collage-dark sign-in-dark; do
+          for name in sign-in-light folders-light classify-light albums-light gallery-light share-selection-light share-selection-dark original-light original-dark review-light folders-dark search-dark tags-light tags-dark tag-refinements-light tag-refinements-dark photo-tag-person-light photo-tag-person-dark photo-tag-year-light photo-tag-year-dark album-shortcut-light album-shortcut-dark photo-shortcut-light photo-shortcut-dark search-return-light search-return-dark album-search-return-light album-search-return-dark collage-light collage-dark search-collage-light search-collage-dark sign-in-dark; do
             echo "CHROMANTIS_SCREENSHOT_BEGIN:$name"
             adb exec-out cat "/sdcard/Download/chromantis-compose/$name.png" > "$RUNNER_TEMP/$name.png"
             python3 -c 'from pathlib import Path; import sys; assert Path(sys.argv[1]).read_bytes().startswith(bytes.fromhex("89504e470d0a1a0a"))' "$RUNNER_TEMP/$name.png"

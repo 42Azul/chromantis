@@ -275,7 +275,8 @@ class FamilyComposeTest {
             compose.onNodeWithContentDescription(label(R.string.back)).performClick()
             await(albumDisplayTitle(album.title))
             val photo = visiblePhotos.first()
-            val otherPhoto = visiblePhotos.last()
+            val beach = runBlocking { client.albums("", 0, tag = "playa") }.entries.single()
+            val otherPhoto = runBlocking { client.photos(beach.path, 0).entries[2] }
             runBlocking {
                 val ana = client.people().single { "Anita" in it.aliases }
                 client.savePhotoTags(
@@ -304,7 +305,6 @@ class FamilyComposeTest {
             Log.i("ChromantisFixture", "Open exact album results")
             click("Playa · 1")
             await(context.getString(R.string.exact_tag_results, "playa"))
-            val beach = runBlocking { client.albums("", 0, tag = "playa") }.entries.single()
             await(albumDisplayTitle(beach.title))
             fun refineTags(text: String) {
                 compose.onNodeWithText(label(R.string.refine_hint)).performTextInput(text)
@@ -334,6 +334,25 @@ class FamilyComposeTest {
             click("Romeria · 2")
             await(photo.title)
             await(otherPhoto.title)
+            compose
+                .onNodeWithText(label(R.string.select_photos))
+                .performSemanticsAction(SemanticsActions.OnClick)
+            click(otherPhoto.title)
+            click(photo.title)
+            click(label(R.string.make_collage))
+            compose.waitUntil(15000) {
+                compose
+                    .onAllNodesWithContentDescription(label(R.string.collage_preview))
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
+            capture("search-collage-light", compose.onNode(isDialog()))
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("search-collage-dark", compose.onNode(isDialog()))
+            click(label(R.string.save_collage))
+            await(label(R.string.collage_saved))
+            click(label(R.string.close_collage))
+            click(label(R.string.cancel))
             compose.onNodeWithText(label(R.string.people_filter)).performTextInput("Anita")
             compose.onNodeWithText(label(R.string.people_filter)).performImeAction()
             await("Persona: Anita")
