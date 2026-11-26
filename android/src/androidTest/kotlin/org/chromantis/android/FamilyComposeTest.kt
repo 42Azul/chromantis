@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -206,7 +207,10 @@ class FamilyComposeTest {
             await(context.getString(R.string.exact_tag_results, "excursion"))
             compose.onNodeWithContentDescription(label(R.string.back)).performClick()
             await(label(R.string.review_album))
-            click(label(R.string.select_photos))
+            await(label(R.string.select_photos))
+            compose
+                .onNodeWithText(label(R.string.select_photos))
+                .performSemanticsAction(SemanticsActions.OnClick)
             visiblePhotos.forEach { click(it.title) }
             compose.onNodeWithText(label(R.string.share_selection)).assertIsDisplayed()
             click(label(R.string.save_selection))
