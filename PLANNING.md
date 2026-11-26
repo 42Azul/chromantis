@@ -116,6 +116,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Web album collage:** Select two to four photos on one album page to preview a grid and download a JPEG. The browser builds it locally from the existing thumbnail endpoint. The synthetic Chromium walkthrough verifies selection order, JPEG download, both themes, and return to the same selection. Next: offer the same action from photo-tag results and evaluate a native share action in supported browsers.
 
+**Web collage from photo tags:** The exact photo results offer the same two-to-four-photo collage action. Chromium verifies two photos with a shared manual label from different albums and years, their selection order, JPEG download in the browser, and return to the same selection in both themes. Next: evaluate the existing browser share capability for a generated JPEG.
+
 #### F3 — One Chromantis visual identity · Active design direction
 
 - Apply the shared visual direction in [DESIGN.md](DESIGN.md) to Android and the family web. Start with a matched Search/Tags flow in light and dark mode. Give both clients the same vocabulary, typography roles, rounded icon style and semantic colors while following native navigation patterns.

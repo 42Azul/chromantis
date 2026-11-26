@@ -687,15 +687,18 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
   message("result-count", String(page.items.length));
   message("archive-status", page.items.length ? "" : tag ? "No hay fotos con esa persona y esa etiqueta manual." : empty);
   const signal = photoRequests.signal;
-  const selection = photoSelectionControls($("results"), () => signal, refresh);
+  const canCollage = action === "tagged" && !!indexStatus?.thumbnails && typeof createImageBitmap === "function";
+  const canSelect = canCurateAlbums || canCollage;
+  const selection = photoSelectionControls($("results"), () => signal, refresh, undefined, canCollage);
   const tools = $("photo-results-tools");
-  tools.replaceChildren(selection.toggle, selection.all, selection.edit);
-  tools.hidden = !canCurateAlbums || !page.items.length;
+  tools.replaceChildren(selection.toggle, selection.all,
+    ...(canCurateAlbums ? [selection.edit] : []), ...(canCollage ? [selection.collage] : []));
+  tools.hidden = !canSelect || !page.items.length;
   $("results").replaceChildren(...page.items.map(item => {
     const card = photoCard(item, photoRequests.signal, {
       spanish: true, originalOnClick: true, showAlbum: true, editTags: canCurateAlbums, onTagsSaved: refresh,
     });
-    if (canCurateAlbums) selection.append(card, item);
+    if (canSelect) selection.append(card, item);
     if (item.folder_path) {
       const parent = { path: item.folder_path, title: item.folder_path.split("/").at(-1), event_date: item.event_date };
       const album = button("Ver álbum", () => openAlbumFromResults(parent, saved => {
@@ -1470,7 +1473,7 @@ async function openPhotoCollage(paths, pageSignal) {
   download.disabled = false;
 }
 
-function photoSelectionControls(grid, signal, onSaved, albumPath) {
+function photoSelectionControls(grid, signal, onSaved, albumPath, allowCollage = !!albumPath) {
   const selected = new Set();
   let candidates = [];
   let selecting = false;
@@ -1620,7 +1623,7 @@ function photoSelectionControls(grid, signal, onSaved, albumPath) {
     grid.classList.toggle("selecting-photos", active);
     toggle.textContent = active ? "Cancelar selección" : "Seleccionar fotos";
     edit.hidden = all.hidden = !active;
-    collage.hidden = !active || !albumPath || !indexStatus?.thumbnails || typeof createImageBitmap !== "function";
+    collage.hidden = !active || !allowCollage || !indexStatus?.thumbnails || typeof createImageBitmap !== "function";
     download.hidden = !active || !albumPath;
     share.hidden = download.hidden || !supportsShare;
     if (!active) {

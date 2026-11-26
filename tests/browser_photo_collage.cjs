@@ -71,6 +71,62 @@ async function main() {
     await page.keyboard.press("Escape");
     await dialog.waitFor({ state: "hidden" });
     assert.ok(await page.getByRole("checkbox", { name: /Photo_04.jpg/ }).isChecked());
+
+    failThumbnail = false;
+    const taggedPaths = ["2023/2023-10-05_excursion/Photo_01.jpg", "2024/2024-07-01_playa/Photo_04.jpg"];
+    const tagged = await page.evaluate(async selection => {
+      const query = new URLSearchParams(selection.map(path => ["path", path]));
+      const response = await fetch(`/api/v1/photo-tags?${query}`);
+      if (!response.ok) return response.status;
+      const { items } = await response.json();
+      const saved = await fetch("/api/v1/photo-tags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photos: items.map(({ path, identity }) => ({ path, identity })),
+          manual_add: ["Romería"],
+        }),
+      });
+      return saved.status;
+    }, taggedPaths);
+    assert.equal(tagged, 200);
+    await page.locator("#archive-nav").click();
+    const catalog = page.locator("#album-tag-catalog");
+    await catalog.locator("summary").click();
+    await catalog.locator("#tag-catalog-kind").selectOption("photos");
+    await catalog.getByRole("button", { name: "romeria · 2", exact: true }).click();
+    const tools = page.locator("#photo-results-tools");
+    await tools.getByRole("button", { name: "Seleccionar fotos", exact: true }).click();
+    for (const path of taggedPaths) {
+      await page.getByRole("checkbox", { name: `Seleccionar ${path}`, exact: true }).check();
+    }
+    const before = paths.length;
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await tools.getByRole("button", { name: "Crear collage" }).click();
+      const preview = dialog.getByRole("img", { name: "Vista previa del collage" });
+      await preview.waitFor();
+      const reds = await preview.evaluate(canvas => [
+        canvas.getContext("2d").getImageData(240, 240, 1, 1).data[0],
+        canvas.getContext("2d").getImageData(720, 240, 1, 1).data[0],
+      ]);
+      assert.ok(reds[0] >= 15 && reds[0] <= 31);
+      assert.ok(reds[1] >= 84 && reds[1] <= 100);
+      await dialog.screenshot({ path: `/tmp/chromantis-search-collage-${mode}.png` });
+      if (mode === "dark") {
+        const [file] = await Promise.all([
+          page.waitForEvent("download"),
+          dialog.getByRole("button", { name: "Descargar collage" }).click(),
+        ]);
+        assert.equal(readFileSync(await file.path()).subarray(0, 3).toString("hex"), "ffd8ff");
+      }
+      await dialog.getByRole("button", { name: "Cerrar" }).click();
+      await dialog.waitFor({ state: "hidden" });
+    }
+    assert.ok(!paths.slice(before).includes("/api/v1/image"));
+    for (const path of taggedPaths) {
+      assert.ok(await page.getByRole("checkbox", { name: `Seleccionar ${path}`, exact: true }).isChecked());
+    }
   } finally {
     await browser.close();
   }
