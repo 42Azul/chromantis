@@ -54,9 +54,10 @@ internal fun AlbumSearch(
     onConfirmedPhotos: () -> Unit,
     onOpenPhoto: (Entry) -> Unit,
     onOpen: (Entry) -> Unit,
+    tag: String? = null,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
-    var query by rememberSaveable { mutableStateOf<String?>(null) }
+    var query by rememberSaveable { mutableStateOf<String?>(if (tag == null) null else "") }
     var summary by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<Int?>(null) }
     var choices by remember { mutableStateOf(emptyList<Entry>()) }
@@ -77,7 +78,7 @@ internal fun AlbumSearch(
         busy = true
         error = null
         scope.launch {
-            attempt { api.refineAlbums(query.orEmpty(), text) }
+            attempt { api.refineAlbums(query.orEmpty(), text, tag) }
                 .onSuccess { result ->
                     choices = result.choices
                     result.query?.let {
@@ -100,7 +101,8 @@ internal fun AlbumSearch(
     fun submit() {
         val text = draft.trim()
         if (text.isEmpty() || busy) return
-        if (query.isNullOrEmpty()) start(text) else refine(text)
+        if (tag != null) focus.clearFocus()
+        if (tag == null && query.isNullOrEmpty()) start(text) else refine(text)
     }
 
     var showTags by rememberSaveable { mutableStateOf(false) }
@@ -111,35 +113,42 @@ internal fun AlbumSearch(
 
     val activeQuery = query
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    stringResource(R.string.search_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    stringResource(R.string.search_intro),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (activeQuery != null) {
-                TextButton(
-                    onClick = {
-                        query = null
-                        summary = ""
-                        draft = ""
-                        choices = emptyList()
-                        error = null
-                    },
-                    enabled = !busy,
-                ) {
-                    Text(stringResource(R.string.new_search))
+        if (tag != null) {
+            Text(
+                stringResource(R.string.exact_tag_results, tag),
+                style = MaterialTheme.typography.titleLarge,
+            )
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(R.string.search_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        stringResource(R.string.search_intro),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (activeQuery != null) {
+                    TextButton(
+                        onClick = {
+                            query = null
+                            summary = ""
+                            draft = ""
+                            choices = emptyList()
+                            error = null
+                        },
+                        enabled = !busy,
+                    ) {
+                        Text(stringResource(R.string.new_search))
+                    }
                 }
             }
         }
-        if (activeQuery != null) {
+        if (tag == null && activeQuery != null) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Surface(
                     shape =
@@ -169,8 +178,10 @@ internal fun AlbumSearch(
             enabled = !busy,
             onSubmit = ::submit,
         )
-        OutlinedButton(onClick = { showTags = true }, enabled = !busy) {
-            Text(stringResource(R.string.search_tags))
+        if (tag == null) {
+            OutlinedButton(onClick = { showTags = true }, enabled = !busy) {
+                Text(stringResource(R.string.search_tags))
+            }
         }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
@@ -212,7 +223,14 @@ internal fun AlbumSearch(
                 key(activeQuery) {
                     EntryScreen(
                         folderApi = api,
-                        load = { offset -> api.albums(activeQuery, offset, includeFilters = true) },
+                        load = { offset ->
+                            api.albums(
+                                activeQuery,
+                                offset,
+                                includeFilters = true,
+                                tag = tag.orEmpty(),
+                            )
+                        },
                         onExpired = onExpired,
                         onOpen = onOpen,
                         header = { page ->

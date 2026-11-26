@@ -260,6 +260,23 @@ class FamilyComposeTest {
             await(context.getString(R.string.exact_tag_results, "playa"))
             val beach = runBlocking { client.albums("", 0, tag = "playa") }.entries.single()
             await(albumDisplayTitle(beach.title))
+            fun refineTags(text: String) {
+                compose.onNodeWithText(label(R.string.refine_hint)).performTextInput(text)
+                compose.onNodeWithContentDescription(label(R.string.refine)).performClick()
+            }
+            refineTags("solo 2024")
+            await("Año: 2024")
+            refineTags("con Anita")
+            await("Persona: Ana")
+            await(label(R.string.no_results))
+            capture("tag-refinements-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("tag-refinements-dark")
+            compose.onNodeWithContentDescription("Quitar filtro de Persona: Ana").performClick()
+            await(albumDisplayTitle(beach.title))
+            compose.onNodeWithText("Año: 2024").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Quitar filtro de Año: 2024").performClick()
+            await(albumDisplayTitle(beach.title))
             click(label(R.string.back))
             Log.i("ChromantisFixture", "Switch to photo tags")
             click(label(R.string.photo_tag_catalog))

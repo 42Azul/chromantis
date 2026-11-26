@@ -95,9 +95,10 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
 
     suspend fun years() = EntryPage(json("/years").getJSONArray("items").mapObjects(::yearEntry))
 
-    suspend fun refineAlbums(query: String, text: String): AlbumRefinement =
+    suspend fun refineAlbums(query: String, text: String, tag: String? = null): AlbumRefinement =
         withContext(Dispatchers.IO) {
-            request("POST", "/refine", JSONObject().put("q", query).put("text", text)) {
+            val body = JSONObject().put("q", query).put("text", text).put("tag", tag)
+            request("POST", "/refine", body) {
                 albumRefinement(JSONObject(it.readBytes(1 shl 20).decodeToString()))
             }
         }

@@ -63,7 +63,7 @@ internal fun TagSearch(
             ) {
                 Text(stringResource(R.string.filter_tags))
             }
-        } else {
+        } else if (photos) {
             Text(stringResource(R.string.exact_tag_results, tag))
         }
         Box(Modifier.weight(1f)) {
@@ -80,15 +80,21 @@ internal fun TagSearch(
                         onExpired = onExpired,
                         onOpen = { selected = it.path },
                     )
-                } else {
+                } else if (photos) {
                     EntryScreen(
-                        load = {
-                            if (photos) api.taggedPhotos(tag, it) else api.albums("", it, tag = tag)
-                        },
+                        load = { api.taggedPhotos(tag, it) },
                         onExpired = onExpired,
-                        onOpen = if (photos) onOpenPhoto else onOpenAlbum,
-                        photoApi = if (photos) api else null,
-                        folderApi = if (photos) null else api,
+                        onOpen = onOpenPhoto,
+                        photoApi = api,
+                    )
+                } else {
+                    AlbumSearch(
+                        api = api,
+                        onExpired = onExpired,
+                        onConfirmedPhotos = {},
+                        onOpenPhoto = onOpenPhoto,
+                        onOpen = onOpenAlbum,
+                        tag = tag,
                     )
                 }
             }

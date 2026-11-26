@@ -80,6 +80,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android catalog screen:** In Search, open Tags, switch between album labels and manual photo labels, filter by name and open exact matches. The Compose fixture covers both catalogs and captures the tag screen in light and dark. Next: add year/person filters to tag results and shortcuts from the album and photo details.
 
+**Android album tag refinements:** Exact album results reuse guided year and person filters and keep the selected tag when removing either filter. The synthetic Compose fixture exercises adding both filters, zero matches and removing each filter. Next: photo search filters and tag shortcuts from album and photo details.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
