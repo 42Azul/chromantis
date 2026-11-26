@@ -189,6 +189,7 @@ internal enum class Level {
     SEARCH,
     CONFIRMED,
     ALBUM_TAG,
+    PHOTO_TAG,
     INDEX,
     PHOTOS,
     ORIGINAL,
@@ -364,6 +365,13 @@ internal fun Explorer(
                             },
                             tag = requireNotNull(page.path),
                         )
+                    Level.PHOTO_TAG -> {
+                        val tag = requireNotNull(page.path)
+                        Text(stringResource(R.string.exact_tag_results, tag))
+                        ConfirmedPhotoSearch(api, expire, exactTag = tag) {
+                            pages = pages + Page(Level.ORIGINAL, it.title, it.path)
+                        }
+                    }
                     Level.CONFIRMED ->
                         ConfirmedPhotoSearch(api, expire) {
                             pages = pages + Page(Level.ORIGINAL, it.title, it.path)
@@ -419,9 +427,15 @@ internal fun Explorer(
                         val browsingFromSearch =
                             workspace.level == Level.ASK ||
                                 pages.any { it.level == Level.ALBUM_TAG }
-                        AlbumTagShortcuts(api, requireNotNull(page.path), expire) { tag ->
-                            pages = pages + Page(Level.ALBUM_TAG, search, tag)
-                        }
+                        val path = requireNotNull(page.path)
+                        TagShortcuts(
+                            api,
+                            path,
+                            R.string.search_album_by_tag,
+                            expire,
+                            load = { api.albumTags(path) },
+                            onOpen = { pages = pages + Page(Level.ALBUM_TAG, search, it) },
+                        )
                         if (!browsingFromSearch) {
                             TextButton(
                                 onClick = {
@@ -444,8 +458,20 @@ internal fun Explorer(
                             },
                         )
                     }
-                    Level.ORIGINAL ->
-                        OriginalPhoto(api, requireNotNull(page.path), page.title, expire)
+                    Level.ORIGINAL -> {
+                        val path = requireNotNull(page.path)
+                        TagShortcuts(
+                            api,
+                            path,
+                            R.string.search_photo_by_tag,
+                            expire,
+                            load = {
+                                api.photoTags(listOf(path)).singleOrNull()?.tags.orEmpty().sorted()
+                            },
+                            onOpen = { pages = pages + Page(Level.PHOTO_TAG, search, it) },
+                        )
+                        OriginalPhoto(api, path, page.title, expire)
+                    }
                     Level.REVIEW -> AlbumReview(api, page.path, expire, ::goBack)
                 }
             }
@@ -456,22 +482,22 @@ internal fun Explorer(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AlbumTagShortcuts(
+private fun TagShortcuts(
     api: ChromantisApi,
     path: String,
+    descriptionRes: Int,
     onExpired: () -> Unit,
+    load: suspend () -> List<String>,
     onOpen: (String) -> Unit,
 ) {
     var tags by remember(api, path) { mutableStateOf(emptyList<String>()) }
     LaunchedEffect(api, path) {
-        attempt { api.albumTags(path) }
-            .onSuccess { tags = it }
-            .onFailure { if (it.hasStatus(401)) onExpired() }
+        attempt { load() }.onSuccess { tags = it }.onFailure { if (it.hasStatus(401)) onExpired() }
     }
     if (tags.isEmpty()) return
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         tags.forEach { tag ->
-            val description = stringResource(R.string.search_album_by_tag, tag)
+            val description = stringResource(descriptionRes, tag)
             AssistChip(
                 onClick = { onOpen(tag) },
                 label = { Text(tag) },

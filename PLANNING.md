@@ -90,6 +90,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android album tag shortcuts:** Album galleries show their indexed and curated labels. A label opens exact album results, keeps galleries opened from those results in browsing mode and provides a return path to the original album. The synthetic Compose fixture verifies the shortcut, the return path and both themes. Next: open exact searches directly from the manual tags in the photo viewer.
 
+**Android photo tag shortcuts:** The viewer reads saved manual labels independently of the original photo and opens exact photo results from each label. The synthetic Compose fixture opens a label and returns to the photo and the prior result list, with both themes captured. Next: verify list position and active filters on return from paginated Android searches.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.
