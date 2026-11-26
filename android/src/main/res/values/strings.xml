@@ -43,6 +43,8 @@
     <string name="refine_hint">Afinar búsqueda</string>
     <string name="refine">Afinar</string>
     <string name="new_search">Nueva búsqueda</string>
+    <string name="photo_album_year">Año del álbum</string>
+    <string name="apply_photo_year">Aplicar año</string>
     <string name="filter_year">Año: %1$s</string>
     <string name="filter_person">Persona: %1$s</string>
     <string name="filter_album">Álbum: %1$s</string>

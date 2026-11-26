@@ -133,17 +133,27 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
         )
     }
 
-    suspend fun taggedPhotos(tag: String, offset: Int): EntryPage =
-        imagePage("/confirmed-images?tag=${encode(tag)}", offset)
+    suspend fun taggedPhotos(tag: String, offset: Int, year: Int? = null): EntryPage =
+        imagePage("/confirmed-images?tag=${encode(tag)}${photoYearParameter(year)}", offset)
 
     suspend fun photos(path: String, offset: Int): EntryPage {
         return imagePage("/album-images?path=${encode(path)}", offset)
     }
 
-    suspend fun confirmedPhotos(person: String, offset: Int, tag: String = ""): EntryPage {
+    suspend fun confirmedPhotos(
+        person: String,
+        offset: Int,
+        tag: String = "",
+        year: Int? = null,
+    ): EntryPage {
         val filter = if (tag.isBlank()) "" else "&tag=${encode(tag.trim())}"
-        return imagePage("/confirmed-images?person=${encode(person)}$filter", offset)
+        return imagePage(
+            "/confirmed-images?person=${encode(person)}$filter${photoYearParameter(year)}",
+            offset,
+        )
     }
+
+    private fun photoYearParameter(year: Int?): String = if (year == null) "" else "&year=$year"
 
     private suspend fun imagePage(route: String, offset: Int): EntryPage {
         val response = json("$route&limit=$pageSize&offset=$offset")

@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -35,7 +36,15 @@ internal fun ConfirmedPhotoSearch(
     var draftTag by rememberSaveable { mutableStateOf("") }
     var person by rememberSaveable { mutableStateOf("") }
     var tag by rememberSaveable { mutableStateOf("") }
+    var draftYear by rememberSaveable { mutableStateOf("") }
+    var year by rememberSaveable { mutableStateOf<Int?>(null) }
     val focus = LocalFocusManager.current
+    val validYear = draftYear.toIntOrNull()?.takeIf { it in 1000..9999 }
+    fun applyYear() {
+        val value = validYear ?: return
+        focus.clearFocus()
+        year = value
+    }
     fun submit() {
         if (draft.isBlank()) return
         focus.clearFocus()
@@ -80,17 +89,54 @@ internal fun ConfirmedPhotoSearch(
             modifier = Modifier.semantics { contentDescription = description },
         )
     }
+    if (exactTag != null) {
+        val activeYear = year
+        if (activeYear == null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = draftYear,
+                    onValueChange = {
+                        if (it.length <= 4 && it.all { digit -> digit in '0'..'9' }) draftYear = it
+                    },
+                    label = { Text(stringResource(R.string.photo_album_year)) },
+                    singleLine = true,
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Search,
+                        ),
+                    keyboardActions = KeyboardActions(onSearch = { applyYear() }),
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = ::applyYear, enabled = validYear != null) {
+                    Text(stringResource(R.string.apply_photo_year))
+                }
+            }
+        } else {
+            val label = stringResource(R.string.filter_year, activeYear.toString())
+            val description = stringResource(R.string.remove_search_filter, label)
+            AssistChip(
+                onClick = {
+                    year = null
+                    draftYear = ""
+                },
+                label = { Text(label) },
+                trailingIcon = { LibraryIcon(R.drawable.ic_close, Modifier.size(16.dp)) },
+                modifier = Modifier.semantics { contentDescription = description },
+            )
+        }
+    }
     if (exactTag == null && person.isNotEmpty()) {
         Text(stringResource(R.string.confirmed_photo_results, person))
         if (tag.isNotEmpty()) Text(stringResource(R.string.confirmed_photo_tag_result, tag))
     }
     if (exactTag != null || person.isNotEmpty()) {
         val activeTag = exactTag ?: tag
-        key(person, activeTag) {
+        key(person, activeTag, year) {
             EntryScreen(
                 load = {
-                    if (person.isEmpty()) api.taggedPhotos(activeTag, it)
-                    else api.confirmedPhotos(person, it, activeTag)
+                    if (person.isEmpty()) api.taggedPhotos(activeTag, it, year)
+                    else api.confirmedPhotos(person, it, activeTag, year)
                 },
                 onExpired = onExpired,
                 onOpen = onOpen,

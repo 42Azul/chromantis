@@ -86,6 +86,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Photo year query for Android:** The shared photo search API accepts an exact four-digit album year alongside a manual tag or a confirmed person. The offline HTTPS fixture verifies tag-only and combined matches across years, including pagination and invalid years. Next: add a removable year filter to the Android photo tag results and verify both themes.
 
+**Android photo tag year:** Exact photo tag results can also be narrowed by the album year. The Compose fixture combines a year and a confirmed person, verifies an empty result and removes the year while keeping the person. Next: open exact searches directly from album and photo detail tags.
+
 #### F2 — Make a family collage from search · Ready after F1
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.

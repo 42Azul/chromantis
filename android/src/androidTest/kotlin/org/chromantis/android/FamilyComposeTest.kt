@@ -304,6 +304,16 @@ class FamilyComposeTest {
             capture("photo-tag-person-dark")
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
             capture("photo-tag-person-light")
+            compose.onNodeWithText(label(R.string.photo_album_year)).performTextInput("2024")
+            click(label(R.string.apply_photo_year))
+            await("Año: 2024")
+            await(label(R.string.no_results))
+            capture("photo-tag-year-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("photo-tag-year-dark")
+            compose.onNodeWithContentDescription("Quitar filtro de Año: 2024").performClick()
+            await(photo.title)
+            compose.onNodeWithText("Persona: Anita").assertIsDisplayed()
             compose.onNodeWithContentDescription("Quitar filtro de Persona: Anita").performClick()
             await(otherPhoto.title)
             click(label(R.string.settings))
