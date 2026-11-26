@@ -28,7 +28,7 @@ def main():
     try:
         with open_fixture(args.cert, args.key, index_only=True) as (server, _, _, invite):
             with open_fixture(
-                args.cert, args.key, port=8444, beach_photos=59, tagged_albums=True
+                args.cert, args.key, port=8444, beach_photos=59, tagged_albums=True, missing_preview=True
             ) as (ui_server, ui_db, _, ui_invite):
                 _, launcher_invite = ApplicationService(Repository(ui_db)).family_access.invite(
                     "Android launcher fixture"

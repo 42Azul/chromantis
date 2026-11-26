@@ -21,6 +21,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -48,23 +50,34 @@ private suspend fun renderCollage(api: ChromantisApi, paths: List<String>): Bitm
         require(paths.size in 2..MAX_COLLAGE_PHOTOS)
         val rows = (paths.size + 1) / 2
         val output = Bitmap.createBitmap(2 * TILE_SIZE, rows * TILE_SIZE, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(output)
-        canvas.drawColor(0xFFF5F3EE.toInt())
-        val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-        paths.forEachIndexed { index, path ->
-            val photo = api.photo(path, preview = true)
-            try {
-                val scale = (TILE_SIZE - 12f) / maxOf(photo.width, photo.height)
-                val width = photo.width * scale
-                val height = photo.height * scale
-                val left = index % 2 * TILE_SIZE + (TILE_SIZE - width) / 2
-                val top = index / 2 * TILE_SIZE + (TILE_SIZE - height) / 2
-                canvas.drawBitmap(photo, null, RectF(left, top, left + width, top + height), paint)
-            } finally {
-                photo.recycle()
+        try {
+            val canvas = Canvas(output)
+            canvas.drawColor(0xFFF5F3EE.toInt())
+            val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+            paths.forEachIndexed { index, path ->
+                ensureActive()
+                val photo = api.photo(path, preview = true)
+                try {
+                    val scale = (TILE_SIZE - 12f) / maxOf(photo.width, photo.height)
+                    val width = photo.width * scale
+                    val height = photo.height * scale
+                    val left = index % 2 * TILE_SIZE + (TILE_SIZE - width) / 2
+                    val top = index / 2 * TILE_SIZE + (TILE_SIZE - height) / 2
+                    canvas.drawBitmap(
+                        photo,
+                        null,
+                        RectF(left, top, left + width, top + height),
+                        paint,
+                    )
+                } finally {
+                    photo.recycle()
+                }
             }
+            output
+        } catch (error: Exception) {
+            output.recycle()
+            throw error
         }
-        output
     }
 
 @RequiresApi(29)
@@ -82,7 +95,9 @@ internal fun PhotoCollage(
     var message by remember(ordered) { mutableStateOf(R.string.collage_loading) }
     var exporting by remember { mutableStateOf(false) }
     var saved by remember(ordered) { mutableStateOf(false) }
-    LaunchedEffect(api, ordered) {
+    var retry by remember(ordered) { mutableIntStateOf(0) }
+    LaunchedEffect(api, ordered, retry) {
+        message = R.string.collage_loading
         attempt { renderCollage(api, ordered) }
             .onSuccess {
                 preview = it
@@ -138,6 +153,16 @@ internal fun PhotoCollage(
                     )
                 }
                 if (message != 0) Text(stringResource(message))
+                if (image == null && message != R.string.collage_loading) {
+                    TextButton(
+                        onClick = {
+                            message = R.string.collage_loading
+                            retry++
+                        }
+                    ) {
+                        Text(stringResource(R.string.retry))
+                    }
+                }
                 ordered.forEachIndexed { index, path ->
                     val name = path.substringAfterLast('/')
                     val album = path.substringBeforeLast('/').substringAfterLast('/')

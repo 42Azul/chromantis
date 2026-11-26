@@ -18,7 +18,7 @@ En **Ajustes** puedes elegir claro, oscuro o seguir el tema de Android. La elecc
 
 Los seguimientos de una búsqueda de álbumes también admiten `con Ana y Luis` o nombres separados por comas. El servicio local actualizado exige vínculos de ambas personas al álbum, resuelve sus alias y conserva la búsqueda anterior si algún nombre no existe. Cada persona mantiene un filtro independiente para quitarlo.
 
-En un álbum o en la página actual de una búsqueda de fotos por etiqueta, selecciona de dos a cuatro fotos y pulsa **Crear collage** para verlas en el orden de selección. Usa **Subir** para adelantar una foto y **Quitar** para retirarla si quedan al menos dos. Pulsa **Guardar collage** para guardar un JPEG nuevo en la galería del móvil. Pulsa **Compartir** para abrir el menú de Android con el JPEG editado. Requiere Android 10 o posterior y miniaturas activadas en el servicio.
+En un álbum o en la página actual de una búsqueda de fotos por etiqueta, selecciona de dos a cuatro fotos y pulsa **Crear collage** para verlas en el orden de selección. Usa **Subir** para adelantar una foto y **Quitar** para retirarla si quedan al menos dos. Pulsa **Guardar collage** para guardar un JPEG nuevo en la galería del móvil. Pulsa **Compartir** para abrir el menú de Android con el JPEG editado. Si una miniatura no está disponible, pulsa **Reintentar** o quita esa foto si quedan al menos dos. Requiere Android 10 o posterior y miniaturas activadas en el servicio.
 
 ## Un recorrido breve
 

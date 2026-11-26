@@ -282,10 +282,13 @@ class FamilyComposeTest {
             val beachPhotos = runBlocking { client.photos(beach.path, 0).entries }
             val otherPhoto = beachPhotos[2]
             val extraPhoto = beachPhotos[3]
+            val unavailablePhoto = beachPhotos[4]
             runBlocking {
                 val ana = client.people().single { "Anita" in it.aliases }
                 client.savePhotoTags(
-                    client.photoTags(listOf(photo.path, otherPhoto.path, extraPhoto.path)),
+                    client.photoTags(
+                        listOf(photo.path, otherPhoto.path, extraPhoto.path, unavailablePhoto.path)
+                    ),
                     null,
                     "Romería",
                     remove = false,
@@ -334,18 +337,36 @@ class FamilyComposeTest {
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("ROMÉ")
             click(label(R.string.filter_tags))
-            await("Romeria · 3")
+            await("Romeria · 4")
             Log.i("ChromantisFixture", "Open exact photo results")
-            compose.onNodeWithText("Romeria · 3").performSemanticsAction(SemanticsActions.OnClick)
+            compose.onNodeWithText("Romeria · 4").performSemanticsAction(SemanticsActions.OnClick)
             await(label(R.string.select_photos))
             compose
                 .onNodeWithText(label(R.string.select_photos))
                 .performSemanticsAction(SemanticsActions.OnClick)
-            for (entry in listOf(otherPhoto, photo, extraPhoto)) {
+            for (entry in listOf(otherPhoto, photo, extraPhoto, unavailablePhoto)) {
                 compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(entry.title))
                 click(entry.title)
             }
             click(label(R.string.make_collage))
+            await(label(R.string.content_unavailable))
+            compose.onNodeWithText(label(R.string.save_collage)).assertDoesNotExist()
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            capture("collage-recovery-light", compose.onNode(isDialog()))
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("collage-recovery-dark", compose.onNode(isDialog()))
+            click(label(R.string.close_collage))
+            click(label(R.string.make_collage))
+            await(label(R.string.content_unavailable))
+            click(label(R.string.retry))
+            await(label(R.string.content_unavailable))
+            val removeUnavailable =
+                context.getString(
+                    R.string.collage_remove_photo,
+                    unavailablePhoto.path.substringAfterLast('/'),
+                    beach.path.substringAfterLast('/'),
+                )
+            compose.onNodeWithContentDescription(removeUnavailable).performScrollTo().performClick()
             val removeExtra =
                 context.getString(
                     R.string.collage_remove_photo,

@@ -21,7 +21,7 @@ from chromantis.source import ArchiveScanner, LocalArchiveSource
 @contextmanager
 def open_fixture(
     cert, key, bind="127.0.0.1", port=8443, *,
-    index_only=False, beach_photos=33, split_year=False, tagged_albums=False,
+    index_only=False, beach_photos=33, split_year=False, tagged_albums=False, missing_preview=False,
 ):
     with TemporaryDirectory(prefix="chromantis-android-") as directory:
         root = Path(directory)
@@ -47,6 +47,8 @@ def open_fixture(
         repository.add_person_alias(ana.id, "Anita")
         source = LocalArchiveSource(str(archive))
         ArchiveScanner(source, repository, PathParser()).scan()
+        if missing_preview:
+            (archive / "2024/2024-07-01_playa/Photo_05.jpg").unlink()
         if index_only:
             archive.rename(root / "disconnected")
         app = ApplicationService(repository)
