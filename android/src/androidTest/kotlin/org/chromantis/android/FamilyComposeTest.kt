@@ -39,7 +39,7 @@ import org.junit.runner.RunWith
 class FamilyComposeTest {
     @get:Rule val compose = createComposeRule()
 
-    private fun capture(name: String) {
+    private fun capture(name: String, node: SemanticsNodeInteraction = compose.onRoot()) {
         Log.i("ChromantisFixture", "Capture $name")
         if (InstrumentationRegistry.getArguments().getString("captureScreenshots") != "true") return
         if (Build.VERSION.SDK_INT < 29) return
@@ -58,8 +58,7 @@ class FamilyComposeTest {
         try {
             requireNotNull(resolver.openOutputStream(uri)).use {
                 check(
-                    compose
-                        .onRoot()
+                    node
                         .captureToImage()
                         .asAndroidBitmap()
                         .compress(Bitmap.CompressFormat.PNG, 100, it)
@@ -223,9 +222,9 @@ class FamilyComposeTest {
                     .fetchSemanticsNodes()
                     .isNotEmpty()
             }
-            capture("collage-light")
+            capture("collage-light", compose.onNode(isDialog()))
             compose.runOnIdle { appearance.value = Appearance.DARK }
-            capture("collage-dark")
+            capture("collage-dark", compose.onNode(isDialog()))
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
             click(label(R.string.save_collage))
             await(label(R.string.collage_saved))
