@@ -193,4 +193,8 @@
     <string name="collage_save_error">No se pudo guardar el collage. Puedes intentarlo de nuevo.</string>
     <string name="save_collage">Guardar collage</string>
     <string name="close_collage">Cerrar</string>
+    <string name="collage_move_up">Subir</string>
+    <string name="collage_remove">Quitar</string>
+    <string name="collage_move_photo">Subir %1$s de %2$s</string>
+    <string name="collage_remove_photo">Quitar %1$s de %2$s</string>
 </resources>

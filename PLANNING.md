@@ -106,6 +106,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android collage from photo search:** Exact photo tag results reuse selection and local JPEG export across albums on the current page. The real Compose fixture selects two tagged photos from different years, previews both themes, saves, and resumes the same search. Next: allow removing and reordering photos in the preview and share the resulting JPEG. Web collage is pending.
 
+**Android collage editing:** The preview lets families move a photo earlier or remove it while keeping at least two. The synthetic photo-tag walkthrough selects three photos, removes one, changes the ordering and saves the revised JPEG. Next: share the revised JPEG directly from Android and verify unavailable previews and cancellation. Web collage is pending.
+
 #### F3 — One Chromantis visual identity · Active design direction
 
 - Apply the shared visual direction in [DESIGN.md](DESIGN.md) to Android and the family web. Start with a matched Search/Tags flow in light and dark mode. Give both clients the same vocabulary, typography roles, rounded icon style and semantic colors while following native navigation patterns.

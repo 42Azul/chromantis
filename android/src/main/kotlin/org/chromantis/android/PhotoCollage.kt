@@ -7,9 +7,14 @@ import android.graphics.RectF
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,10 +24,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -66,12 +76,13 @@ internal fun PhotoCollage(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var preview by remember { mutableStateOf<Bitmap?>(null) }
-    var message by remember { mutableStateOf(R.string.collage_loading) }
+    var ordered by remember(paths) { mutableStateOf(paths) }
+    var preview by remember(ordered) { mutableStateOf<Bitmap?>(null) }
+    var message by remember(ordered) { mutableStateOf(R.string.collage_loading) }
     var saving by remember { mutableStateOf(false) }
-    var saved by remember { mutableStateOf(false) }
-    LaunchedEffect(api, paths) {
-        attempt { renderCollage(api, paths) }
+    var saved by remember(ordered) { mutableStateOf(false) }
+    LaunchedEffect(api, ordered) {
+        attempt { renderCollage(api, ordered) }
             .onSuccess {
                 preview = it
                 message = 0
@@ -86,7 +97,7 @@ internal fun PhotoCollage(
         onDismissRequest = { if (!saving) onClose() },
         title = { Text(stringResource(R.string.make_collage)) },
         text = {
-            Column {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                 if (image != null) {
                     Image(
                         image.asImageBitmap(),
@@ -95,6 +106,46 @@ internal fun PhotoCollage(
                     )
                 }
                 if (message != 0) Text(stringResource(message))
+                ordered.forEachIndexed { index, path ->
+                    val name = path.substringAfterLast('/')
+                    val album = path.substringBeforeLast('/').substringAfterLast('/')
+                    val moveLabel = stringResource(R.string.collage_move_photo, name, album)
+                    val removeLabel = stringResource(R.string.collage_remove_photo, name, album)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                albumDisplayTitle(album),
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (index > 0) {
+                            TextButton(
+                                enabled = !saving,
+                                modifier = Modifier.semantics { contentDescription = moveLabel },
+                                onClick = {
+                                    ordered =
+                                        ordered.toMutableList().apply {
+                                            add(index - 1, removeAt(index))
+                                        }
+                                },
+                            ) {
+                                Text(stringResource(R.string.collage_move_up))
+                            }
+                        }
+                        if (ordered.size > 2) {
+                            TextButton(
+                                enabled = !saving,
+                                modifier = Modifier.semantics { contentDescription = removeLabel },
+                                onClick = { ordered = ordered.filterNot { it == path } },
+                            ) {
+                                Text(stringResource(R.string.collage_remove))
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {

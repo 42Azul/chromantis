@@ -276,11 +276,13 @@ class FamilyComposeTest {
             await(albumDisplayTitle(album.title))
             val photo = visiblePhotos.first()
             val beach = runBlocking { client.albums("", 0, tag = "playa") }.entries.single()
-            val otherPhoto = runBlocking { client.photos(beach.path, 0).entries[2] }
+            val beachPhotos = runBlocking { client.photos(beach.path, 0).entries }
+            val otherPhoto = beachPhotos[2]
+            val extraPhoto = beachPhotos[3]
             runBlocking {
                 val ana = client.people().single { "Anita" in it.aliases }
                 client.savePhotoTags(
-                    client.photoTags(listOf(photo.path, otherPhoto.path)),
+                    client.photoTags(listOf(photo.path, otherPhoto.path, extraPhoto.path)),
                     null,
                     "Romería",
                     remove = false,
@@ -329,17 +331,35 @@ class FamilyComposeTest {
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("ROMÉ")
             click(label(R.string.filter_tags))
-            await("Romeria · 2")
+            await("Romeria · 3")
             Log.i("ChromantisFixture", "Open exact photo results")
-            click("Romeria · 2")
+            click("Romeria · 3")
             await(photo.title)
             await(otherPhoto.title)
             compose
                 .onNodeWithText(label(R.string.select_photos))
                 .performSemanticsAction(SemanticsActions.OnClick)
+            await(extraPhoto.title)
             click(otherPhoto.title)
             click(photo.title)
+            compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(extraPhoto.title))
+            click(extraPhoto.title)
             click(label(R.string.make_collage))
+            val removeExtra =
+                context.getString(
+                    R.string.collage_remove_photo,
+                    extraPhoto.path.substringAfterLast('/'),
+                    beach.path.substringAfterLast('/'),
+                )
+            compose.onNodeWithContentDescription(removeExtra).performScrollTo().performClick()
+            val moveFirst =
+                context.getString(
+                    R.string.collage_move_photo,
+                    photo.path.substringAfterLast('/'),
+                    album.path.substringAfterLast('/'),
+                )
+            compose.onNodeWithContentDescription(moveFirst).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(removeExtra).assertDoesNotExist()
             compose.waitUntil(15000) {
                 compose
                     .onAllNodesWithContentDescription(label(R.string.collage_preview))
@@ -347,6 +367,7 @@ class FamilyComposeTest {
                     .isNotEmpty()
             }
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            compose.onNodeWithContentDescription(label(R.string.collage_preview)).performScrollTo()
             capture("search-collage-light", compose.onNode(isDialog()))
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("search-collage-dark", compose.onNode(isDialog()))
