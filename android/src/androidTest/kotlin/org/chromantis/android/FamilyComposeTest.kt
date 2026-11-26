@@ -351,6 +351,7 @@ class FamilyComposeTest {
             click(label(R.string.make_collage))
             await(label(R.string.content_unavailable))
             compose.onNodeWithText(label(R.string.save_collage)).assertDoesNotExist()
+            compose.onNodeWithText(label(R.string.collage_thumbnail_failed)).assertExists()
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
             capture("collage-recovery-light", compose.onNode(isDialog()))
             compose.runOnIdle { appearance.value = Appearance.DARK }

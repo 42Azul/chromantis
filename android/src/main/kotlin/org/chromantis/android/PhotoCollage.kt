@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -45,7 +46,13 @@ import kotlinx.coroutines.withContext
 private const val TILE_SIZE = 480
 internal const val MAX_COLLAGE_PHOTOS = 4
 
-private suspend fun renderCollage(api: ChromantisApi, paths: List<String>): Bitmap =
+internal class CollageThumbnailFailure(val path: String, val failure: Exception) :
+    IOException("Could not load a collage thumbnail.", failure)
+
+internal suspend fun renderCollage(
+    paths: List<String>,
+    loadThumbnail: suspend (String) -> Bitmap,
+): Bitmap =
     withContext(Dispatchers.Default) {
         require(paths.size in 2..MAX_COLLAGE_PHOTOS)
         val rows = (paths.size + 1) / 2
@@ -56,7 +63,14 @@ private suspend fun renderCollage(api: ChromantisApi, paths: List<String>): Bitm
             val paint = Paint(Paint.FILTER_BITMAP_FLAG)
             paths.forEachIndexed { index, path ->
                 ensureActive()
-                val photo = api.photo(path, preview = true)
+                val photo =
+                    try {
+                        loadThumbnail(path)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        throw CollageThumbnailFailure(path, error)
+                    }
                 try {
                     val scale = (TILE_SIZE - 12f) / maxOf(photo.width, photo.height)
                     val width = photo.width * scale
@@ -96,16 +110,20 @@ internal fun PhotoCollage(
     var exporting by remember { mutableStateOf(false) }
     var saved by remember(ordered) { mutableStateOf(false) }
     var retry by remember(ordered) { mutableIntStateOf(0) }
+    var failedPath by remember(ordered) { mutableStateOf<String?>(null) }
     LaunchedEffect(api, ordered, retry) {
         message = R.string.collage_loading
-        attempt { renderCollage(api, ordered) }
+        failedPath = null
+        attempt { renderCollage(ordered) { api.photo(it, preview = true) } }
             .onSuccess {
                 preview = it
                 message = 0
             }
             .onFailure {
-                if (it.hasStatus(401)) onExpired()
-                message = errorLabel(it)
+                val thumbnailError = it as? CollageThumbnailFailure
+                val error = thumbnailError?.failure ?: it
+                if (error.hasStatus(401)) onExpired() else failedPath = thumbnailError?.path
+                message = errorLabel(error)
             }
     }
     val image = preview
@@ -177,6 +195,13 @@ internal fun PhotoCollage(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                            if (path == failedPath) {
+                                Text(
+                                    stringResource(R.string.collage_thumbnail_failed),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                         }
                         if (index > 0) {
                             TextButton(
