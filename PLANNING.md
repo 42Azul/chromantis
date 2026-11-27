@@ -572,6 +572,8 @@ Current architecture map:
 - Keep only references to indexed paths and their source roots. Retain missing entries across reindexing so the owner can inspect or remove them.
 - Keep creation, display, entry removal and deletion behind the existing owner permissions.
 
+**Shared service increment:** The owner collections API can save up to 30 selected indexed photos or albums in one transaction, on creation or in an existing collection. Synthetic HTTP coverage checks selection order, duplicate retries, owner isolation, rollback and operation with the archive disconnected. Web keeps its individual-entry flow. Android is pending; define session-scoped ownership and recovery before exposing private collections in the family client.
+
 **Acceptance:** Name a collection, reopen it later, remove one entry and verify that the originals are still in the same place.
 
 ### MVP 16A — Private Album Invitations

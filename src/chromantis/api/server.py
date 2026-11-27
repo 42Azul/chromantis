@@ -318,10 +318,8 @@ def _collection_route(
                 return 200, {"items": collections.list()}
             if not suffix and method == "POST":
                 collection_id = collections.create(_text(body, "name"))
-                if "entry" in body:
-                    kind, entry_path = _collection_entry(body["entry"])
-                    return 201, {"item": collections.add(collection_id, kind, entry_path)}
-                return 201, {"item": collections.get(collection_id)}
+                entries = _collection_entries(body, creating=True)
+                return 201, {"item": collections.add_entries(collection_id, entries)}
             parts = suffix.removeprefix("/").split("/")
             collection_id = _positive_id(parts[0])
             if len(parts) == 1 and method == "GET":
@@ -330,14 +328,26 @@ def _collection_route(
                 collections.delete(collection_id)
                 return 200, {"deleted": True}
             if parts[1:] == ["entries"] and method == "POST":
-                kind, entry_path = _collection_entry(body)
-                return 200, {"item": collections.add(collection_id, kind, entry_path)}
+                return 200, {"item": collections.add_entries(collection_id, _collection_entries(body))}
             if len(parts) == 3 and parts[1] == "entries" and method == "DELETE":
                 collections.remove(collection_id, _positive_id(parts[2]))
                 return 200, {"deleted": True}
     except LookupError as error:
         return 404, {"error": str(error)}
     return 404, {"error": "Not found"}
+
+
+def _collection_entries(body: dict[str, object], *, creating: bool = False) -> list[tuple[str, str]]:
+    if "entries" not in body:
+        if creating:
+            return [_collection_entry(body["entry"])] if "entry" in body else []
+        return [_collection_entry(body)]
+    if "entry" in body or "kind" in body or "path" in body:
+        raise ValueError("Provide either an entry or a batch of entries.")
+    entries = body["entries"]
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 30:
+        raise ValueError("Choose between 1 and 30 collection entries.")
+    return [_collection_entry(entry) for entry in entries]
 
 
 def _collection_entry(entry: object) -> tuple[str, str]:

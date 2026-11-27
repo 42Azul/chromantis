@@ -122,6 +122,31 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(len(self.request("GET", path)[1]["item"]["entries"]), 2)
         self.media.assert_not_called()
 
+    def test_batch_selection_is_atomic_and_uses_only_the_index(self):
+        self.source.rename(self.root / "disconnected")
+        album = {"kind": "folder", "path": ALBUM}
+        photo = {"kind": "image", "path": PHOTO}
+        missing = {"kind": "image", "path": f"{PHOTO}.missing"}
+        invalid = {"name": "Invalid", "entries": [album, missing]}
+        self.assertEqual(self.request("POST", body=invalid)[0], 400)
+        self.assertEqual(self.request("GET")[1]["items"], [])
+        status, response = self.request("POST", body={
+            "name": "Selección", "entries": [photo, album, photo],
+        })
+        self.assertEqual(status, 201, response)
+        item = response["item"]
+        self.assertEqual([entry["path"] for entry in item["entries"]], [PHOTO, ALBUM])
+        path = f"/collections/{item['id']}"
+        self.assertEqual(self.request("POST", path + "/entries", {"entries": [album, photo]}),
+                         (200, {"item": item}))
+        self.assertEqual(self.request("POST", path + "/entries", {"entries": [photo] * 31})[0], 400)
+        self.assertEqual(self.request("POST", path + "/entries", {"entries": [photo]},
+                                      token="other-owner")[0], 404)
+        self.request("DELETE", path + f"/entries/{item['entries'][1]['id']}")
+        self.assertEqual(self.request("POST", path + "/entries", {"entries": [album, missing]})[0], 400)
+        self.assertEqual([entry["path"] for entry in self.request("GET", path)[1]["item"]["entries"]], [PHOTO])
+        self.media.assert_not_called()
+
     def test_stale_reference_survives_reindex_and_different_archive_root(self):
         collection = self.create()
         path = f"/collections/{collection['id']}"

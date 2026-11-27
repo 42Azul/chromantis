@@ -63,7 +63,16 @@ class CollectionStore:
         return int(result.lastrowid)
 
     def add(self, collection_id: int, kind: str, path: str) -> dict:
+        return self.add_entries(collection_id, [(kind, path)])
+
+    def add_entries(self, collection_id: int, entries: list[tuple[str, str]]) -> dict:
         collection = self.get(collection_id)
+        count = len(collection["entries"])
+        for kind, path in entries:
+            count += self._insert_entry(collection_id, kind, path, count)
+        return self.get(collection_id) if count != len(collection["entries"]) else collection
+
+    def _insert_entry(self, collection_id: int, kind: str, path: str, count: int) -> int:
         if kind == "folder":
             statement = "SELECT ftp_root_path FROM folders WHERE folder_path = ?"
         elif kind == "image":
@@ -81,14 +90,14 @@ class CollectionStore:
             (collection_id, kind, path, root),
         ).fetchone()
         if existing is not None:
-            return collection
-        if len(collection["entries"]) >= 250:
+            return 0
+        if count >= 250:
             raise ValueError("A collection can hold up to 250 entries.")
         self.connection.execute(
             "INSERT INTO memory_collection_entries (collection_id, kind, path, source_root) VALUES (?, ?, ?, ?)",
             (collection_id, kind, path, root),
         )
-        return self.get(collection_id)
+        return 1
 
     def remove(self, collection_id: int, entry_id: int) -> None:
         result = self.connection.execute(
