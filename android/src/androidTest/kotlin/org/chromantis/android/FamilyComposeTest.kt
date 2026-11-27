@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
@@ -342,6 +343,52 @@ class FamilyComposeTest {
                     .single()
                     .tags
                     .contains("recuerdo")
+            )
+            click(label(R.string.review_photos))
+            await(label(R.string.people_filter))
+            compose.onNodeWithText(label(R.string.people_filter)).performTextInput("Anita")
+            await("Ana · Anita")
+            compose.onNodeWithText("Ana · Anita").performScrollTo().performClick()
+            await(label(R.string.swipe_photo_help))
+            val firstPhoto = visiblePhotos.first()
+            val photoProgress =
+                context.getString(R.string.photo_review_progress, 1, visiblePhotos.size)
+            val secondProgress =
+                context.getString(R.string.photo_review_progress, 2, visiblePhotos.size)
+            compose
+                .onNodeWithTag("thumbnail:${firstPhoto.path}", useUnmergedTree = true)
+                .performTouchInput {
+                    down(center)
+                    moveTo(center + Offset(width * 0.45f, 0f))
+                    cancel()
+                }
+            compose.onNodeWithText(photoProgress).assertExists()
+            compose.onNodeWithText(label(R.string.undo_photo_decision)).assertIsNotEnabled()
+            compose.onNodeWithText(label(R.string.mark_photo)).performScrollTo().performClick()
+            await(secondProgress)
+            compose
+                .onNodeWithText(label(R.string.undo_photo_decision))
+                .performScrollTo()
+                .performClick()
+            await(photoProgress)
+            await(label(R.string.swipe_photo_help))
+            compose.onNodeWithText(label(R.string.mark_photo)).performScrollTo().performClick()
+            await(secondProgress)
+            val cancelReview = compose.onAllNodesWithText(label(R.string.cancel)).onLast()
+            cancelReview.performScrollTo().performClick()
+            await(label(R.string.discard_photo_review_title))
+            capture("photo-review-discard-light", compose.onAllNodes(isDialog()).onLast())
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("photo-review-discard-dark", compose.onAllNodes(isDialog()).onLast())
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            click(label(R.string.continue_photo_review))
+            await(secondProgress)
+            cancelReview.performScrollTo().performClick()
+            click(label(R.string.discard_photo_review))
+            await(label(R.string.select_photos))
+            check(
+                runBlocking { client.photoTags(visiblePhotos.map { it.path }) }
+                    .all { it.people.isEmpty() }
             )
             compose.onNodeWithContentDescription(label(R.string.back)).performClick()
             await("Ana")

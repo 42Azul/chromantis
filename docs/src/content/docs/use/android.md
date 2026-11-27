@@ -34,6 +34,8 @@ In **Clasificar**, tap **Elegir álbum** to edit an existing album directly. Fil
 
 Open **Clasificar fotos** in the selected album to tag one photo or a batch from the same page. To reverse a batch label, select the same photos again and choose **Quitar** in the tagging dialog. Save or discard pending album edits before switching to photo classification.
 
+In **Revisar foto a foto**, **Deshacer última decisión** returns to the previous photo. If you leave with pending decisions, choose **Continuar revisión** to keep them or **Descartar** to close without saving.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.
