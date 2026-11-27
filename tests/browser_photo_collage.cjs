@@ -97,7 +97,7 @@ async function main() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           photos: items.map(({ path, identity }) => ({ path, identity })),
-          manual_add: ["Romería"],
+          manual_add: ["Romería", "Encuentro"],
         }),
       });
       return saved.status;
@@ -154,6 +154,28 @@ async function main() {
     for (const path of taggedPaths) {
       assert.ok(await page.getByRole("checkbox", { name: `Seleccionar ${path}`, exact: true }).isChecked());
     }
+    await page.getByRole("button", { name: "Guardar búsqueda", exact: true }).click();
+    assert.equal(await page.locator("#photo-search-shortcut").textContent(), "Búsqueda guardada");
+    await catalog.locator("summary").click();
+    await catalog.getByRole("button", { name: "encuentro · 2", exact: true }).click();
+    await page.getByRole("button", { name: "Guardar búsqueda", exact: true }).click();
+    await page.reload();
+    await page.locator("#archive-nav").click();
+    await catalog.locator("summary").click();
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await catalog.screenshot({ path: `/tmp/chromantis-saved-search-${mode}.png` });
+    }
+    await catalog.getByRole("button", { name: "Reabrir búsqueda: romeria", exact: true }).click();
+    await page.waitForFunction(() => document.getElementById("result-count").textContent === "2");
+    assert.equal(await page.locator("#query").inputValue(), "romeria");
+    await catalog.locator("summary").click();
+    await catalog.getByRole("button", { name: "Quitar acceso: romeria", exact: true }).click();
+    assert.equal(await catalog.getByRole("button", { name: "Reabrir búsqueda: romeria" }).count(), 0);
+    await catalog.getByRole("button", { name: "Reabrir búsqueda: encuentro" }).waitFor();
+    await page.locator("#disconnect").click();
+    await page.locator("#sign-in").waitFor();
+    assert.equal(await page.evaluate(() => sessionStorage.getItem("chromantis.savedPhotoSearches")), null);
   } finally {
     await browser.close();
   }

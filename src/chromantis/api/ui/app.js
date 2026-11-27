@@ -141,6 +141,7 @@ function resetPhotos() {
   photoURLs.clear();
   $("photo-results-tools").replaceChildren();
   $("photo-results-tools").hidden = true;
+  $("photo-search-shortcut").replaceChildren();
   $("results").classList.remove("selecting-photos");
   if ($("lightbox").open) $("lightbox").close();
   if ($("photo-tags").open) $("photo-tags").close();
@@ -243,6 +244,8 @@ async function loadSharedAlbum(offset = 0) {
 
 function signOut() {
   thumbnailCache.clear();
+  sessionStorage.removeItem(photoSearchStorageKey);
+  $("saved-photo-searches").replaceChildren();
   $("album-tag-catalog").open = false;
   $("tag-catalog-kind").value = "albums";
   $("tag-catalog-name").value = "";
@@ -348,6 +351,7 @@ async function signIn(value, { quiet = false, familyLogin = false } = {}) {
     const status = await api("/archive-status").catch(() => null);
     if (connection !== connectionNumber) return;
     principal = item;
+    if (familyLogin) sessionStorage.removeItem(photoSearchStorageKey);
     indexStatus = status?.item;
     canCurateAlbums = can_curate_albums;
     if (token) sessionStorage.setItem("chromantis.chatToken", token);
@@ -465,6 +469,16 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
       }
       setRecallSearch();
       renderFamilyPhotoResults(page, action, term, offset, pageSize, tag);
+      if (page.items.length) {
+        const shortcut = [action, term, tag || ""];
+        const save = button("Guardar búsqueda", () => {
+          const rest = savedPhotoSearches().filter(item => JSON.stringify(item) !== JSON.stringify(shortcut));
+          sessionStorage.setItem(photoSearchStorageKey, JSON.stringify([shortcut, ...rest].slice(0, 3)));
+          save.textContent = "Búsqueda guardada";
+          renderSavedPhotoSearches();
+        });
+        $("photo-search-shortcut").append(save);
+      }
     } else if (action === "folders" || action === "timeline" || action === "year_albums") {
       const timeline = action === "timeline";
       const params = timeline ? { ...arguments_, sort: "timeline", limit: 31 }
@@ -2351,6 +2365,40 @@ async function openTagSearch(tag, photos = false) {
   if (!$("archive").hidden) $("results-title").focus();
 }
 
+const photoSearchStorageKey = "chromantis.savedPhotoSearches";
+
+function savedPhotoSearches() {
+  try {
+    return JSON.parse(sessionStorage.getItem(photoSearchStorageKey) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function renderSavedPhotoSearches() {
+  const list = $("saved-photo-searches");
+  const searches = savedPhotoSearches();
+  list.replaceChildren(...searches.map(([action, term, tag], index) => {
+    const label = tag ? `${term} · ${tag}` : term;
+    const reopen = button(`Reabrir búsqueda: ${label}`, async () => {
+      $("scope").value = action;
+      $("scope").dispatchEvent(new Event("change"));
+      $("query").value = term;
+      $("photo-tag").value = tag;
+      $("album-tag-catalog").open = false;
+      await archiveRequest(action, { term, ...(tag ? { tag } : {}) });
+      if (!$("archive").hidden) $("results-title").focus();
+    });
+    const remove = button("Quitar acceso", () => {
+      sessionStorage.setItem(photoSearchStorageKey, JSON.stringify(searches.filter((_, i) => i !== index)));
+      renderSavedPhotoSearches();
+      (list.querySelector("button") || $("album-tag-catalog").querySelector("summary")).focus();
+    });
+    remove.setAttribute("aria-label", `Quitar acceso: ${label}`);
+    return element("div", { class: "actions" }, reopen, remove);
+  }));
+}
+
 let tagCatalogRequest = 0;
 
 async function loadTagCatalog(offset = 0, name = $("tag-catalog-name").value.trim()) {
@@ -2383,7 +2431,10 @@ $("tag-catalog-filter").addEventListener("submit", event => {
 $("tag-catalog-kind").addEventListener("change", () => loadTagCatalog());
 
 $("album-tag-catalog").addEventListener("toggle", () => {
-  if ($("album-tag-catalog").open) loadTagCatalog();
+  if ($("album-tag-catalog").open) {
+    renderSavedPhotoSearches();
+    loadTagCatalog();
+  }
 });
 
 $("scope").addEventListener("change", () => {

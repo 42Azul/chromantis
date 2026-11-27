@@ -35,6 +35,8 @@ With a curator account, choose **Etiquetar foto** to add or remove people on tha
 
 For a manual photo tag, choose **Fotos por etiqueta** and enter one exact tag such as `romería`. The search matches the whole tag and ignores accents and case. If you remove the tag from a result, that photo leaves the list.
 
+After a photo search with results, choose **Guardar búsqueda** to keep up to three shortcuts in this browser tab. Open **Etiquetas** to reopen one or remove it individually. Reloading the tab keeps your shortcuts, and signing out clears them.
+
 To classify several search results together, choose **Seleccionar fotos**, mark only the photos you want, or use **Seleccionar esta página** and uncheck doubtful photos. **Etiquetar fotos** opens the same batch editor as the gallery. The batch can span albums; each result shows its album path and the editor includes paths to distinguish repeated filenames. Save once to add or remove people and manual tags. The search keeps its person, tag and page, returning to an earlier page if edits empty the current one. Canceling or changing pages clears the selection without saving. This flow also works from the index with previews disabled and the archive disconnected.
 
 Open an album result, or choose **Ver álbum** on a photo result, to browse its gallery. Choose **Etiquetar álbum** to open the editor if you have curation access. **Volver a resultados** and **Guardar y volver a resultados** restore the same search and page. If the album is still listed, focus returns to its card.
