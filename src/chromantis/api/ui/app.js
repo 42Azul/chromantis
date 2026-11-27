@@ -142,6 +142,7 @@ function resetPhotos() {
   $("photo-results-tools").replaceChildren();
   $("photo-results-tools").hidden = true;
   $("photo-search-shortcut").replaceChildren();
+  $("year-album-controls").hidden = true;
   $("results").classList.remove("selecting-photos");
   if ($("lightbox").open) $("lightbox").close();
   if ($("photo-tags").open) $("photo-tags").close();
@@ -488,10 +489,18 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
         : { q: arguments_.q, limit: 31, offset: arguments_.offset || 0 };
       if (family && !timeline) params.filters = 1;
       if (arguments_.tag) params.tag = arguments_.tag;
-      const { items, filters, month_day } = await api("/folders" + queryParams(params));
+      if (action === "year_albums") {
+        if (arguments_.name) params.name = arguments_.name;
+        if (arguments_.sort) params.sort = arguments_.sort;
+      }
+      const { items, filters, month_day, name, sort } = await api("/folders" + queryParams(params));
       if (request !== requestNumber) return;
       if (arguments_.month_day && month_day !== arguments_.month_day) {
         message("archive-status", "Actualiza el servidor para ver los álbumes de este día.");
+        return;
+      }
+      if ((params.name && name !== params.name) || (action === "year_albums" && params.sort && sort !== params.sort)) {
+        message("archive-status", "Actualiza el servidor para filtrar u ordenar los álbumes del año.");
         return;
       }
       if (!items.length && params.offset) {
@@ -502,10 +511,15 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
         setRecallSearch("folders", filters?.q ?? arguments_.q, undefined, filters?.active, arguments_.tag);
         if (arguments_.updateInput) $("query").value = filters?.text ?? arguments_.q;
       }
-      renderFolders(items.slice(0, 30), timeline, saved => archiveRequest(action, arguments_, saved));
+      renderFolders(items.slice(0, 30), timeline || params.sort === "timeline", saved => archiveRequest(action, arguments_, saved));
       if (arguments_.month_day) message("results-title", "Tal día como hoy");
       if (action === "year_albums") {
         message("results-title", `Álbumes de ${arguments_.q}`);
+        const controls = $("year-album-controls");
+        controls.dataset.year = arguments_.q;
+        $("year-album-name").value = arguments_.name || "";
+        $("year-album-order").value = arguments_.sort || "";
+        controls.hidden = !family;
         $("browsing").append(button("Volver a años", () => archiveRequest("years")));
       }
       const offset = arguments_.offset || 0;
@@ -2492,6 +2506,14 @@ $("search-form").addEventListener("submit", event => {
   const q = [keywords, year].filter(Boolean).join(" ");
   const folders = principal?.auth_mode === "family" || $("scope").value === "folders";
   archiveRequest(folders ? "folders" : "search", { q, tag: archiveSearch?.tag });
+});
+$("year-album-controls").addEventListener("submit", event => {
+  event.preventDefault();
+  archiveRequest("year_albums", {
+    q: event.currentTarget.dataset.year,
+    name: $("year-album-name").value.trim(),
+    sort: $("year-album-order").value,
+  });
 });
 $("timeline-anniversary").addEventListener("click", async () => {
   $("query").value = "";

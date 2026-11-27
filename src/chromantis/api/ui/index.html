@@ -112,6 +112,16 @@
           </form>
         </details>
 
+        <form id="year-album-controls" class="actions" lang="es" hidden>
+          <label>Nombre del álbum <input id="year-album-name" type="search" maxlength="120"></label>
+          <label>Orden <select id="year-album-order">
+            <option value="">Por carpeta</option>
+            <option value="name">Por nombre</option>
+            <option value="timeline">Por fecha</option>
+          </select></label>
+          <button type="submit">Aplicar</button>
+        </form>
+
         <div class="results-header"><h2 id="results-title" tabindex="-1">Results</h2><span id="result-count"></span></div>
         <p id="archive-status" class="message" aria-live="polite"></p>
         <div id="share-output" class="panel" hidden></div>

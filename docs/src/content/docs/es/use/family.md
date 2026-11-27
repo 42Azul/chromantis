@@ -13,6 +13,8 @@ Las capturas muestran la web en una pantalla de tamaño móvil con un archivo de
 
 Pulsa **Explorar por año** para ver los años del índice y sus recuentos de álbumes y fotos. Abre un año y después un álbum. Con **Página siguiente** puedes ver más álbumes y con **Volver a años** regresas a la lista de años. Tras revisar un álbum, **Volver a resultados** recupera la misma página. Puedes recorrer el índice con el archivo fotográfico desconectado.
 
+Dentro de un año, escribe parte del **Nombre del álbum**, elige **Por carpeta**, **Por nombre** o **Por fecha** y pulsa **Aplicar**. Deja el nombre vacío para ver todos los álbumes. Puedes combinar el filtro y el orden, y ambos se mantienen al volver de un álbum.
+
 En una sesión familiar, abre **Buscar álbumes** para navegar por año o buscar por palabras de la carpeta, título, alias, lugar o persona. Prueba `playa 2024` o `Ana`. Abre un álbum para ver sus fotos y usa el visor para abrir o descargar un original. La [caché opcional de miniaturas](../operate/maintenance.md#carga-miniaturas-solo-cuando-hagan-falta) aligera la galería en el móvil.
 
 Usa la cronología para buscar por lugar o fecha. La fecha puede venir de la carpeta indexada o de una corrección guardada. Si están disponibles, el visor indica por separado la fecha de captura y la de modificación del archivo.

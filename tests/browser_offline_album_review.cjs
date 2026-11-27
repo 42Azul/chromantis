@@ -175,6 +175,27 @@ async function main() {
     await page.getByRole("button", { name: "Página anterior" }).click();
     await folder(first).waitFor();
     assert.equal(await results.locator(".folder-card").count(), 30);
+    const byYear = page.locator("#year-album-controls");
+    await byYear.getByLabel("Nombre del álbum").fill("Álbum-00");
+    await byYear.getByLabel("Orden").selectOption("name");
+    await byYear.getByRole("button", { name: "Aplicar" }).click();
+    await folder(second).waitFor();
+    assert.equal(await results.locator(".folder-card").count(), 2);
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await page.locator("#archive").screenshot({ path: `/tmp/chromantis-year-order-${mode}.png` });
+    }
+    await folder(second).click();
+    await album.getByRole("button", { name: "Volver a resultados", exact: true }).click();
+    await folder(second).waitFor();
+    await page.waitForFunction(path => document.activeElement?.dataset.albumPath === path, second);
+    assert.equal(await byYear.getByLabel("Nombre del álbum").inputValue(), "Álbum-00");
+    assert.equal(await byYear.getByLabel("Orden").inputValue(), "name");
+    await byYear.getByLabel("Orden").selectOption("timeline");
+    const sorted = page.waitForResponse(response => new URL(response.url()).searchParams.get("sort") === "timeline");
+    await byYear.getByRole("button", { name: "Aplicar" }).click();
+    assert.equal((await (await sorted).json()).sort, "timeline");
+
     await page.locator("#query").fill("Ana");
     await page.locator("#archive-search").click();
     await folder(first).waitFor();

@@ -15,6 +15,8 @@ In a family session, open **Buscar álbumes** to browse by year or search by fol
 
 Choose **Explorar por año** to see the indexed years and their album and photo counts. Open a year, then an album. **Página siguiente** shows more albums and **Volver a años** returns to the year list. After reviewing an album, **Volver a resultados** restores the same page. This navigation works with the photo archive disconnected.
 
+Inside a year, enter part of the **Nombre del álbum**, choose **Por carpeta**, **Por nombre**, or **Por fecha**, and press **Aplicar**. Leave the name empty to show all albums. You can combine the filter and order, and both remain active when returning from an album.
+
 Use the album timeline to browse by place or date. A date can come from the indexed folder or a saved correction. The photo viewer shows camera-reported and file modification dates separately when available.
 
 To narrow the current search, follow up with `before 2020`, `only 2019`, or `with Ana`. Choose an album if several match. A fresh query starts a new search. Try `fotos de la playa con Ana antes de 2020` to set a person and year at once. Tap **×** beside an active person, year, or album to remove just that filter.
