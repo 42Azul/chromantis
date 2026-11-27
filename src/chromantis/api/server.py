@@ -313,7 +313,7 @@ def _collection_route(
 ) -> tuple[int, dict[str, object]]:
     suffix = path.removeprefix("/api/v1/collections")
     try:
-        with app.owner_collections(chat_id, write=method in {"POST", "DELETE"}) as collections:
+        with app.owner_collections(chat_id, write=method in {"POST", "PATCH", "DELETE"}) as collections:
             if not suffix and method == "GET":
                 return 200, {"items": collections.list()}
             if not suffix and method == "POST":
@@ -324,6 +324,8 @@ def _collection_route(
             collection_id = _positive_id(parts[0])
             if len(parts) == 1 and method == "GET":
                 return 200, {"item": collections.get(collection_id)}
+            if len(parts) == 1 and method == "PATCH":
+                return 200, {"item": collections.rename(collection_id, _text(body, "name"))}
             if len(parts) == 1 and method == "DELETE":
                 collections.delete(collection_id)
                 return 200, {"deleted": True}

@@ -147,6 +147,22 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual([entry["path"] for entry in self.request("GET", path)[1]["item"]["entries"]], [PHOTO])
         self.media.assert_not_called()
 
+    def test_rename_keeps_selected_entries_when_archive_is_disconnected(self):
+        item = self.create("Verano")
+        self.create("Álbum familiar")
+        path = f"/collections/{item['id']}"
+        self.source.rename(self.root / "disconnected")
+        self.assertEqual(self.request("PATCH", path, {"name": "album familiar"})[0], 400)
+        self.assertEqual(self.request("PATCH", path, {"name": "  "})[0], 400)
+        self.assertEqual(self.request("PATCH", path, {"name": "Invierno"}, token="other-owner")[0], 404)
+        self.assertEqual(self.request("PATCH", path, {"name": "Invierno"}, token="admin-token")[0], 403)
+        self.assertEqual(self.request("GET", path)[1]["item"], item)
+        for name in ("Invierno", "INVIERNO"):
+            item = {**item, "name": name}
+            self.assertEqual(self.request("PATCH", path, {"name": name}), (200, {"item": item}))
+            self.assertEqual(self.request("GET", path), (200, {"item": item}))
+        self.media.assert_not_called()
+
     def test_stale_reference_survives_reindex_and_different_archive_root(self):
         collection = self.create()
         path = f"/collections/{collection['id']}"

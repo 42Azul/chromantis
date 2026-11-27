@@ -574,6 +574,8 @@ Current architecture map:
 
 **Shared service increment:** The owner collections API can save up to 30 selected indexed photos or albums in one transaction, on creation or in an existing collection. Synthetic HTTP coverage checks selection order, duplicate retries, owner isolation, rollback and operation with the archive disconnected. Web keeps its individual-entry flow. Android is pending; define session-scoped ownership and recovery before exposing private collections in the family client.
 
+**Collection name correction:** The owner API renames an existing collection while keeping its ID and selection. The synthetic HTTP test reopens it after renaming with the archive disconnected, rejects a duplicate normalized name and checks that another owner and an administrator cannot rename it. Next: settle a durable family identity before connecting collection editing to Android. Existing family sessions expire after 90 days and are deleted on sign-out, so they cannot own recoverable collections by themselves.
+
 **Acceptance:** Name a collection, reopen it later, remove one entry and verify that the originals are still in the same place.
 
 ### MVP 16A — Private Album Invitations

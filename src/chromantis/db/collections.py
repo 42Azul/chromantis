@@ -44,10 +44,7 @@ class CollectionStore:
         return {**dict(collection), "entries": [{**dict(row), "available": bool(row["available"])} for row in rows]}
 
     def create(self, name: str) -> int:
-        name = name.strip()
-        key = normalize_text(name)
-        if not key or len(name) > 80 or not name.isprintable():
-            raise ValueError("Enter a collection name of up to 80 characters.")
+        name, key = _collection_name(name)
         count = self.connection.execute(
             "SELECT COUNT(*) FROM memory_collections WHERE owner_chat_id = ?", (self.owner_chat_id,),
         ).fetchone()[0]
@@ -61,6 +58,18 @@ class CollectionStore:
         if not result.rowcount:
             raise ValueError("A collection already has that name.")
         return int(result.lastrowid)
+
+    def rename(self, collection_id: int, name: str) -> dict:
+        self.get(collection_id)
+        name, key = _collection_name(name)
+        result = self.connection.execute(
+            """UPDATE OR IGNORE memory_collections SET name = ?, name_key = ?
+               WHERE id = ? AND owner_chat_id = ?""",
+            (name, key, collection_id, self.owner_chat_id),
+        )
+        if not result.rowcount:
+            raise ValueError("A collection already has that name.")
+        return self.get(collection_id)
 
     def add(self, collection_id: int, kind: str, path: str) -> dict:
         return self.add_entries(collection_id, [(kind, path)])
@@ -115,3 +124,11 @@ class CollectionStore:
         )
         if not result.rowcount:
             raise LookupError("Collection not found.")
+
+
+def _collection_name(value: str) -> tuple[str, str]:
+    name = value.strip()
+    key = normalize_text(name)
+    if not key or len(name) > 80 or not name.isprintable():
+        raise ValueError("Enter a collection name of up to 80 characters.")
+    return name, key

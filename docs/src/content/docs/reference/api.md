@@ -130,6 +130,8 @@ Add `filters=1` to `GET /api/v1/folders` to receive `filters.q` (the query for f
 
 Owner collections use `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collections/{id}`, `POST /api/v1/collections/{id}/entries`, and `DELETE /api/v1/collections/{id}/entries/{entry-id}`. Creation accepts a `name` and optional `entry`. Each entry contains `kind` (`folder` or `image`) and its exact indexed `path`.
 
+Rename a collection with `PATCH /api/v1/collections/{id}` and a `name` field. The collection ID and entries stay the same. Names must be unique for that owner after case and accent normalization.
+
 To save a selection in one request, send an `entries` array of 1–30 objects when creating a collection or adding entries. Use either the batch or the single-entry format. If any entry is invalid, the entire request is rolled back. Adding the same indexed item again leaves its existing entry in place.
 
 Send `POST /api/v1/photo-export` with a JSON body such as `{"paths":["indexed/photo.jpg"]}` to download a ZIP of selected originals. Use the same credentials as for originals, or a same-origin family session. The server deduplicates paths, accepts up to 20 entries and caps original data at 16 MiB. It serves one export at a time, with no disk staging. Oversized selections return 413. Missing files and archive failures return an error instead of a partial ZIP.

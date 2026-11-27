@@ -130,6 +130,8 @@ Añade `filters=1` a `GET /api/v1/folders` para recibir `filters.q` (consulta pa
 
 Las colecciones de propietario usan `GET/POST /api/v1/collections`, `GET/DELETE /api/v1/collections/{id}`, `POST /api/v1/collections/{id}/entries` y `DELETE /api/v1/collections/{id}/entries/{entry-id}`. Para crear usa `name` y opcionalmente `entry`. Una entrada indica su `kind` (`folder` o `image`) y su `path` exacta.
 
+Para cambiar el nombre de una colección, envía `PATCH /api/v1/collections/{id}` con el campo `name`. Se conservan el identificador y las entradas. El nombre debe ser único para ese propietario al comparar sin distinguir mayúsculas ni tildes.
+
 Para guardar una selección en una sola petición, envía un array `entries` de 1 a 30 objetos al crear la colección o al añadir entradas. Usa el lote o el formato individual. Si alguna entrada es inválida, se revierte toda la petición. Si vuelves a añadir el mismo elemento indexado, se conserva su entrada.
 
 Envía `POST /api/v1/photo-export` con un cuerpo JSON como `{"paths":["album/foto.jpg"]}` para descargar un ZIP con los originales seleccionados. Usa las mismas credenciales que para los originales o una sesión familiar del mismo origen. El servidor elimina duplicados, admite hasta 20 entradas y aplica un límite de 16 MiB de originales. Atiende una exportación a la vez, sin escribir archivos temporales. Las selecciones demasiado grandes reciben un 413. Si falta un archivo o el archivo fotográfico está inaccesible, devuelve un error en lugar de un ZIP parcial.
