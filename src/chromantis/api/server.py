@@ -723,6 +723,12 @@ def _read_thumbnail(
     fingerprint = app.repository.indexed_image_fingerprint(path)
     if fingerprint is None:
         return 404, {"error": "Image not found"}
+    return _render_thumbnail(path, fingerprint, thumbnails)
+
+
+def _render_thumbnail(
+    path: str, fingerprint: tuple[str, int | None, str | None], thumbnails: ThumbnailCache,
+) -> tuple[int, dict[str, object] | PhotoPayload]:
     try:
         return 200, PhotoPayload(thumbnails.get(path, fingerprint), "image/jpeg")
     except ValueError:
@@ -741,19 +747,18 @@ def _read_album_cover(
     if thumbnails is None:
         return 404, {"error": "Thumbnails are disabled"}
 
-    candidates = app.repository.cover_candidate_paths(path, max_bytes=SOURCE_BYTES, limit=12)
+    candidates = app.repository.cover_candidates(path, max_bytes=SOURCE_BYTES, limit=12)
     # A stable shuffle of a bounded window avoids scanning the whole album per card.
-    candidates.sort(key=lambda path: sha256(path.encode()).digest())
+    candidates.sort(key=lambda candidate: sha256(candidate[0].encode()).digest())
     candidates = candidates[:3]
-    for index, candidate in enumerate(candidates):
-        status, payload = _read_thumbnail(candidate, app, thumbnails)
+    for index, (candidate, fingerprint) in enumerate(candidates):
+        status, payload = _render_thumbnail(candidate, fingerprint, thumbnails)
         if status == 200:
             return status, payload
         if status == 502:
             # Stop archive reads during an outage, but a later candidate may be cached.
-            for fallback in candidates[index + 1:]:
-                fingerprint = app.repository.indexed_image_fingerprint(fallback)
-                if fingerprint is not None and (cached := thumbnails.peek(fallback, fingerprint)) is not None:
+            for fallback, fingerprint in candidates[index + 1:]:
+                if (cached := thumbnails.peek(fallback, fingerprint)) is not None:
                     return 200, PhotoPayload(cached, "image/jpeg")
             return status, payload
     return 404, {"error": "No album cover available"}

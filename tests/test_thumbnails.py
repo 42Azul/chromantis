@@ -139,7 +139,10 @@ class ThumbnailTests(unittest.TestCase):
         self.archive.rename(self.root / "disconnected")
         self.reader.reset_mock()
         route = "/album-cover?" + urlencode({"path": album})
-        self.assertEqual(self.request(route, token=None, cookie=cookie), (200, "image/jpeg", expected))
+        # A family request opens one session to authenticate and one to select cover candidates.
+        with patch.object(self.repository, "session", wraps=self.repository.session) as session:
+            self.assertEqual(self.request(route, token=None, cookie=cookie), (200, "image/jpeg", expected))
+            self.assertEqual(session.call_count, 2)
         self.reader.assert_called_once_with(first, max_bytes=SOURCE_BYTES)
 
     def test_album_cover_skips_oversized_photos_before_limiting_candidates(self):
