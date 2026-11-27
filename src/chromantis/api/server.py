@@ -783,8 +783,8 @@ def _query_route(
         query = params.get("q", [""])[0]
         limit = _bounded_limit(params.get("limit", ["10"])[0], default=10)
         order = params.get("sort", ["default"])[0]
-        if order not in {"default", "timeline"}:
-            raise ValueError("sort must be default or timeline.")
+        if order not in {"default", "timeline", "name"}:
+            raise ValueError("sort must be default, timeline or name.")
         offset = _optional_int(params.get("offset", [None])[0]) or 0
         if not 0 <= offset < 2**63 - limit:
             raise ValueError("Invalid offset.")
@@ -795,10 +795,13 @@ def _query_route(
             date_to=params.get("date_to", [None])[0],
             tag=_album_tag(params.get("tag", [None])[0]),
             month_day=params.get("month_day", [None])[0], name=params.get("name", [""])[0],
+            alphabetical=order == "name",
         )
         payload = {"items": [asdict(item) for item in items]}
         if filters is not None:
             payload["filters"] = filters
+        if "sort" in params:
+            payload["sort"] = order
         if "month_day" in params:
             payload["month_day"] = params["month_day"][0]
         if "name" in params:

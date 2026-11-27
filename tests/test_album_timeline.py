@@ -119,6 +119,15 @@ class AlbumTimelineTests(unittest.TestCase):
         self.assertEqual(request({"month_day": "02-29"}, owner=True)[0], 200)
         self.assertEqual(request({"month_day": "02-30"}, owner=True)[0], 400)
         self.assertEqual(self.repository.list_saved_searches(10, False, 10), [])
+        album_order = {"q": "2024", "limit": 1}
+        for sort, expected in (("name", [UNDATED, AUTUMN, SUMMER]), ("timeline", [AUTUMN, SUMMER, UNDATED])):
+            for offset, path in enumerate(expected):
+                status, page = request({**album_order, "sort": sort, "offset": offset},
+                                       cookie=f"chromantis_family={session}")
+                self.assertEqual(status, 200)
+                self.assertEqual(page["sort"], sort)
+                self.assertEqual([item["path"] for item in page["items"]], [path])
+        self.assertEqual(self.repository.list_saved_searches(10, False, 10), [])
         self.app.family_access.revoke(identity)
         self.assertEqual(request(params, cookie=f"chromantis_family={session}")[0], 401)
 

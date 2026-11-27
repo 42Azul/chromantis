@@ -39,6 +39,7 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
   scroll position on return. Evaluate folder-only name filtering and explicit name/date ordering
   over the complete folder listing, including paged results.
 - Folder-name filtering: the shared folders API now filters display and indexed album titles inside a year before pagination. The offline HTTPS fixture finds two identically named albums on separate branches of 2003, including the album originally beyond the first page. Android offers an explicit field in the year list. The synthetic Compose fixture checks zero matches, recovery with a matching title, both themes, and return from the gallery with the filter intact. Next: verify on a physical phone and evaluate date/name ordering. The web control is pending.
+- Folder ordering: the shared API supports alphabetical title order and the existing descending timeline order before pagination. The offline family HTTP fixture checks the same year with a corrected date and a one-result page size for both orders. Next: expose both orders in Android's year list alongside the name filter and preserve them when returning from the gallery. The web control is pending.
 - Keep **Search** for retrieval by album, confirmed person or tag, with visible filters, clear
   result types and a return path that keeps the query. A gallery opened from Search can be viewed,
   saved and shared, without surfacing tagging or review actions.

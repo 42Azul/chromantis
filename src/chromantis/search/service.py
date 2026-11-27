@@ -142,7 +142,7 @@ class SearchService:
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
         date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,
-        month_day: str | None = None, name: str = "",
+        month_day: str | None = None, name: str = "", alphabetical: bool = False,
     ) -> list[SearchResult]:
         if len(name) > 120:
             raise ValueError("Album name filter is limited to 120 characters.")
@@ -177,8 +177,12 @@ class SearchService:
         where = "WHERE " + " AND ".join(predicates) if predicates else ""
         order = ("COALESCE(f.event_date, printf('%04d-00-00', f.year)) DESC"
                  if chronological else "f.year DESC")
+        if alphabetical:
+            order = "album_title_key(f.title) ASC"
         logger.debug("Searching folders raw_query=%r parsed_query=%s limit=%d", raw_query, query, limit)
         with self.repository.connect() as connection:
+            if alphabetical:
+                connection.create_function("album_title_key", 1, _album_title_key, deterministic=True)
             rows = connection.execute(
                 f"""
                 SELECT f.folder_path, f.title, f.year, f.event_date, f.indexed_title, f.indexed_year, f.aliases_json,
@@ -588,6 +592,11 @@ class SearchService:
         if not reasons and not query.keywords and query.year_from is None and not query.people:
             reasons.append("all")
         return list(dict.fromkeys(reasons))
+
+
+def _album_title_key(title: str) -> str:
+    readable = re.sub(r"^\d{4}(?:[-_ ]\d{2}){2}[-_ ]+", "", title)
+    return normalize_text(readable or title)
 
 
 def _calendar_date(value: str | None) -> str | None:
