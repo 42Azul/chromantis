@@ -799,6 +799,8 @@ def _query_route(
         payload = {"items": [asdict(item) for item in items]}
         if filters is not None:
             payload["filters"] = filters
+        if "month_day" in params:
+            payload["month_day"] = params["month_day"][0]
         return 200, payload
     if path == "/api/v1/images":
         query = params.get("q", [""])[0]

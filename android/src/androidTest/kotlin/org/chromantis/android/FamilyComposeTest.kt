@@ -137,6 +137,7 @@ class FamilyComposeTest {
                                     { appearance.value = it },
                                     null,
                                     {},
+                                    today = { java.time.LocalDate.of(2026, 10, 5) },
                                     photoSearchBookmarks = bookmark.value,
                                     onSavePhotoSearch = { saved, remove ->
                                         bookmark.value =
@@ -162,6 +163,18 @@ class FamilyComposeTest {
             compose.onNodeWithText(label(R.string.sign_in)).performScrollTo().performClick()
             await("2023")
             capture("folders-light")
+            click(label(R.string.album_anniversary))
+            await("2023-10-05 · ${label(R.string.album_date_folder)}")
+            capture("anniversary-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("anniversary-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            click("Excursion")
+            await("2023/2023-10-05_excursion")
+            click(label(R.string.album_anniversary))
+            await("2023-10-05 · ${label(R.string.album_date_folder)}")
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await("2023")
             val client = compose.runOnIdle { api.value!! }
             val pending = runBlocking { client.review(null, 0)!! }
             compose

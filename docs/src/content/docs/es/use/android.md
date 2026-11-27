@@ -22,6 +22,8 @@ En un álbum o en la página actual de una búsqueda de fotos por etiqueta, sele
 
 En una búsqueda exacta de fotos por etiqueta, pulsa **Guardar búsqueda** para guardar hasta tres accesos distintos en este dispositivo. **Reabrir búsqueda**, en el catálogo de etiquetas, recupera la etiqueta y los filtros de año y persona. Las últimas búsquedas guardadas aparecen primero. Pulsa **Quitar acceso** en el catálogo para borrarlo, o cierra sesión para limpiarlo.
 
+En **Carpetas**, **Tal día como hoy** encuentra álbumes de este día y mes en distintos años. Cada resultado indica la fecha y su origen. Abre un álbum y pulsa **Tal día como hoy** en la ruta de la galería para volver. Esta vista requiere un servidor compatible con el filtro de día y mes.
+
 ## Un recorrido breve
 
 Estas capturas muestran las pantallas Compose rediseñadas en una actividad de pruebas desechable, con fotos sintéticas. Otro ejemplo independiente comprueba que se puede buscar y etiquetar con el archivo desconectado. No contienen datos familiares. Las barras del sistema y la posición del teclado pueden variar en tu móvil.

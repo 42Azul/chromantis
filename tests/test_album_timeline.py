@@ -109,6 +109,7 @@ class AlbumTimelineTests(unittest.TestCase):
         self.assertEqual(request(anniversary)[0], 401)
         status, body = request(anniversary, cookie=f"chromantis_family={session}")
         self.assertEqual(status, 200)
+        self.assertEqual(body["month_day"], anniversary["month_day"])
         self.assertEqual(
             [(item["path"], item["event_date"], item["event_date_source"]) for item in body["items"]],
             [(SUMMER, "2024-06-30", "folder_name"), (OTHER, "2020-06-30", "album_correction")],

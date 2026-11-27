@@ -22,6 +22,8 @@ In an album or on the current page of a photo tag search, select two to four pho
 
 For an exact photo-tag search, use **Guardar búsqueda** to keep up to three different shortcuts on this device. **Reabrir búsqueda** in the tag catalog restores the saved label, year and person filters. The most recently saved searches appear first. Use **Quitar acceso** in the tag catalog to remove it, or sign out to clear it.
 
+In **Carpetas**, **Tal día como hoy** finds albums from this calendar day across years. Each result shows its album date and where it came from. Open an album and tap **Tal día como hoy** in the gallery breadcrumb to return. This view requires a server that supports the month/day filter.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.

@@ -39,7 +39,9 @@ internal fun folderAncestors(pages: List<Page>): List<Page> {
             pages.none { it.level == Level.ALBUM_TAG || it.level == Level.PHOTO_TAG } &&
             level in listOf(Level.ALBUMS, Level.PHOTOS, Level.ORIGINAL)
     ) {
-        pages.dropLast(1).takeWhile { it.level in listOf(Level.YEARS, Level.ALBUMS, Level.PHOTOS) }
+        pages.dropLast(1).takeWhile {
+            it.level in listOf(Level.YEARS, Level.ALBUMS, Level.ANNIVERSARY, Level.PHOTOS)
+        }
     } else {
         emptyList()
     }

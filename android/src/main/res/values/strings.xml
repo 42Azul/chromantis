@@ -204,4 +204,8 @@
     <string name="photo_search_saved">Guardada</string>
     <string name="reopen_photo_search">Reabrir búsqueda: %1$s</string>
     <string name="forget_photo_search">Quitar acceso</string>
+    <string name="album_anniversary">Tal día como hoy</string>
+    <string name="album_anniversary_unsupported">Actualiza el servidor para ver los álbumes de este día.</string>
+    <string name="album_date_folder">Nombre de la carpeta</string>
+    <string name="album_date_corrected">Fecha corregida</string>
 </resources>

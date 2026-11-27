@@ -15,11 +15,15 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal class AnniversaryUnsupported : IOException()
+
 internal data class Entry(
     val title: String,
     val path: String,
     val albumCount: Int? = null,
     val identity: String? = null,
+    val eventDate: String? = null,
+    val dateSource: String? = null,
 )
 
 internal data class EntryPage(
@@ -108,16 +112,26 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
         offset: Int,
         includeFilters: Boolean = false,
         tag: String = "",
+        monthDay: String? = null,
     ): EntryPage {
         val filters = if (includeFilters) "&filters=1" else ""
         val tagFilter = if (tag.isBlank()) "" else "&tag=${encode(tag)}"
+        val anniversary = monthDay?.let { "&sort=timeline&month_day=${encode(it)}" }.orEmpty()
         val response =
             json(
-                "/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters$tagFilter"
+                "/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters$tagFilter$anniversary"
             )
+        if (monthDay != null && response.optionalString("month_day") != monthDay)
+            throw AnniversaryUnsupported()
         val entries =
             response.getJSONArray("items").mapObjects {
-                Entry(it.getString("title"), it.getString("path"))
+                Entry(
+                    it.getString("title"),
+                    it.getString("path"),
+                    eventDate = if (monthDay == null) null else it.optionalString("event_date"),
+                    dateSource =
+                        if (monthDay == null) null else it.optionalString("event_date_source"),
+                )
             }
         return EntryPage(
             entries.take(pageSize),

@@ -92,6 +92,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.core.view.WindowCompat
+import java.time.LocalDate
 import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -217,6 +218,7 @@ internal enum class Level {
     YEARS,
     ASK,
     ALBUMS,
+    ANNIVERSARY,
     SEARCH,
     CONFIRMED,
     ALBUM_TAG,
@@ -248,8 +250,10 @@ internal fun Explorer(
     onAlbumVisited: (AlbumResume) -> Unit,
     photoSearchBookmarks: List<PhotoSearchBookmark> = emptyList(),
     onSavePhotoSearch: ((PhotoSearchBookmark, Boolean) -> Unit)? = null,
+    today: () -> LocalDate = LocalDate::now,
     endSession: (Boolean) -> Unit,
 ) {
+    val anniversaryTitle = stringResource(R.string.album_anniversary)
     val folders = stringResource(R.string.folders)
     val organize = stringResource(R.string.organize)
     val search = stringResource(R.string.search)
@@ -419,6 +423,14 @@ internal fun Explorer(
                             pages = pages + Page(Level.ORIGINAL, it.title, it.path)
                         }
                     Level.YEARS -> {
+                        TextButton(
+                            onClick = {
+                                val monthDay = today().toString().takeLast(5)
+                                pages = pages + Page(Level.ANNIVERSARY, anniversaryTitle, monthDay)
+                            }
+                        ) {
+                            Text(anniversaryTitle)
+                        }
                         if (resumeAlbum != null) {
                             TextButton(
                                 onClick = {
@@ -447,20 +459,20 @@ internal fun Explorer(
                             )
                         }
                     }
+                    Level.ANNIVERSARY,
                     Level.ALBUMS,
                     Level.SEARCH -> {
                         EntryScreen(
                             folderApi = api,
                             load = { offset ->
-                                if (page.level == Level.YEARS) api.years()
+                                if (page.level == Level.ANNIVERSARY)
+                                    api.albums("", offset, monthDay = requireNotNull(page.path))
                                 else api.albums(page.path.orEmpty(), offset)
                             },
                             onExpired = expire,
                             onOpen = { entry ->
-                                val level =
-                                    if (page.level == Level.YEARS) Level.ALBUMS else Level.PHOTOS
                                 galleryStartOffset = 0
-                                pages = pages + Page(level, entry.title, entry.path)
+                                pages = pages + Page(Level.PHOTOS, entry.title, entry.path)
                             },
                         )
                     }
@@ -1121,6 +1133,7 @@ internal fun Throwable.hasStatus(status: Int) =
 
 internal fun errorLabel(error: Throwable) =
     when {
+        error is AnniversaryUnsupported -> R.string.album_anniversary_unsupported
         error is SSLException -> R.string.untrusted_certificate
         error.hasStatus(404) || error.hasStatus(422) -> R.string.content_unavailable
         error.hasStatus(403) -> R.string.operation_forbidden
