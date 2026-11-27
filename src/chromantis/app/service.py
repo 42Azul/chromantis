@@ -83,12 +83,12 @@ class ApplicationService:
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
         date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,
-        month_day: str | None = None,
+        month_day: str | None = None, name: str = "",
     ) -> list[SearchResult]:
         query = normalize_album_request(raw_query, self.repository.list_alias_map)
         return self.search.search_folders(
             query, limit=limit, place=place, date_from=date_from, date_to=date_to,
-            chronological=chronological, offset=offset, tag=tag, month_day=month_day,
+            chronological=chronological, offset=offset, tag=tag, month_day=month_day, name=name,
         )
 
     def album_search_filters(self, raw_query: str) -> dict[str, object]:

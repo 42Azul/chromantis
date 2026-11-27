@@ -17,6 +17,8 @@ import org.json.JSONObject
 
 internal class AnniversaryUnsupported : IOException()
 
+internal class FolderNameUnsupported : IOException()
+
 internal data class Entry(
     val title: String,
     val path: String,
@@ -113,16 +115,20 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
         includeFilters: Boolean = false,
         tag: String = "",
         monthDay: String? = null,
+        name: String = "",
     ): EntryPage {
         val filters = if (includeFilters) "&filters=1" else ""
         val tagFilter = if (tag.isBlank()) "" else "&tag=${encode(tag)}"
+        val nameFilter = if (name.isBlank()) "" else "&name=${encode(name)}"
         val anniversary = monthDay?.let { "&sort=timeline&month_day=${encode(it)}" }.orEmpty()
         val response =
             json(
-                "/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters$tagFilter$anniversary"
+                "/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters$tagFilter$anniversary$nameFilter"
             )
         if (monthDay != null && response.optionalString("month_day") != monthDay)
             throw AnniversaryUnsupported()
+        if (nameFilter.isNotEmpty() && response.optionalString("name") != name)
+            throw FolderNameUnsupported()
         val entries =
             response.getJSONArray("items").mapObjects {
                 Entry(

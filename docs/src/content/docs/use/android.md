@@ -26,6 +26,8 @@ For an exact photo-tag search, use **Guardar búsqueda** to keep up to three dif
 
 In **Carpetas**, **Tal día como hoy** finds albums from this calendar day across years. Each result shows its album date and where it came from. Open an album and tap **Tal día como hoy** in the gallery breadcrumb to return. This view requires a server that supports the month/day filter.
 
+Inside a year in **Carpetas**, enter part of an album title and tap **Filtrar por nombre**. **Borrar filtro** shows all albums for the year again. The filter remains active when you return from a gallery.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.

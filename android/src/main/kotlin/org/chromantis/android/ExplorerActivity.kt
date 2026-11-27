@@ -462,19 +462,53 @@ internal fun Explorer(
                     Level.ANNIVERSARY,
                     Level.ALBUMS,
                     Level.SEARCH -> {
-                        EntryScreen(
-                            folderApi = api,
-                            load = { offset ->
-                                if (page.level == Level.ANNIVERSARY)
-                                    api.albums("", offset, monthDay = requireNotNull(page.path))
-                                else api.albums(page.path.orEmpty(), offset)
-                            },
-                            onExpired = expire,
-                            onOpen = { entry ->
-                                galleryStartOffset = 0
-                                pages = pages + Page(Level.PHOTOS, entry.title, entry.path)
-                            },
-                        )
+                        var folderName by rememberSaveable { mutableStateOf("") }
+                        if (page.level == Level.ALBUMS) {
+                            var draft by rememberSaveable { mutableStateOf("") }
+                            val apply = {
+                                folderName = draft.trim()
+                                focus.clearFocus()
+                            }
+                            OutlinedTextField(
+                                value = draft,
+                                onValueChange = { if (it.length <= 120) draft = it },
+                                label = { Text(stringResource(R.string.folder_name_filter)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { apply() }),
+                            )
+                            Row {
+                                TextButton(onClick = apply) {
+                                    Text(stringResource(R.string.apply_folder_name))
+                                }
+                                if (draft.isNotEmpty() || folderName.isNotEmpty()) {
+                                    TextButton(
+                                        onClick = {
+                                            draft = ""
+                                            apply()
+                                        }
+                                    ) {
+                                        Text(stringResource(R.string.clear_folder_name))
+                                    }
+                                }
+                            }
+                        }
+                        key(folderName) {
+                            EntryScreen(
+                                folderApi = api,
+                                load = { offset ->
+                                    if (page.level == Level.ANNIVERSARY)
+                                        api.albums("", offset, monthDay = requireNotNull(page.path))
+                                    else api.albums(page.path.orEmpty(), offset, name = folderName)
+                                },
+                                onExpired = expire,
+                                onOpen = { entry ->
+                                    galleryStartOffset = 0
+                                    pages = pages + Page(Level.PHOTOS, entry.title, entry.path)
+                                },
+                            )
+                        }
                     }
                     Level.PHOTOS -> {
                         Text(page.path.orEmpty(), style = MaterialTheme.typography.bodySmall)
@@ -1133,6 +1167,7 @@ internal fun Throwable.hasStatus(status: Int) =
 
 internal fun errorLabel(error: Throwable) =
     when {
+        error is FolderNameUnsupported -> R.string.folder_name_unsupported
         error is AnniversaryUnsupported -> R.string.album_anniversary_unsupported
         error is SSLException -> R.string.untrusted_certificate
         error.hasStatus(404) || error.hasStatus(422) -> R.string.content_unavailable

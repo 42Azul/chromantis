@@ -102,6 +102,14 @@ class AndroidFixtureTests(unittest.TestCase):
         archive = Path(db).parent / "archive"
         disconnected = archive.with_name("disconnected")
         archive.rename(disconnected)
+        name_filter = {"q": 2003, "name": "Álbum-00", "limit": 1}
+        for offset, branch in ((0, 1), (1, 2)):
+            filtered, _ = request("GET", "/folders", params={**name_filter, "offset": offset})
+            self.assertEqual(filtered["name"], "Álbum-00")
+            self.assertEqual([item["path"] for item in filtered["items"]], [f"2003({branch})/album_00"])
+        wrong_year, _ = request("GET", "/folders", params={**name_filter, "q": 2024})
+        self.assertEqual(wrong_year["items"], [])
+        request("GET", "/folders", 400, params={"name": "x" * 121})
         uncached = {"path": second["items"][1]["path"]}
         cover = {"path": "2003(2)/album_00"}
         request("GET", "/thumbnail", 404, params=uncached)

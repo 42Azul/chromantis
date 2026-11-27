@@ -120,6 +120,8 @@ Start a scan with an empty request body or `{}` and an owner token. A `202` resp
 
 `GET /api/v1/folders` accepts `sort=timeline`, `place`, `date_from`, and `date_to` alongside the usual `q`, `offset`, and `limit`. Date bounds are inclusive. Use `month_day=06-30` to match dated albums on that month and day across years. The filter uses the effective album date and retains `event_date_source`. Undated albums are excluded. `POST /api/v1/refine` takes `{"q":"beach","text":"before 2020"}` and returns a refined query or choices when the request is ambiguous.
 
+Use `name` for a literal substring of the display or indexed album title. It ignores case, accents, and differences between spaces, hyphens and underscores. The filter applies before pagination, composes with the year in `q`, and the response echoes `name`.
+
 For a combined Spanish request, set `q` to `fotos de la playa con Ana antes de 2020`. The year is exclusive, and the person must be linked to the album. Use the original `q` for refinements. An unknown name or alias returns 400 with `code: person`. Person lists such as `Ana y Luis` or `Ana, Luis` resolve all names or reject the request with `code: person`; all resolved people must have album links. A complete saved alias takes precedence over separators. The same syntax works in a `with`/`con` refinement.
 
 Add `filters=1` to `GET /api/v1/folders` to receive `filters.q` (the query for follow-ups), `filters.text` (search text) and `filters.active`. Each active filter reports its `kind`, `label`, and the next `q` to use if removed (`without`). This lists the explicit refinements and the person and year from a combined request.

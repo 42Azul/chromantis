@@ -142,8 +142,11 @@ class SearchService:
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
         date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,
-        month_day: str | None = None,
+        month_day: str | None = None, name: str = "",
     ) -> list[SearchResult]:
+        if len(name) > 120:
+            raise ValueError("Album name filter is limited to 120 characters.")
+        name_filter = normalize_text(name)
         query = self._parse_query(raw_query)
         date_from, date_to = _calendar_date(date_from), _calendar_date(date_to)
         if date_from and date_to and date_from > date_to:
@@ -192,7 +195,13 @@ class SearchService:
                 """,
                 values,
             )
-            matches = (self._folder_result(row, query, place_filter) for row in rows)
+            matches = (
+                self._folder_result(row, query, place_filter)
+                for row in rows
+                if not name_filter or any(
+                    name_filter in normalize_text(row[column]) for column in ("title", "indexed_title")
+                )
+            )
             found = (item for item in matches if item is not None)
             results = list(islice(found, offset, offset + limit)) if limit >= 0 else list(found)[offset:][:limit]
         if tag is not None:

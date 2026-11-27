@@ -26,6 +26,8 @@ En una búsqueda exacta de fotos por etiqueta, pulsa **Guardar búsqueda** para 
 
 En **Carpetas**, **Tal día como hoy** encuentra álbumes de este día y mes en distintos años. Cada resultado indica la fecha y su origen. Abre un álbum y pulsa **Tal día como hoy** en la ruta de la galería para volver. Esta vista requiere un servidor compatible con el filtro de día y mes.
 
+Dentro de un año en **Carpetas**, escribe parte del título y pulsa **Filtrar por nombre**. **Borrar filtro** vuelve a mostrar todos los álbumes del año. El filtro sigue activo al volver de una galería.
+
 ## Un recorrido breve
 
 Estas capturas muestran las pantallas Compose rediseñadas en una actividad de pruebas desechable, con fotos sintéticas. Otro ejemplo independiente comprueba que se puede buscar y etiquetar con el archivo desconectado. No contienen datos familiares. Las barras del sistema y la posición del teclado pueden variar en tu móvil.

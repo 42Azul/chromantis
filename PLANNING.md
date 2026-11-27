@@ -38,6 +38,7 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 - Keep **Folders** grounded in the archive hierarchy. Preserve the active breadcrumb, page and
   scroll position on return. Evaluate folder-only name filtering and explicit name/date ordering
   over the complete folder listing, including paged results.
+- Folder-name filtering: the shared folders API now filters display and indexed album titles inside a year before pagination. The offline HTTPS fixture finds two identically named albums on separate branches of 2003, including the album originally beyond the first page. Android offers an explicit field in the year list. The synthetic Compose fixture checks zero matches, recovery with a matching title, both themes, and return from the gallery with the filter intact. Next: verify on a physical phone and evaluate date/name ordering. The web control is pending.
 - Keep **Search** for retrieval by album, confirmed person or tag, with visible filters, clear
   result types and a return path that keeps the query. A gallery opened from Search can be viewed,
   saved and shared, without surfacing tagging or review actions.

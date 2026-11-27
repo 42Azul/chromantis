@@ -208,4 +208,8 @@
     <string name="album_anniversary_unsupported">Actualiza el servidor para ver los álbumes de este día.</string>
     <string name="album_date_folder">Nombre de la carpeta</string>
     <string name="album_date_corrected">Fecha corregida</string>
+    <string name="folder_name_filter">Nombre del álbum</string>
+    <string name="apply_folder_name">Filtrar por nombre</string>
+    <string name="clear_folder_name">Borrar filtro</string>
+    <string name="folder_name_unsupported">Actualiza el servidor para filtrar por nombre.</string>
 </resources>
