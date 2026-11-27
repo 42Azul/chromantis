@@ -861,17 +861,24 @@ Use the [Android guide recording sheet](docs/src/content/docs/use/android.md#phy
 
 **Validation:** Synthetic local and FTP fixtures distinguish a skipped branch from an indexed album on a later page and an unreachable source. The command leaves the archive and curation unchanged.
 
-### MVP 19E — Face Review Trial
+### MVP 19E — Face Enrollment and Review
 
-**Status:** `Planned Later`
+**Status:** `Planned Later` — time-boxed local spike followed by an Android-first delivery decision. Keep the current Android delivery priorities.
 
-**Case:** The owner can prepare a small set of photos for review in **Personas → Caras** and confirm or correct suggested face-to-person links.
+**Family flow:** In **People → Faces**, an authorized curator chooses an album and starts a scan explicitly. The review queue shows face crops with photo context. On the first clear example, choose an existing person by name or alias and explicitly save the crop as a reference. Search and resolve aliases through the existing directory and store the stable person ID. If someone is missing, use the existing person editor and return to the same face. A person page shows registered examples and lets a curator remove them. A photo can contain several independently reviewable faces.
 
-**Scope:** Separate detection of face regions, similarity suggestions, and confirmed identities. Test optional local processing of one small selected album, initially on a development computer. Record progress and source/model provenance so a run can resume and skip unchanged photos. Show suggested matches for approval or rejection and allow correction and deletion. Confirmed links refer to the exact photo. Keep face processing off by default and independent of indexing. Keep all derived face data local and define its deletion policy before persistence.
+**Review:** Present a suggested person, an unknown face, or an ambiguous match. Offer **Confirm**, **Choose someone else**, **Skip**, and **Undo**. Turning a confirmed face into a reference is a separate action. A confirmation feeds the existing exact-photo person search; album-level links stay separate. Corrections and undo preserve independent manual tags and other confirmed faces for the same person in the same photo.
 
-**Dependencies:** MVP 19B photo-level links, a bounded processing and cancellation path, and synthetic face fixtures. Compare [ML Kit face detection](https://developers.google.com/ml-kit/vision/face-detection) for Android-only detection with [OpenCV YuNet and SFace](https://docs.opencv.org/4.x/d0/dd4/tutorial_dnn_face.html) for a local detection and similarity trial. Verify model licenses, measure CPU, memory, per-photo time and storage, and calibrate on the trial data before adopting a threshold.
+**Spike · one selected album, offline:** Use synthetic or explicitly consented fixtures, including group photos, age variation, blur, lookalikes and unknown people. Compare two paths on the same fixtures:
 
-**Acceptance:** Process a bounded synthetic batch, interrupt and resume it, review a proposed match and reject an unknown or lookalike without creating a confirmed link. A wrong suggestion can be corrected and derived data can be removed. Reindexing alone never runs the model or alters originals.
+1. Detection and manual linking as the baseline. Verify the review workflow is useful without recognition.
+2. Detection plus optional local similarity against a few explicitly curated references per person. Compare on-device Android processing with a bounded desktop batch. Assess the NAS only if measurements justify it. Check model licenses and offline operation before choosing a runtime.
+
+Record detection misses, incorrect suggestions, abstentions, time to review, per-photo processing time, peak memory and storage. Hold back photos from reference enrollment for evaluation. Document a go/no-go for similarity and keep the manual flow viable on its own. Use a disposable fixture and validate resumable processing and cancellation before adopting a persistent design.
+
+**Data and permissions:** Keep detections, reference examples, suggestions and confirmed links distinct. Key detections to photo revision and model version. Mark derived results stale on replacement and rescan only on request. Keep crops and embeddings local and private, with curator-only review and explicit deletion of references or all derived face data. Removing a reference should remove its derived data and invalidate dependent suggestions. Keep independent human-confirmed photo tags unless explicitly removed. Document access, retention and backup behavior before storing real face data. Keep scanning off by default, independent of indexing and outside MCP.
+
+**Acceptance:** In an Android synthetic flow, find Ana by alias and enroll a reference; review two faces in one photo; skip an unknown or ambiguous face; correct a mistaken link and undo a confirmation. Exact-photo search returns only confirmed links. Interrupt and resume a bounded batch, replace a photo, and delete derived data without changing originals or independent tags. Record the spike results and next decision in this entry.
 
 ### Optional remote MCP transport and hosted-model evaluation
 
