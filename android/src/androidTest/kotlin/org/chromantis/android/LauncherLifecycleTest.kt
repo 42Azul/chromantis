@@ -2,13 +2,14 @@ package org.chromantis.android
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -60,7 +61,8 @@ class LauncherLifecycleTest {
                 compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
             }
         }
-        fun click(text: String) = compose.onNodeWithText(text).performClick()
+        fun click(text: String) =
+            compose.onNodeWithText(text).performSemanticsAction(SemanticsActions.OnClick)
         fun clearLocalSession() {
             settings.edit().clear().commit()
             KeyStore.getInstance("AndroidKeyStore").apply {
