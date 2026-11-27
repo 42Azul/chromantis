@@ -18,6 +18,7 @@ import java.security.cert.CertificateFactory
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -89,6 +90,34 @@ class LauncherLifecycleTest {
             requireNotNull(scenario).recreate()
             compose.onNodeWithText(label(R.string.review_album)).assertIsDisplayed()
 
+            val origin = config.getString("ui_origin")
+            val client =
+                ChromantisApi(origin, checkNotNull(familySessionStore(settings).restore(origin)))
+            val title = runBlocking {
+                val photo = client.photos("2023/2023-10-05_excursion", 0).entries.first()
+                val ana = client.people().single { it.name == "Ana" }
+                client.savePhotoTags(
+                    client.photoTags(listOf(photo.path)),
+                    ana.id,
+                    "paseofamiliar",
+                    remove = false,
+                )
+                photo.title
+            }
+            click(label(R.string.search))
+            click(label(R.string.search_tags))
+            click(label(R.string.photo_tag_catalog))
+            await("Paseofamiliar · 1")
+            click("Paseofamiliar · 1")
+            compose.onNodeWithText(label(R.string.people_filter)).performTextInput("Anita")
+            compose.onNodeWithText(label(R.string.people_filter)).performImeAction()
+            compose.onNodeWithText(label(R.string.photo_album_year)).performTextInput("2023")
+            click(label(R.string.apply_photo_year))
+            await("Año: 2023")
+            click(label(R.string.save_photo_search))
+            await(label(R.string.photo_search_saved))
+            assertNotNull(settings.getString("photo_search_bookmark", null))
+
             requireNotNull(scenario).close()
             scenario = null
             scenario = ActivityScenario.launch(Intent(context, ExplorerActivity::class.java))
@@ -97,8 +126,18 @@ class LauncherLifecycleTest {
             click(resume)
             compose.onNodeWithText(label(R.string.review_album)).assertIsDisplayed()
 
-            click(label(R.string.folders))
-            await("2023")
+            click(label(R.string.search))
+            click(label(R.string.search_tags))
+            val reopen = context.getString(R.string.reopen_photo_search, "paseofamiliar")
+            await(reopen)
+            click(reopen)
+            await("Persona: Anita")
+            await("Año: 2023")
+            await(title)
+            click(label(R.string.back))
+            click(label(R.string.forget_photo_search))
+            compose.onNodeWithText(reopen).assertDoesNotExist()
+            assertFalse(settings.contains("photo_search_bookmark"))
             click(label(R.string.settings))
             click(label(R.string.sign_out))
             await(label(R.string.connect_title))

@@ -3,6 +3,7 @@ package org.chromantis.android
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.FilterChip
@@ -15,6 +16,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -26,7 +28,7 @@ internal fun TagSearch(
     onOpenAlbum: (Entry) -> Unit,
     onOpenPhoto: (Entry) -> Unit,
     bookmark: PhotoSearchBookmark?,
-    onSaveBookmark: ((PhotoSearchBookmark) -> Unit)?,
+    onSaveBookmark: ((PhotoSearchBookmark?) -> Unit)?,
     onExit: () -> Unit,
 ) {
     var photos by rememberSaveable { mutableStateOf(false) }
@@ -42,14 +44,22 @@ internal fun TagSearch(
         TextButton(onClick = back) { Text(stringResource(R.string.back)) }
         if (tag == null) {
             if (bookmark != null) {
-                TextButton(
-                    onClick = {
-                        photos = true
-                        reopening = true
-                        selected = bookmark.tag
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            photos = true
+                            reopening = true
+                            selected = bookmark.tag
+                        },
+                    ) {
+                        Text(stringResource(R.string.reopen_photo_search, bookmark.tag))
                     }
-                ) {
-                    Text(stringResource(R.string.reopen_photo_search, bookmark.tag))
+                    if (onSaveBookmark != null) {
+                        TextButton(onClick = { onSaveBookmark(null) }) {
+                            Text(stringResource(R.string.forget_photo_search))
+                        }
+                    }
                 }
             }
             FilterChip(

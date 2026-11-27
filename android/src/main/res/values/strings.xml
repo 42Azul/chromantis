@@ -203,4 +203,5 @@
     <string name="save_photo_search">Guardar búsqueda</string>
     <string name="photo_search_saved">Guardada</string>
     <string name="reopen_photo_search">Reabrir búsqueda: %1$s</string>
+    <string name="forget_photo_search">Quitar acceso</string>
 </resources>

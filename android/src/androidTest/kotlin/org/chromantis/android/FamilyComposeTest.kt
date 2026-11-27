@@ -139,7 +139,7 @@ class FamilyComposeTest {
                                     {},
                                     photoSearchBookmark = bookmark.value,
                                     onSavePhotoSearch = {
-                                        bookmark.value = PhotoSearchBookmark.decode(it.encode())
+                                        bookmark.value = PhotoSearchBookmark.decode(it?.encode())
                                     },
                                 ) {
                                     api.value = null
@@ -479,6 +479,10 @@ class FamilyComposeTest {
             click(label(R.string.save_photo_search))
             await(label(R.string.photo_search_saved))
             click(label(R.string.back))
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            capture("bookmark-catalog-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("bookmark-catalog-dark")
             click(context.getString(R.string.reopen_photo_search, "romeria"))
             await("Persona: Anita")
             await("Año: 2023")

@@ -176,7 +176,7 @@ class ExplorerActivity : ComponentActivity() {
                                     onSavePhotoSearch = { bookmark ->
                                         photoSearchBookmark = bookmark
                                         settings.edit {
-                                            putString("photo_search_bookmark", bookmark.encode())
+                                            putString("photo_search_bookmark", bookmark?.encode())
                                         }
                                     },
                                     onAlbumVisited = { resume ->
@@ -238,7 +238,7 @@ internal fun Explorer(
     resumeAlbum: AlbumResume?,
     onAlbumVisited: (AlbumResume) -> Unit,
     photoSearchBookmark: PhotoSearchBookmark? = null,
-    onSavePhotoSearch: ((PhotoSearchBookmark) -> Unit)? = null,
+    onSavePhotoSearch: ((PhotoSearchBookmark?) -> Unit)? = null,
     endSession: (Boolean) -> Unit,
 ) {
     val folders = stringResource(R.string.folders)
