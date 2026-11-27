@@ -106,6 +106,9 @@ class LauncherLifecycleTest {
                 )
                 photo.title
             }
+            click(label(R.string.folders))
+            await("2023")
+            await(label(R.string.search))
             click(label(R.string.search))
             click(label(R.string.search_tags))
             click(label(R.string.photo_tag_catalog))
@@ -128,6 +131,9 @@ class LauncherLifecycleTest {
             click(resume)
             compose.onNodeWithText(label(R.string.review_album)).assertIsDisplayed()
 
+            click(label(R.string.folders))
+            await("2023")
+            await(label(R.string.search))
             click(label(R.string.search))
             click(label(R.string.search_tags))
             val reopen = context.getString(R.string.reopen_photo_search, "paseofamiliar")
