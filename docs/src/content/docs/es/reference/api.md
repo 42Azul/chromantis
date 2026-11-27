@@ -47,7 +47,7 @@ La identidad incluye `chat_id`, `role`, `username`, `first_name` y `auth_mode` (
 | --- | --- | --- |
 | `GET /api/v1/people/{id}` | ID numérico del directorio | `{"item": person}` |
 | `POST /api/v1/interpret` | `{"text":"show me 3 beach photos from 2021"}` | `{"item":{"action":"images","query":"beach 2021","count":3,"needs_clarification":false}}` |
-| `GET /api/v1/image` | `?path=<indexed-image-path>` codificado para URL | Bytes del original |
+| `GET /api/v1/image` | `?path=<indexed-image-path>` codificado para URL | Bytes del original, hasta 32 MiB. Si supera el límite, devuelve 413. |
 | `GET /api/v1/browse` | Token de chat | Lote de navegación activo |
 | `POST /api/v1/browse` | Token de chat y `{"action":"search","q":"beach 2021","count":3}` | Lote actualizado |
 | `GET /api/v1/searches` | Token de chat con `pinned=true`, `limit` y `offset` opcionales | `{"items": [search]}` |

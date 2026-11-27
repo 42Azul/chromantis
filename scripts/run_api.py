@@ -38,7 +38,7 @@ def main() -> None:
     scanner = ArchiveScanner(source, repository, PathParser())
     handler = make_api_handler(
         app_service, api_token=config.api_token, api_chat_tokens=config.api_chat_tokens,
-        image_fetcher=source.read_bytes,
+        image_fetcher=lambda path: source.read_bytes(path, max_bytes=32 * 1024 * 1024),
         export_reader=lambda path, limit: source.read_bytes(path, max_bytes=limit),
         thumbnails=build_thumbnail_cache(config.sqlite_path, config.thumbnail_cache_mib, source),
         start_index_scan=scanner.start_incremental,

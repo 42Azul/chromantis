@@ -88,14 +88,14 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(years, [2019, 2021])
 
 
-    def start_api(self, thumbnails=None, start_index_scan=None, export_reader=None) -> None:
+    def start_api(self, thumbnails=None, start_index_scan=None, export_reader=None, image_fetcher=None) -> None:
         self.repository.authorize_chat(102, role="admin")
         self.repository.authorize_chat(103, role="viewer")
         self.repository.authorize_chat(104, role="viewer")
         self.server = ApiServer(("127.0.0.1", 0), make_api_handler(
             self.app_service, api_token="read-token",
             api_chat_tokens=((101, "owner-token"), (102, "admin-token"), (103, "viewer-token")),
-            image_fetcher=LocalArchiveSource(str(PHOTOS_ROOT)).read_bytes,
+            image_fetcher=image_fetcher or LocalArchiveSource(str(PHOTOS_ROOT)).read_bytes,
             deployment_info={"source_type": "local", "enrichment_search": False, "query_interpreter": "rules"},
             thumbnails=thumbnails,
             start_index_scan=start_index_scan,
@@ -352,6 +352,15 @@ except ScanBusy:
             self.assertEqual(response.read(), (PHOTOS_ROOT / path).read_bytes())
         finally:
             connection.close()
+
+    def test_original_over_adapter_limit_returns_413_to_family_session(self) -> None:
+        source = LocalArchiveSource(str(PHOTOS_ROOT))
+        path = "2021/2021-08-15_city_trip/IMG_001.jpg"
+        limit = len((PHOTOS_ROOT / path).read_bytes()) - 1
+        self.start_api(image_fetcher=lambda indexed: source.read_bytes(indexed, max_bytes=limit))
+        _, code = self.app_service.family_access.invite("synthetic")
+        secret = self.app_service.family_access.redeem(code)
+        self.assertEqual(self.request("GET", f"/image?path={path}", family_secret=secret)[0], 413)
 
     def test_export_contains_only_selected_originals_and_requires_authentication(self) -> None:
         source = LocalArchiveSource(str(PHOTOS_ROOT))

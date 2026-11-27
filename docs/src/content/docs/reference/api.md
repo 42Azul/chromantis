@@ -47,7 +47,7 @@ A principal contains `chat_id`, `role`, `username`, `first_name`, and `auth_mode
 | --- | --- | --- |
 | `GET /api/v1/people/{id}` | Numeric ID from the people list | `{"item": person}` |
 | `POST /api/v1/interpret` | `{"text":"show me 3 beach photos from 2021"}` | `{"item":{"action":"images","query":"beach 2021","count":3,"needs_clarification":false}}` |
-| `GET /api/v1/image` | URL-encoded `?path=<indexed-image-path>` | Original image bytes |
+| `GET /api/v1/image` | URL-encoded `?path=<indexed-image-path>` | Original image bytes, up to 32 MiB. Larger originals return 413. |
 | `GET /api/v1/browse` | Chat token | Active browse batch |
 | `POST /api/v1/browse` | Chat token and `{"action":"search","q":"beach 2021","count":3}` | Updated browse batch |
 | `GET /api/v1/searches` | Chat token, optional `pinned=true`, `limit`, and `offset` | `{"items": [search]}` |

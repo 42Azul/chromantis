@@ -706,6 +706,8 @@ def _read_image(
         return 404, {"error": "Image not found"}
     try:
         content = image_fetcher(path)
+    except ArchiveReadLimit:
+        return 413, {"error": "Original exceeds the photo download limit"}
     except (FileNotFoundError, ValueError):
         return 404, {"error": "Image no longer available"}
     except (FtpError, OSError, EOFError):
