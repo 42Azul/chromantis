@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,7 +51,14 @@ internal fun PhotoSwipeReview(
 ) {
     val saving = remember { mutableStateOf(false) }
     val busy by saving
-    Dialog(onDismissRequest = { if (!busy) onClose() }) {
+    var decisions by remember { mutableStateOf(emptyList<ReviewGesture>()) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val requestClose = {
+        if (!busy) {
+            if (decisions.isEmpty()) onClose() else confirmDiscard = true
+        }
+    }
+    Dialog(onDismissRequest = requestClose) {
         Surface(shape = MaterialTheme.shapes.large) {
             Column(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -78,14 +86,41 @@ internal fun PhotoSwipeReview(
                             person = it
                         }
                     } else {
-                        PhotoReviewPass(api, photos, chosen, saving, onExpired, onReload, onSaved)
+                        PhotoReviewPass(
+                            api,
+                            photos,
+                            chosen,
+                            decisions,
+                            { decisions = it },
+                            saving,
+                            onExpired,
+                            onReload,
+                            onSaved,
+                        )
                     }
                 }
-                TextButton(onClick = onClose, enabled = !busy) {
+                TextButton(onClick = requestClose, enabled = !busy) {
                     Text(stringResource(R.string.cancel))
                 }
             }
         }
+    }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text(stringResource(R.string.discard_photo_review_title)) },
+            text = { Text(stringResource(R.string.discard_photo_review_message)) },
+            confirmButton = {
+                TextButton(onClick = onClose) {
+                    Text(stringResource(R.string.discard_photo_review))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) {
+                    Text(stringResource(R.string.continue_photo_review))
+                }
+            },
+        )
     }
 }
 
@@ -94,13 +129,14 @@ private fun PhotoReviewPass(
     api: ChromantisApi,
     photos: List<TaggedPhoto>,
     person: Person,
+    decisions: List<ReviewGesture>,
+    onDecisionsChanged: (List<ReviewGesture>) -> Unit,
     saving: MutableState<Boolean>,
     onExpired: () -> Unit,
     onReload: () -> Unit,
     onSaved: () -> Unit,
 ) {
     var busy by saving
-    var decisions by remember { mutableStateOf(emptyList<ReviewGesture>()) }
     var error by remember { mutableStateOf<Throwable?>(null) }
     val scope = rememberCoroutineScope()
     val conflict = error?.hasStatus(409) == true
@@ -116,10 +152,12 @@ private fun PhotoReviewPass(
             var ready by remember { mutableStateOf(false) }
             val alreadyTagged = person.id in current.people
             val canAccept = ready && !alreadyTagged
+            var advanced by remember(decisions) { mutableStateOf(false) }
             fun advance(decision: ReviewGesture) {
-                if (busy || conflict || decisions.size != index) return
+                if (busy || conflict || advanced) return
                 if (decision == ReviewGesture.ACCEPT && !canAccept) return
-                decisions = decisions + decision
+                advanced = true
+                onDecisionsChanged(decisions + decision)
             }
             Text(stringResource(R.string.photo_review_progress, index + 1, photos.size))
             SwipeReviewCard(
@@ -183,7 +221,7 @@ private fun PhotoReviewPass(
         Button(onClick = onReload) { Text(stringResource(R.string.reselect_photos)) }
     } else {
         TextButton(
-            onClick = { decisions = decisions.dropLast(1) },
+            onClick = { onDecisionsChanged(decisions.dropLast(1)) },
             enabled = decisions.isNotEmpty() && !busy,
         ) {
             Text(stringResource(R.string.undo_photo_decision))

@@ -218,4 +218,8 @@
     <string name="folder_order_unsupported">Actualiza el servidor para cambiar el orden.</string>
     <string name="pick_album_for_review">Elegir álbum</string>
     <string name="classify_album_photos">Clasificar fotos</string>
+    <string name="discard_photo_review_title">¿Descartar la revisión?</string>
+    <string name="discard_photo_review_message">Las decisiones de esta revisión aún no se han guardado.</string>
+    <string name="discard_photo_review">Descartar</string>
+    <string name="continue_photo_review">Continuar revisión</string>
 </resources>
