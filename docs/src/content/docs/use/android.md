@@ -28,6 +28,8 @@ In **Carpetas**, **Tal día como hoy** finds albums from this calendar day acros
 
 Inside a year in **Carpetas**, enter part of an album title and tap **Filtrar por nombre**. **Borrar filtro** shows all albums for the year again. The filter remains active when you return from a gallery.
 
+Use **Por nombre** to sort albums alphabetically or **Por fecha** to see the newest dates first. **Por carpeta** restores the original order. You can combine the order with the name filter.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.

@@ -19,6 +19,8 @@ internal class AnniversaryUnsupported : IOException()
 
 internal class FolderNameUnsupported : IOException()
 
+internal class FolderOrderUnsupported : IOException()
+
 internal data class Entry(
     val title: String,
     val path: String,
@@ -116,27 +118,31 @@ internal class ChromantisApi(address: String, val secret: String? = null) {
         tag: String = "",
         monthDay: String? = null,
         name: String = "",
+        order: String = "",
     ): EntryPage {
         val filters = if (includeFilters) "&filters=1" else ""
         val tagFilter = if (tag.isBlank()) "" else "&tag=${encode(tag)}"
         val nameFilter = if (name.isBlank()) "" else "&name=${encode(name)}"
+        val sort = if (order.isEmpty()) "" else "&sort=${encode(order)}"
+        val showDate = monthDay != null || order == "timeline"
         val anniversary = monthDay?.let { "&sort=timeline&month_day=${encode(it)}" }.orEmpty()
         val response =
             json(
-                "/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters$tagFilter$anniversary$nameFilter"
+                "/folders?q=${encode(query)}&limit=${pageSize + 1}&offset=$offset$filters$tagFilter$anniversary$nameFilter$sort"
             )
         if (monthDay != null && response.optionalString("month_day") != monthDay)
             throw AnniversaryUnsupported()
         if (nameFilter.isNotEmpty() && response.optionalString("name") != name)
             throw FolderNameUnsupported()
+        if (order.isNotEmpty() && response.optionalString("sort") != order)
+            throw FolderOrderUnsupported()
         val entries =
             response.getJSONArray("items").mapObjects {
                 Entry(
                     it.getString("title"),
                     it.getString("path"),
-                    eventDate = if (monthDay == null) null else it.optionalString("event_date"),
-                    dateSource =
-                        if (monthDay == null) null else it.optionalString("event_date_source"),
+                    eventDate = if (showDate) it.optionalString("event_date") else null,
+                    dateSource = if (showDate) it.optionalString("event_date_source") else null,
                 )
             }
         return EntryPage(

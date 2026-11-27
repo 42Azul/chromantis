@@ -212,4 +212,8 @@
     <string name="apply_folder_name">Filtrar por nombre</string>
     <string name="clear_folder_name">Borrar filtro</string>
     <string name="folder_name_unsupported">Actualiza el servidor para filtrar por nombre.</string>
+    <string name="folder_order_index">Por carpeta</string>
+    <string name="folder_order_name">Por nombre</string>
+    <string name="folder_order_date">Por fecha</string>
+    <string name="folder_order_unsupported">Actualiza el servidor para cambiar el orden.</string>
 </resources>

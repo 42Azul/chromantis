@@ -46,6 +46,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -241,6 +242,7 @@ internal val explorerPagesSaver =
         },
     )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun Explorer(
     api: ChromantisApi,
@@ -463,6 +465,7 @@ internal fun Explorer(
                     Level.ALBUMS,
                     Level.SEARCH -> {
                         var folderName by rememberSaveable { mutableStateOf("") }
+                        var folderOrder by rememberSaveable { mutableStateOf("") }
                         if (page.level == Level.ALBUMS) {
                             var draft by rememberSaveable { mutableStateOf("") }
                             val apply = {
@@ -494,13 +497,35 @@ internal fun Explorer(
                                 }
                             }
                         }
-                        key(folderName) {
+                        if (page.level == Level.ALBUMS) {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                for ((order, title) in
+                                    listOf(
+                                        "" to R.string.folder_order_index,
+                                        "name" to R.string.folder_order_name,
+                                        "timeline" to R.string.folder_order_date,
+                                    )) {
+                                    FilterChip(
+                                        selected = folderOrder == order,
+                                        onClick = { folderOrder = order },
+                                        label = { Text(stringResource(title)) },
+                                    )
+                                }
+                            }
+                        }
+                        key(folderName, folderOrder) {
                             EntryScreen(
                                 folderApi = api,
                                 load = { offset ->
                                     if (page.level == Level.ANNIVERSARY)
                                         api.albums("", offset, monthDay = requireNotNull(page.path))
-                                    else api.albums(page.path.orEmpty(), offset, name = folderName)
+                                    else
+                                        api.albums(
+                                            page.path.orEmpty(),
+                                            offset,
+                                            name = folderName,
+                                            order = folderOrder,
+                                        )
                                 },
                                 onExpired = expire,
                                 onOpen = { entry ->
@@ -1167,6 +1192,7 @@ internal fun Throwable.hasStatus(status: Int) =
 
 internal fun errorLabel(error: Throwable) =
     when {
+        error is FolderOrderUnsupported -> R.string.folder_order_unsupported
         error is FolderNameUnsupported -> R.string.folder_name_unsupported
         error is AnniversaryUnsupported -> R.string.album_anniversary_unsupported
         error is SSLException -> R.string.untrusted_certificate
