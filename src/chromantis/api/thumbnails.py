@@ -40,18 +40,14 @@ class ThumbnailCache:
         self._prepared = False
 
     def get(self, path: str, fingerprint: tuple[str, int | None, str | None]) -> bytes:
-        root, size, modified_at = fingerprint
+        root, size, _ = fingerprint
         if root != self.source.source_root:
             raise PreviewUnavailable("Reindex the configured archive to preview this image.")
         if size is not None and size > SOURCE_BYTES:
             raise PreviewUnavailable("Image is too large for a thumbnail.")
-        # An incomplete fingerprint cannot safely identify a cached revision.
-        file = None
-        if size is not None and modified_at is not None:
-            key = sha256(json.dumps([1, path, root, size, modified_at]).encode()).hexdigest()
-            file = self.directory / f"{key}.jpg"
-            if (hit := self._cached(file)) is not None:
-                return hit
+        file = self._cache_path(path, fingerprint)
+        if file is not None and (hit := self._cached(file)) is not None:
+            return hit
         with self._rendering:
             if file is not None and (hit := self._cached(file)) is not None:
                 return hit
@@ -60,6 +56,18 @@ class ThumbnailCache:
             if file is not None and len(content) == size and len(thumbnail) <= self.budget:
                 self._store(file, thumbnail)
             return thumbnail
+
+    def peek(self, path: str, fingerprint: tuple[str, int | None, str | None]) -> bytes | None:
+        file = self._cache_path(path, fingerprint)
+        return self._cached(file) if file is not None else None
+
+    def _cache_path(self, path: str, fingerprint: tuple[str, int | None, str | None]) -> Path | None:
+        root, size, modified_at = fingerprint
+        # An incomplete fingerprint cannot safely identify a cached revision.
+        if root != self.source.source_root or size is None or size > SOURCE_BYTES or modified_at is None:
+            return None
+        key = sha256(json.dumps([1, path, root, size, modified_at]).encode()).hexdigest()
+        return self.directory / f"{key}.jpg"
 
     def _cached(self, file: Path) -> bytes | None:
         with self._disk:

@@ -744,9 +744,17 @@ def _read_album_cover(
     candidates = app.repository.cover_candidate_paths(path, max_bytes=SOURCE_BYTES, limit=12)
     # A stable shuffle of a bounded window avoids scanning the whole album per card.
     candidates.sort(key=lambda path: sha256(path.encode()).digest())
-    for candidate in candidates[:3]:
+    candidates = candidates[:3]
+    for index, candidate in enumerate(candidates):
         status, payload = _read_thumbnail(candidate, app, thumbnails)
-        if status in {200, 502}:
+        if status == 200:
+            return status, payload
+        if status == 502:
+            # Stop archive reads during an outage, but a later candidate may be cached.
+            for fallback in candidates[index + 1:]:
+                fingerprint = app.repository.indexed_image_fingerprint(fallback)
+                if fingerprint is not None and (cached := thumbnails.peek(fallback, fingerprint)) is not None:
+                    return 200, PhotoPayload(cached, "image/jpeg")
             return status, payload
     return 404, {"error": "No album cover available"}
 

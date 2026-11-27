@@ -123,6 +123,25 @@ class ThumbnailTests(unittest.TestCase):
             self.assertEqual(self.request(route), (200, "image/jpeg", expected[:7]))
             self.assertEqual(ftp.retrbinary.call_count, 2)
 
+    def test_album_cover_uses_cached_fallback_without_more_archive_requests(self):
+        other = self.photo.parent / "second.jpg"
+        other.write_bytes(b"second synthetic original")
+        self.scanner.scan(incremental=True)
+        album = self.photo.parent.relative_to(self.archive).as_posix()
+        first, fallback = sorted(
+            (IMAGE_PATH, f"{album}/second.jpg"), key=lambda path: sha256(path.encode()).digest(),
+        )
+        expected = (self.archive / fallback).read_bytes()[:7]
+        self.assertEqual(self.request("/thumbnail?" + urlencode({"path": fallback})),
+                         (200, "image/jpeg", expected))
+        _, code = self.app.family_access.invite("synthetic")
+        cookie = "chromantis_family=" + self.app.family_access.redeem(code)
+        self.archive.rename(self.root / "disconnected")
+        self.reader.reset_mock()
+        route = "/album-cover?" + urlencode({"path": album})
+        self.assertEqual(self.request(route, token=None, cookie=cookie), (200, "image/jpeg", expected))
+        self.reader.assert_called_once_with(first, max_bytes=SOURCE_BYTES)
+
     def test_album_cover_skips_oversized_photos_before_limiting_candidates(self):
         for number in range(12):
             with (self.photo.parent / f"00-{number:02}.jpg").open("wb") as file:
