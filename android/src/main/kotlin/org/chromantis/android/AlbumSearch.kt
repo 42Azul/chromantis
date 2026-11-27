@@ -55,8 +55,8 @@ internal fun AlbumSearch(
     onOpenPhoto: (Entry) -> Unit,
     onOpen: (Entry) -> Unit,
     tag: String? = null,
-    photoSearchBookmark: PhotoSearchBookmark? = null,
-    onSavePhotoSearch: ((PhotoSearchBookmark?) -> Unit)? = null,
+    photoSearchBookmarks: List<PhotoSearchBookmark> = emptyList(),
+    onSavePhotoSearch: ((PhotoSearchBookmark, Boolean) -> Unit)? = null,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf<String?>(if (tag == null) null else "") }
@@ -109,7 +109,7 @@ internal fun AlbumSearch(
 
     var showTags by rememberSaveable { mutableStateOf(false) }
     if (showTags) {
-        TagSearch(api, onExpired, onOpen, onOpenPhoto, photoSearchBookmark, onSavePhotoSearch) {
+        TagSearch(api, onExpired, onOpen, onOpenPhoto, photoSearchBookmarks, onSavePhotoSearch) {
             showTags = false
         }
         return

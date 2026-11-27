@@ -27,15 +27,15 @@ internal fun TagSearch(
     onExpired: () -> Unit,
     onOpenAlbum: (Entry) -> Unit,
     onOpenPhoto: (Entry) -> Unit,
-    bookmark: PhotoSearchBookmark?,
-    onSaveBookmark: ((PhotoSearchBookmark?) -> Unit)?,
+    bookmarks: List<PhotoSearchBookmark>,
+    onSaveBookmark: ((PhotoSearchBookmark, Boolean) -> Unit)?,
     onExit: () -> Unit,
 ) {
     var photos by rememberSaveable { mutableStateOf(false) }
     var draft by rememberSaveable { mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
-    var reopening by rememberSaveable { mutableStateOf(false) }
+    var reopened by rememberSaveable { mutableStateOf<String?>(null) }
     val tag = selected
     val focus = LocalFocusManager.current
     val back = { if (tag == null) onExit() else selected = null }
@@ -43,20 +43,28 @@ internal fun TagSearch(
     Column(Modifier.fillMaxSize()) {
         TextButton(onClick = back) { Text(stringResource(R.string.back)) }
         if (tag == null) {
-            if (bookmark != null) {
+            bookmarks.forEach { bookmark ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(
                         modifier = Modifier.weight(1f),
                         onClick = {
                             photos = true
-                            reopening = true
+                            reopened = bookmark.encode()
                             selected = bookmark.tag
                         },
                     ) {
-                        Text(stringResource(R.string.reopen_photo_search, bookmark.tag))
+                        Column {
+                            Text(stringResource(R.string.reopen_photo_search, bookmark.tag))
+                            val filters =
+                                listOfNotNull(
+                                    bookmark.person.takeIf { it.isNotBlank() },
+                                    bookmark.year?.toString(),
+                                )
+                            if (filters.isNotEmpty()) Text(filters.joinToString(" · "))
+                        }
                     }
                     if (onSaveBookmark != null) {
-                        TextButton(onClick = { onSaveBookmark(null) }) {
+                        TextButton(onClick = { onSaveBookmark(bookmark, true) }) {
                             Text(stringResource(R.string.forget_photo_search))
                         }
                     }
@@ -101,7 +109,7 @@ internal fun TagSearch(
                         },
                         onExpired = onExpired,
                         onOpen = {
-                            reopening = false
+                            reopened = null
                             selected = it.path
                         },
                     )
@@ -111,8 +119,11 @@ internal fun TagSearch(
                             api,
                             onExpired,
                             exactTag = tag,
-                            initialBookmark = bookmark.takeIf { reopening },
-                            onSaveBookmark = onSaveBookmark,
+                            initialBookmark = PhotoSearchBookmark.decode(reopened),
+                            onSaveBookmark =
+                                onSaveBookmark?.let { save ->
+                                    { bookmark -> save(bookmark, false) }
+                                },
                             onOpen = onOpenPhoto,
                         )
                     }

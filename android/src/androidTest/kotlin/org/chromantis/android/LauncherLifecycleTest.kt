@@ -121,7 +121,11 @@ class LauncherLifecycleTest {
             await("Año: 2023")
             click(label(R.string.save_photo_search))
             await(label(R.string.photo_search_saved))
-            assertNotNull(settings.getString("photo_search_bookmark", null))
+            // Simulate an update from the single-bookmark format before the fresh launch.
+            val saved =
+                decodePhotoSearchBookmarks(settings.getString("photo_search_bookmark", null))
+                    .single()
+            settings.edit().putString("photo_search_bookmark", saved.encode()).commit()
 
             requireNotNull(scenario).close()
             scenario = null

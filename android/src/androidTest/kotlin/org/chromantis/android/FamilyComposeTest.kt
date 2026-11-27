@@ -109,7 +109,7 @@ class FamilyComposeTest {
         val previous = HttpsURLConnection.getDefaultSSLSocketFactory()
         val api = mutableStateOf<ChromantisApi?>(null)
         val appearance = mutableStateOf(Appearance.LIGHT)
-        val bookmark = mutableStateOf<PhotoSearchBookmark?>(null)
+        val bookmark = mutableStateOf(emptyList<PhotoSearchBookmark>())
         val context = instrumentation.targetContext
         fun label(id: Int) = context.getString(id)
         fun await(text: String) {
@@ -137,9 +137,14 @@ class FamilyComposeTest {
                                     { appearance.value = it },
                                     null,
                                     {},
-                                    photoSearchBookmark = bookmark.value,
-                                    onSavePhotoSearch = {
-                                        bookmark.value = PhotoSearchBookmark.decode(it?.encode())
+                                    photoSearchBookmarks = bookmark.value,
+                                    onSavePhotoSearch = { saved, remove ->
+                                        bookmark.value =
+                                            decodePhotoSearchBookmarks(
+                                                bookmark.value
+                                                    .updatePhotoSearchBookmark(saved, remove)
+                                                    .encodePhotoSearchBookmarks()
+                                            )
                                     },
                                 ) {
                                     api.value = null
@@ -479,10 +484,6 @@ class FamilyComposeTest {
             click(label(R.string.save_photo_search))
             await(label(R.string.photo_search_saved))
             click(label(R.string.back))
-            compose.runOnIdle { appearance.value = Appearance.LIGHT }
-            capture("bookmark-catalog-light")
-            compose.runOnIdle { appearance.value = Appearance.DARK }
-            capture("bookmark-catalog-dark")
             click(context.getString(R.string.reopen_photo_search, "romeria"))
             await("Persona: Anita")
             await("Año: 2023")
@@ -532,7 +533,15 @@ class FamilyComposeTest {
             compose.runOnIdle { appearance.value = Appearance.DARK }
             capture("search-return-dark")
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            click(label(R.string.save_photo_search))
+            await(label(R.string.photo_search_saved))
             click(label(R.string.back))
+            await(context.getString(R.string.reopen_photo_search, "paseo"))
+            await(context.getString(R.string.reopen_photo_search, "romeria"))
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            capture("bookmark-catalog-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("bookmark-catalog-dark")
             click(label(R.string.album_tag_catalog))
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextClearance()
             compose.onNodeWithText(label(R.string.tag_name_filter)).performTextInput("Merienda")
