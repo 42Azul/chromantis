@@ -25,8 +25,12 @@ Check an exact album path in the existing index with `.venv/bin/python scripts/d
 
 ## Development
 
+Run the service suite in an isolated Python 3.11+ environment so the MCP stdio subprocess uses the same installed SDK as the test runner. The service verification workflow runs these Python and Node checks.
+
 ```bash
-python -m pip install '.[telegram,thumbnails]'
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install '.[telegram,thumbnails,mcp]'
 python -m unittest discover -s tests -v
 node tests/test_album_review_ui.cjs
 node tests/test_confirmed_photo_ui.cjs

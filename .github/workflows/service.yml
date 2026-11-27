@@ -1,0 +1,31 @@
+name: Service verification
+
+on:
+  push:
+    branches: [main, 'verify/**']
+    paths: ['src/**', 'scripts/**', 'tests/**', 'pyproject.toml', '.github/workflows/service.yml']
+  pull_request:
+    paths: ['src/**', 'scripts/**', 'tests/**', 'pyproject.toml', '.github/workflows/service.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Run service and stdio integration tests
+        run: |
+          python3 -m venv "$RUNNER_TEMP/service-venv"
+          "$RUNNER_TEMP/service-venv/bin/python" -m pip install '.[telegram,thumbnails,mcp]'
+          "$RUNNER_TEMP/service-venv/bin/python" -m unittest discover -s tests -v
+      - name: Run browser interface regression checks
+        run: |
+          node tests/test_album_review_ui.cjs
+          node tests/test_confirmed_photo_ui.cjs
+          node tests/test_photo_review_ui.cjs

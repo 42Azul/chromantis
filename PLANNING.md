@@ -647,6 +647,8 @@ The trial confirmed that the authorization boundary can stay in the application 
 - Stage proposals in private files without writing SQLite. Apply a selected batch from a terminal or opt into exposing the MCP write tool, with the host deciding whether to require approval. Reject stale or superseded proposals, apply atomically and record the write channel. Keep the web API, Android app and original files unchanged.
 - Synthetic transport tests use the official MCP client, a private scope file and a disconnected archive. OpenCode 2.3.2 also connected to the synthetic server after explicit registration in the running service. The [operator guide](docs/src/content/docs/reference/mcp.md) covers NAS-side album selection, SSH setup, and applying proposals. The place-only test verifies an approved label is searchable without adding a general tag or building the future map.
 
+- Service verification runs the Python suite with the optional Telegram, thumbnail and MCP dependencies in one virtual environment. The stdio client starts the same interpreter, including its installed MCP SDK. The workflow also runs the three browser JavaScript regression suites.
+
 ## Active MVPs
 
 ### Phone-test follow-up — pick in this order
