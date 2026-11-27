@@ -295,6 +295,11 @@ async function main() {
     await results.locator(".photo-card").getByRole("heading", { name: "Photo_01.jpg" }).waitFor();
     assert.equal(await results.locator(".photo-card").count(), 1);
     assert.equal(await page.locator("#query").inputValue(), "romeria");
+    const parentAlbum = results.getByRole("button", { name: "Ver álbum de Photo_01.jpg", exact: true });
+    await parentAlbum.press("Enter");
+    await album.getByRole("button", { name: "Volver a resultados" }).press("Enter");
+    await page.waitForFunction(path => document.activeElement?.getAttribute("data-source-photo") === path, photoPath);
+    assert.equal(await page.locator("#query").inputValue(), "romeria");
     explicitOriginal = photoPath;
     await results.getByRole("button", { name: "Abrir Photo_01.jpg", exact: true }).click();
     const shortcutToPhotos = page.getByRole("button", { name: "Buscar fotos con la etiqueta romeria" });

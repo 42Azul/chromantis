@@ -96,6 +96,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 **Android paginated album return:** The Android Compose walkthrough filters the album catalog, opens exact matches, applies a year, and opens an album near the end of page two. Back preserves the year, page and list position in both appearances. Web tag discovery was delivered separately above. Next: Android collage from a bounded gallery or search selection.
 
+**Web keyboard return from a photo result:** Opening an album from exact photo results and returning restores focus to that photo's album button by indexed path. The offline Chromium fixture verifies keyboard return and the retained tag. The album-cover fixture checks focus on the original album card after saving with 200% text. Next: include saved tag searches in the Android-first discovery work.
+
 #### F2 — Make a family collage from search · In Progress
 
 - Add **Make collage** to a gallery selection or photo search results, alongside existing export actions. Start on Android. Offer a small selection of matching photos, a simple grid and a preview. Allow replacing and reordering photos, then save an ordinary image and use the existing share flow. Let someone make a collage from **Playa** across years without moving or copying originals in the NAS.

@@ -224,7 +224,8 @@ async function main() {
     assert.ok(await save.evaluate(button => button === document.activeElement), "Save should be reachable by Tab.");
     await page.keyboard.press("Enter");
     await page.getByText("Álbumes de 2024", { exact: true }).waitFor();
-    await page.waitForFunction(() => document.activeElement?.id === "results-title");
+    await page.waitForFunction(() =>
+      document.activeElement?.getAttribute("data-album-path") === "2024/2024-07-01_playa");
     assert.ok(await checkWidth(), "The year results should fit with doubled text.");
     await page.locator("#query").fill("Ana");
     await page.locator("#search-form button[type=submit]").click();

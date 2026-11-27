@@ -582,11 +582,11 @@ async function refineArchive(text) {
   }
 }
 
-function openAlbumFromResults(album, refresh) {
-  return showView("album-browse", { album, refresh });
+function openAlbumFromResults(album, refresh, sourcePhoto) {
+  return showView("album-browse", { album, refresh, sourcePhoto });
 }
 
-function renderAlbumBrowse({ album, refresh }) {
+function renderAlbumBrowse({ album, refresh, sourcePhoto }) {
   const returnTo = {
     label: "Volver a resultados",
     saveLabel: "Guardar y volver a resultados",
@@ -594,8 +594,10 @@ function renderAlbumBrowse({ album, refresh }) {
       await showView("archive");
       await refresh(saved);
       if (!$("archive").hidden) {
-        const card = Array.from($("results").querySelectorAll("[data-album-path]"))
-          .find(result => result.getAttribute("data-album-path") === album.path);
+        const attribute = sourcePhoto ? "data-source-photo" : "data-album-path";
+        const path = sourcePhoto || album.path;
+        const card = Array.from($("results").querySelectorAll(`[${attribute}]`))
+          .find(result => result.getAttribute(attribute) === path);
         ($("browsing").querySelector("[data-retry-search]") || card || $("results-title")).focus();
       }
     },
@@ -705,7 +707,8 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
         $("query").value = term;
         $("photo-tag").value = tag || "";
         return archiveRequest(action, { ...search, offset }, saved);
-      }), "photo-album-button");
+      }, item.path), "photo-album-button");
+      album.setAttribute("data-source-photo", item.path);
       album.setAttribute("aria-label", `Ver álbum de ${item.path.split("/").at(-1)}`);
       card.append(album);
     }
