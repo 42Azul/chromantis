@@ -103,6 +103,21 @@ class AlbumTimelineTests(unittest.TestCase):
         for invalid in ({"date_from": "2024-02-30"}, {"date_from": "2025-01-01"}, {"offset": "-1"},
                         {"place": "*"}, {"sort": "unknown"}):
             self.assertEqual(request({**params, **invalid}, owner=True)[0], 400)
+        self.edit(OTHER, event_date="2020-06-30")
+        self.root.rename(self.root.with_name("disconnected"))
+        anniversary = {"month_day": "06-30", "sort": "timeline"}
+        self.assertEqual(request(anniversary)[0], 401)
+        status, body = request(anniversary, cookie=f"chromantis_family={session}")
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            [(item["path"], item["event_date"], item["event_date_source"]) for item in body["items"]],
+            [(SUMMER, "2024-06-30", "folder_name"), (OTHER, "2020-06-30", "album_correction")],
+        )
+        self.assertEqual(request({**anniversary, "limit": 1, "offset": 1}, owner=True)[1]["items"][0]["path"], OTHER)
+        self.assertEqual(request({"month_day": "08-01"}, owner=True)[1]["items"], [])
+        self.assertEqual(request({"month_day": "02-29"}, owner=True)[0], 200)
+        self.assertEqual(request({"month_day": "02-30"}, owner=True)[0], 400)
+        self.assertEqual(self.repository.list_saved_searches(10, False, 10), [])
         self.app.family_access.revoke(identity)
         self.assertEqual(request(params, cookie=f"chromantis_family={session}")[0], 401)
 

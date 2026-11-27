@@ -142,6 +142,7 @@ class SearchService:
     def search_folders(
         self, raw_query: str, limit: int = 10, *, place: str = "", date_from: str | None = None,
         date_to: str | None = None, chronological: bool = False, offset: int = 0, tag: str | None = None,
+        month_day: str | None = None,
     ) -> list[SearchResult]:
         query = self._parse_query(raw_query)
         date_from, date_to = _calendar_date(date_from), _calendar_date(date_to)
@@ -158,6 +159,13 @@ class SearchService:
             if boundary:
                 predicates.append(f"f.event_date {operator} ?")
                 values.append(boundary)
+        if month_day is not None:
+            try:
+                _calendar_date(f"2000-{month_day}")
+            except ValueError:
+                raise ValueError("Use a valid month and day in MM-DD format.") from None
+            predicates.append("substr(f.event_date, 6, 5) = ?")
+            values.append(month_day)
         if place_filter:
             predicates.append("f.place IS NOT NULL")
         if query.recall.album:

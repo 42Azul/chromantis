@@ -118,7 +118,7 @@ Ejecuta las pruebas sintéticas con `python -m unittest tests.test_photo_tags -v
 
 Para iniciar un escaneo, envía una solicitud sin cuerpo o con `{}` y un token de propietario. La respuesta `202` devuelve el identificador en `item.id`. Consulta su estado en el historial. Si hay un escaneo en curso, la API devuelve `409`. El origen y la ubicación del índice se toman de la configuración del servidor.
 
-`GET /api/v1/folders` admite `sort=timeline`, `place`, `date_from` y `date_to`, además de `q`, `offset` y `limit`. El intervalo incluye ambas fechas. `POST /api/v1/refine` acepta `{"q":"playa","text":"antes de 2020"}` y devuelve una consulta acotada u opciones si hay ambigüedad.
+`GET /api/v1/folders` admite `sort=timeline`, `place`, `date_from` y `date_to`, además de `q`, `offset` y `limit`. El intervalo incluye ambas fechas. Usa `month_day=06-30` para encontrar álbumes fechados en ese día y mes de distintos años. El filtro usa la fecha efectiva del álbum y conserva `event_date_source`. Los álbumes sin fecha quedan fuera. `POST /api/v1/refine` acepta `{"q":"playa","text":"antes de 2020"}` y devuelve una consulta acotada u opciones si hay ambigüedad.
 
 Para combinar filtros en español, usa `fotos de la playa con Ana antes de 2020` como `q`. El año indicado se excluye y la persona debe estar vinculada al álbum. Usa la `q` original para acotar los resultados. Si el nombre o alias no existe, se devuelve 400 con `code: person`. Las listas como `Ana y Luis` o `Ana, Luis` resuelven todos los nombres o rechazan la petición con `code: person`; todas las personas deben tener vínculo al álbum. Un alias completo guardado tiene prioridad sobre los separadores. La misma sintaxis funciona al acotar con `con` o `with`.
 
