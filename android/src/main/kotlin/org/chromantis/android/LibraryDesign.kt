@@ -160,6 +160,7 @@ internal fun AlbumFolderCard(
     entry: Entry,
     api: ChromantisApi?,
     onExpired: () -> Unit,
+    showPath: Boolean = false,
     onOpen: () -> Unit,
 ) {
     var cover by remember(api, entry.path) { mutableStateOf<Bitmap?>(null) }
@@ -204,15 +205,18 @@ internal fun AlbumFolderCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    entry.eventDate?.let { date ->
-                        val source =
-                            when (entry.dateSource) {
-                                "folder_name" -> stringResource(R.string.album_date_folder)
-                                "album_correction" -> stringResource(R.string.album_date_corrected)
-                                else -> null
-                            }
-                        listOfNotNull(date, source).joinToString(" · ")
-                    } ?: albumDisplayDate(entry.path) ?: entry.path,
+                    if (showPath) entry.path
+                    else
+                        entry.eventDate?.let { date ->
+                            val source =
+                                when (entry.dateSource) {
+                                    "folder_name" -> stringResource(R.string.album_date_folder)
+                                    "album_correction" ->
+                                        stringResource(R.string.album_date_corrected)
+                                    else -> null
+                                }
+                            listOfNotNull(date, source).joinToString(" · ")
+                        } ?: albumDisplayDate(entry.path) ?: entry.path,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,

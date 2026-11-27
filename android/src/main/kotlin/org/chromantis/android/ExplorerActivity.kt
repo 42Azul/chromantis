@@ -228,6 +228,7 @@ internal enum class Level {
     PHOTOS,
     ORIGINAL,
     REVIEW,
+    PICK_ALBUM,
 }
 
 internal data class Page(val level: Level, val title: String, val path: String? = null)
@@ -262,6 +263,7 @@ internal fun Explorer(
     val confirmedTitle = stringResource(R.string.confirmed_photo_search)
     val indexTitle = stringResource(R.string.index_title)
     val reviewTitle = stringResource(R.string.review_albums)
+    val pickAlbum = stringResource(R.string.pick_album_for_review)
     val workspaces =
         listOf(Page(Level.YEARS, folders), Page(Level.REVIEW, organize), Page(Level.ASK, search))
     var pages by
@@ -462,11 +464,13 @@ internal fun Explorer(
                         }
                     }
                     Level.ANNIVERSARY,
+                    Level.PICK_ALBUM,
                     Level.ALBUMS,
                     Level.SEARCH -> {
+                        val picking = page.level == Level.PICK_ALBUM
                         var folderName by rememberSaveable { mutableStateOf("") }
                         var folderOrder by rememberSaveable { mutableStateOf("") }
-                        if (page.level == Level.ALBUMS) {
+                        if (page.level == Level.ALBUMS || picking) {
                             var draft by rememberSaveable { mutableStateOf("") }
                             val apply = {
                                 folderName = draft.trim()
@@ -497,7 +501,7 @@ internal fun Explorer(
                                 }
                             }
                         }
-                        if (page.level == Level.ALBUMS) {
+                        if (page.level == Level.ALBUMS || picking) {
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 for ((order, title) in
                                     listOf(
@@ -516,6 +520,7 @@ internal fun Explorer(
                         key(folderName, folderOrder) {
                             EntryScreen(
                                 folderApi = api,
+                                showFolderPath = picking,
                                 load = { offset ->
                                     if (page.level == Level.ANNIVERSARY)
                                         api.albums("", offset, monthDay = requireNotNull(page.path))
@@ -530,7 +535,10 @@ internal fun Explorer(
                                 onExpired = expire,
                                 onOpen = { entry ->
                                     galleryStartOffset = 0
-                                    pages = pages + Page(Level.PHOTOS, entry.title, entry.path)
+                                    pages =
+                                        pages +
+                                            if (picking) Page(Level.REVIEW, reviewTitle, entry.path)
+                                            else Page(Level.PHOTOS, entry.title, entry.path)
                                 },
                             )
                         }
@@ -585,7 +593,16 @@ internal fun Explorer(
                         )
                         OriginalPhoto(api, path, page.title, expire)
                     }
-                    Level.REVIEW -> AlbumReview(api, page.path, expire, ::goBack)
+                    Level.REVIEW -> {
+                        if (depth == 0) {
+                            TextButton(
+                                onClick = { pages = pages + Page(Level.PICK_ALBUM, pickAlbum) }
+                            ) {
+                                Text(pickAlbum)
+                            }
+                        }
+                        AlbumReview(api, page.path, expire, ::goBack)
+                    }
                 }
             }
         }
@@ -791,6 +808,7 @@ internal fun EntryScreen(
     onOpen: (Entry) -> Unit,
     photoApi: ChromantisApi? = null,
     folderApi: ChromantisApi? = null,
+    showFolderPath: Boolean = false,
     allowPhotoEdits: Boolean = false,
     allowExportSelection: Boolean = false,
     allowCollage: Boolean = allowExportSelection,
@@ -933,7 +951,14 @@ internal fun EntryScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         items(page.entries, key = { it.path }) { entry ->
-                            AlbumFolderCard(entry, folderApi, onExpired) { onOpen(entry) }
+                            AlbumFolderCard(
+                                entry,
+                                folderApi,
+                                onExpired,
+                                showPath = showFolderPath,
+                            ) {
+                                onOpen(entry)
+                            }
                         }
                     }
                 }

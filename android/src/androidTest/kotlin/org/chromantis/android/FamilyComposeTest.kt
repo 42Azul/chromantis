@@ -296,13 +296,27 @@ class FamilyComposeTest {
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
             click(album.title)
             await(label(R.string.review_album))
-            click(label(R.string.review_album))
+            click(label(R.string.folders))
+            await("2023")
+            click(label(R.string.organize))
+            click(label(R.string.pick_album_for_review))
+            compose.onNodeWithText(folderName).performTextInput("Excursión")
+            click(label(R.string.apply_folder_name))
+            await(album.path)
+            capture("organize-picker-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("organize-picker-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            click(albumDisplayTitle(album.title))
             await("Ana")
             compose.onNodeWithText("Ana").performScrollTo().performClick()
             capture("review-light")
             compose.onNodeWithText(label(R.string.save_album)).assertIsDisplayed().performClick()
-            await(label(R.string.review_album))
-            // Return through the folder trail, then use the real search form.
+            await(album.path)
+            compose.onNodeWithText("Excursión").assertIsDisplayed()
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await(label(R.string.leave_pending))
+            // Return to folders, then use the real search form.
             click(label(R.string.folders))
             await("2023")
             click(label(R.string.settings))

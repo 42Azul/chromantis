@@ -30,6 +30,8 @@ Dentro de un año en **Carpetas**, escribe parte del título y pulsa **Filtrar p
 
 Pulsa **Por nombre** para ordenar alfabéticamente o **Por fecha** para ver primero las fechas más recientes. **Por carpeta** recupera el orden original. Puedes combinar el orden con el filtro por nombre.
 
+En **Clasificar**, pulsa **Elegir álbum** para editar un álbum existente. Filtra por título y usa la ruta de carpeta para distinguir álbumes con el mismo nombre. Al guardar vuelves al selector con el filtro aplicado.
+
 ## Un recorrido breve
 
 Estas capturas muestran las pantallas Compose rediseñadas en una actividad de pruebas desechable, con fotos sintéticas. Otro ejemplo independiente comprueba que se puede buscar y etiquetar con el archivo desconectado. No contienen datos familiares. Las barras del sistema y la posición del teclado pueden variar en tu móvil.

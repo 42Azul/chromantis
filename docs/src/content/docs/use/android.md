@@ -30,6 +30,8 @@ Inside a year in **Carpetas**, enter part of an album title and tap **Filtrar po
 
 Use **Por nombre** to sort albums alphabetically or **Por fecha** to see the newest dates first. **Por carpeta** restores the original order. You can combine the order with the name filter.
 
+In **Clasificar**, tap **Elegir álbum** to edit an existing album directly. Filter by title, then use the folder path to distinguish albums with the same name. Saving returns to the filtered picker.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.
