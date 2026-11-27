@@ -32,6 +32,8 @@ Pulsa **Por nombre** para ordenar alfabéticamente o **Por fecha** para ver prim
 
 En **Clasificar**, pulsa **Elegir álbum** para editar un álbum existente. Filtra por título y usa la ruta de carpeta para distinguir álbumes con el mismo nombre. Al guardar vuelves al selector con el filtro aplicado.
 
+En el álbum elegido, abre **Clasificar fotos** para etiquetar una foto o varias de la misma página. Para revertir una etiqueta del lote, selecciona de nuevo esas fotos y elige **Quitar** en el cuadro de etiquetado. Guarda o descarta los cambios pendientes del álbum antes de pasar a las fotos.
+
 ## Un recorrido breve
 
 Estas capturas muestran las pantallas Compose rediseñadas en una actividad de pruebas desechable, con fotos sintéticas. Otro ejemplo independiente comprueba que se puede buscar y etiquetar con el archivo desconectado. No contienen datos familiares. Las barras del sistema y la posición del teclado pueden variar en tu móvil.

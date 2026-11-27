@@ -308,6 +308,41 @@ class FamilyComposeTest {
             capture("organize-picker-dark")
             compose.runOnIdle { appearance.value = Appearance.LIGHT }
             click(albumDisplayTitle(album.title))
+            await(label(R.string.classify_album_photos))
+            click(label(R.string.classify_album_photos))
+            await(label(R.string.select_photos))
+            capture("organize-photos-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("organize-photos-dark")
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+
+            fun editSelectedPhotos(paths: List<Entry>, tag: String, remove: Boolean = false) {
+                compose
+                    .onNodeWithText(label(R.string.select_photos))
+                    .performSemanticsAction(SemanticsActions.OnClick)
+                paths.forEach { click(it.title) }
+                click(label(R.string.tag_photos))
+                val edit = compose.onNodeWithText(label(R.string.manual_photo_tag))
+                edit.performScrollTo().performTextInput(tag)
+                val action =
+                    label(if (remove) R.string.remove_photo_tag else R.string.add_photo_tag)
+                if (remove) click(action)
+                compose.onAllNodesWithText(action).onLast().performClick()
+                await(label(R.string.photo_tags_saved))
+                val tags = runBlocking { client.photoTags(paths.map { it.path }) }
+                check(tags.all { (tag in it.tags) != remove })
+            }
+
+            editSelectedPhotos(visiblePhotos.take(1), "recuerdo")
+            editSelectedPhotos(visiblePhotos, "seleccion")
+            editSelectedPhotos(visiblePhotos, "seleccion", remove = true)
+            check(
+                runBlocking { client.photoTags(listOf(visiblePhotos.first().path)) }
+                    .single()
+                    .tags
+                    .contains("recuerdo")
+            )
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
             await("Ana")
             compose.onNodeWithText("Ana").performScrollTo().performClick()
             capture("review-light")

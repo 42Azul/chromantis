@@ -229,6 +229,7 @@ internal enum class Level {
     ORIGINAL,
     REVIEW,
     PICK_ALBUM,
+    CLASSIFY_PHOTOS,
 }
 
 internal data class Page(val level: Level, val title: String, val path: String? = null)
@@ -264,6 +265,7 @@ internal fun Explorer(
     val indexTitle = stringResource(R.string.index_title)
     val reviewTitle = stringResource(R.string.review_albums)
     val pickAlbum = stringResource(R.string.pick_album_for_review)
+    val classifyPhotos = stringResource(R.string.classify_album_photos)
     val workspaces =
         listOf(Page(Level.YEARS, folders), Page(Level.REVIEW, organize), Page(Level.ASK, search))
     var pages by
@@ -601,7 +603,37 @@ internal fun Explorer(
                                 Text(pickAlbum)
                             }
                         }
-                        AlbumReview(api, page.path, expire, ::goBack)
+                        AlbumReview(
+                            api,
+                            page.path,
+                            expire,
+                            ::goBack,
+                            onClassifyPhotos =
+                                page.path
+                                    ?.takeIf { workspace.level == Level.REVIEW }
+                                    ?.let { path ->
+                                        {
+                                            pages =
+                                                pages +
+                                                    Page(
+                                                        Level.CLASSIFY_PHOTOS,
+                                                        classifyPhotos,
+                                                        path,
+                                                    )
+                                        }
+                                    },
+                        )
+                    }
+                    Level.CLASSIFY_PHOTOS -> {
+                        val path = requireNotNull(page.path)
+                        Text(path, style = MaterialTheme.typography.bodySmall)
+                        EntryScreen(
+                            load = { api.photos(path, it) },
+                            onExpired = expire,
+                            onOpen = { pages = pages + Page(Level.ORIGINAL, it.title, it.path) },
+                            photoApi = api,
+                            allowPhotoEdits = true,
+                        )
                     }
                 }
             }

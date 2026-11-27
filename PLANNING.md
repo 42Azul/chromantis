@@ -43,7 +43,7 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 - Keep **Search** for retrieval by album, confirmed person or tag, with visible filters, clear
   result types and a return path that keeps the query. A gallery opened from Search can be viewed,
   saved and shared, without surfacing tagging or review actions.
-- Keep album and photo tagging under **Organize** and explicit actions from **Folders**. Android **Elegir álbum** opens a paginated, title-filterable album picker from the review queue, shows paths to disambiguate names, and opens the existing editor. The synthetic Compose fixture selects Ana, saves from the picker, returns to the filtered list and finds the album by alias in Search. Next: validate a direct photo edit and batch selection with undo from Organize on a synthetic phone-sized view. The web keeps its album entry from browsing.
+- Keep album and photo tagging under **Organize** and explicit actions from **Folders**. Android **Elegir álbum** opens a paginated, title-filterable album picker from the review queue, shows paths to disambiguate names, and opens the existing editor. The synthetic Compose fixture selects Ana, saves from the picker, returns to the filtered list and finds the album by alias in Search. Android **Clasificar fotos** opens the paginated editing grid from the chosen album. The synthetic Compose fixture applies one tag to a single photo, applies and removes a batch tag, and verifies that the independent single tag survives. Next: verify review-time undo and cancellation with swiper gestures from Organize and test on a physical phone. The web keeps its album entry from browsing.
 
 ### Family discovery, visual identity, and keepsakes
 
