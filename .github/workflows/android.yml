@@ -98,6 +98,7 @@ jobs:
             echo "CHROMANTIS_SCREENSHOT_END:$name"
           done
       - name: Sign and verify the installable test APK
+        id: sign-apk
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}
@@ -105,6 +106,10 @@ jobs:
           EXPECTED_CERT_SHA256: ${{ vars.ANDROID_TEST_CERT_SHA256 }}
         run: |
           set -euo pipefail
+          if [[ -z "$KEYSTORE_BASE64" && -z "$KEYSTORE_PASSWORD" && -z "$EXPECTED_CERT_SHA256" ]]; then
+            echo "::warning::Test signing is not configured. This run will not publish an APK."
+            exit 0
+          fi
           if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || ! "$EXPECTED_CERT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
             echo "::error::Configure the persistent Android test signing secrets and certificate fingerprint."
             exit 1
@@ -127,8 +132,9 @@ jobs:
           cd "$output"
           sha256sum Chromantis-debug.apk > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
+          echo "verified=true" >> "$GITHUB_OUTPUT"
       - name: Upload verified test APK
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: steps.sign-apk.outputs.verified == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chromantis-debug-${{ github.sha }}

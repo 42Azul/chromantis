@@ -7,6 +7,8 @@ Chromantis for Android is a preview for Android 8.0 and later. It connects to yo
 
 **APK availability:** Download the latest verified test APK from the workflow artifact or build it locally using the instructions below.
 
+If **Sign and verify the installable test APK** warns that test signing is missing, that run has no APK artifact. Use the local build instructions below or a run with a verified artifact.
+
 ## What you can do
 
 - **Folders** (*Carpetas*) lists years and albums and opens a paged gallery. Visible tiles use thumbnails when enabled on the server. Tap a tile to open the original. Tap **Folders**, the year or the album in the trail to return to that level. **Continue in…** (*Continuar en…*) opens the last gallery visited through Folders at its last loaded page. The shortcut is stored on the device and clears when the family session ends.

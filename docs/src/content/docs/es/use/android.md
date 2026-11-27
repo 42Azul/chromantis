@@ -7,6 +7,8 @@ Chromantis para Android está en versión preliminar y requiere Android 8.0 o po
 
 **Cómo conseguir el APK.** Descarga el último APK de prueba verificado desde el artefacto del workflow o compílalo localmente siguiendo las instrucciones de abajo.
 
+Si el paso **Sign and verify the installable test APK** avisa de que falta la firma de pruebas, esa ejecución no publica un APK. Usa las instrucciones de compilación local o una ejecución con un APK verificado.
+
 ## Qué puedes hacer
 
 - **Carpetas** muestra años, álbumes y una galería paginada. Si el servidor tiene miniaturas activadas, la app carga las visibles. Toca una foto para abrir el original. Toca **Carpetas**, el año o el álbum en la ruta para volver a ese nivel. **Continuar en…** abre la última galería visitada desde Carpetas en la última página que se cargó. El acceso directo se guarda en el dispositivo y se borra cuando termina la sesión familiar.

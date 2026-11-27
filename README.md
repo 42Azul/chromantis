@@ -54,6 +54,8 @@ See [interface direction and design references](DESIGN.md), and [contributing an
 
 ### Android CI signing
 
+Without any test-signing settings, CI still verifies the Android build and emulator tests and reports that it could not publish an APK. Partial or invalid signing configuration fails the signing step.
+
 The [Android workflow](.github/workflows/android.yml) publishes the verified test APK only from
 `main`. Generate a dedicated key once and keep a private backup of the keystore and its password.
 Run the following from a trusted machine with an authenticated GitHub CLI and Android Build Tools
