@@ -315,6 +315,8 @@ function setArchiveMode(family) {
     ...Object.entries(familyPhotoSearchModes).map(([key, mode]) => [key, mode.title])]
     : [["images", "Photos"], ["folders", "Folders"]]).map(([value, label]) => element("option", { value }, label)));
   $("family-photo-hint").hidden = true;
+  $("photo-year-filter").hidden = true;
+  $("photo-year").value = "";
   $("photo-tag-filter").hidden = true;
   $("photo-tag").value = "";
   $("timeline").hidden = false;
@@ -458,19 +460,19 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
         return card;
       }));
     } else if (photoMode) {
-      const { term, offset = 0, tag } = arguments_;
+      const { term, offset = 0, tag, year } = arguments_;
       const pageSize = 24;
       const page = await api("/confirmed-images" + queryParams({
-        [photoMode.parameter]: term, offset, limit: pageSize, ...(tag ? { tag } : {}),
+        [photoMode.parameter]: term, offset, limit: pageSize, ...(tag ? { tag } : {}), ...(year ? { year } : {}),
       }));
       if (request !== requestNumber) return;
       if (!page.items.length && offset) {
         return archiveRequest(action, { ...arguments_, offset: Math.max(0, offset - pageSize) }, albumSaved);
       }
       setRecallSearch();
-      renderFamilyPhotoResults(page, action, term, offset, pageSize, tag);
+      renderFamilyPhotoResults(page, action, term, offset, pageSize, tag, year);
       if (page.items.length) {
-        const shortcut = [action, term, tag || ""];
+        const shortcut = [action, term, tag || "", ...(year ? [year] : [])];
         const save = button("Guardar búsqueda", () => {
           const rest = savedPhotoSearches().filter(item => JSON.stringify(item) !== JSON.stringify(shortcut));
           sessionStorage.setItem(photoSearchStorageKey, JSON.stringify([shortcut, ...rest].slice(0, 3)));
@@ -693,13 +695,13 @@ function renderFolders(items, timeline, refresh) {
   }));
 }
 
-function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
+function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag, year) {
   const { title, empty } = familyPhotoSearchModes[action];
-  const search = { term, ...(tag ? { tag } : {}) };
+  const search = { term, ...(tag ? { tag } : {}), ...(year ? { year } : {}) };
   const refresh = () => archiveRequest(action, { ...search, offset });
   resetPhotos();
   $("results").classList.remove("timeline-results");
-  message("results-title", title);
+  message("results-title", year ? `${title} · ${year}` : title);
   message("result-count", String(page.items.length));
   message("archive-status", page.items.length ? "" : tag ? "No hay fotos con esa persona y esa etiqueta manual." : empty);
   const signal = photoRequests.signal;
@@ -720,6 +722,7 @@ function renderFamilyPhotoResults(page, action, term, offset, pageSize, tag) {
       const album = button("Ver álbum", () => openAlbumFromResults(parent, saved => {
         $("query").value = term;
         $("photo-tag").value = tag || "";
+        $("photo-year").value = year || "";
         return archiveRequest(action, { ...search, offset }, saved);
       }, item.path), "photo-album-button");
       album.setAttribute("data-source-photo", item.path);
@@ -2378,15 +2381,16 @@ function savedPhotoSearches() {
 function renderSavedPhotoSearches() {
   const list = $("saved-photo-searches");
   const searches = savedPhotoSearches();
-  list.replaceChildren(...searches.map(([action, term, tag], index) => {
-    const label = tag ? `${term} · ${tag}` : term;
+  list.replaceChildren(...searches.map(([action, term, tag, year = ""], index) => {
+    const label = [term, tag, year].filter(Boolean).join(" · ");
     const reopen = button(`Reabrir búsqueda: ${label}`, async () => {
       $("scope").value = action;
       $("scope").dispatchEvent(new Event("change"));
       $("query").value = term;
       $("photo-tag").value = tag;
+      $("photo-year").value = year;
       $("album-tag-catalog").open = false;
-      await archiveRequest(action, { term, ...(tag ? { tag } : {}) });
+      await archiveRequest(action, { term, ...(tag ? { tag } : {}), ...(year ? { year } : {}) });
       if (!$("archive").hidden) $("results-title").focus();
     });
     const remove = button("Quitar acceso", () => {
@@ -2449,6 +2453,8 @@ $("scope").addEventListener("change", () => {
   message("results-title", photoMode?.title || "Álbumes");
   $("timeline").hidden = !!photoMode;
   $("family-photo-hint").hidden = !photoMode;
+  $("photo-year-filter").hidden = !photoMode;
+  $("photo-year").value = "";
   $("photo-tag-filter").hidden = $("scope").value !== "confirmed";
   $("photo-tag").value = "";
   message("family-photo-hint", photoMode?.hint);
@@ -2468,7 +2474,8 @@ $("search-form").addEventListener("submit", event => {
       return;
     }
     const tag = action === "confirmed" ? $("photo-tag").value.trim() : "";
-    archiveRequest(action, { term: text, ...(tag ? { tag } : {}) });
+    const photoYear = $("photo-year").value.trim();
+    archiveRequest(action, { term: text, ...(tag ? { tag } : {}), ...(photoYear ? { year: photoYear } : {}) });
     return;
   }
   if (/^(?:antes de|despu[eé]s de|s[oó]lo|en el [aá]lbum|[aá]lbum|con|before|after|only|in album|with)\s+\S/i.test(text)) {

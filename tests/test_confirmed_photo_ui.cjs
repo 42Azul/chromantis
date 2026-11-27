@@ -26,7 +26,7 @@ const render = new Function("results", "browsing", "opened", "searches", "edits"
   const photoURLs = new Set();
   const photoRequests = new AbortController();
   const $ = id => ({ results, browsing, query, archive: { hidden: false }, "results-title": resultsTitle,
-    "photo-tag": { value: "" }, "photo-results-tools": tools })[id];
+    "photo-tag": { value: "" }, "photo-year": { value: "" }, "photo-results-tools": tools })[id];
   const resetPhotos = () => {};
   const message = () => {};
   const isOwner = () => false;

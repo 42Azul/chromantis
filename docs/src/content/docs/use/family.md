@@ -37,6 +37,8 @@ For a manual photo tag, choose **Fotos por etiqueta** and enter one exact tag su
 
 After a photo search with results, choose **Guardar búsqueda** to keep up to three shortcuts in this browser tab. Open **Etiquetas** to reopen one or remove it individually. Reloading the tab keeps your shortcuts, and signing out clears them.
 
+In photo searches, enter an **Año del álbum** to limit results to that album year. Clear it and search again to see all years. Saved searches keep the year.
+
 To classify several search results together, choose **Seleccionar fotos**, mark only the photos you want, or use **Seleccionar esta página** and uncheck doubtful photos. **Etiquetar fotos** opens the same batch editor as the gallery. The batch can span albums; each result shows its album path and the editor includes paths to distinguish repeated filenames. Save once to add or remove people and manual tags. The search keeps its person, tag and page, returning to an earlier page if edits empty the current one. Canceling or changing pages clears the selection without saving. This flow also works from the index with previews disabled and the archive disconnected.
 
 Open an album result, or choose **Ver álbum** on a photo result, to browse its gallery. Choose **Etiquetar álbum** to open the editor if you have curation access. **Volver a resultados** and **Guardar y volver a resultados** restore the same search and page. If the album is still listed, focus returns to its card.

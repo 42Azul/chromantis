@@ -158,6 +158,10 @@ async function main() {
     assert.equal(await page.locator("#photo-search-shortcut").textContent(), "Búsqueda guardada");
     await catalog.locator("summary").click();
     await catalog.getByRole("button", { name: "encuentro · 2", exact: true }).click();
+    await page.locator("#photo-year").fill("2024");
+    await page.locator("#archive-search").click();
+    await page.waitForFunction(() => document.getElementById("result-count").textContent === "1");
+    assert.ok((await page.locator("#results").textContent()).includes("Photo_04.jpg"));
     await page.getByRole("button", { name: "Guardar búsqueda", exact: true }).click();
     await page.reload();
     await page.locator("#archive-nav").click();
@@ -172,7 +176,20 @@ async function main() {
     await catalog.locator("summary").click();
     await catalog.getByRole("button", { name: "Quitar acceso: romeria", exact: true }).click();
     assert.equal(await catalog.getByRole("button", { name: "Reabrir búsqueda: romeria" }).count(), 0);
-    await catalog.getByRole("button", { name: "Reabrir búsqueda: encuentro" }).waitFor();
+    await catalog.getByRole("button", { name: "Reabrir búsqueda: encuentro · 2024", exact: true }).click();
+    await page.waitForFunction(() => document.getElementById("result-count").textContent === "1");
+    assert.equal(await page.locator("#photo-year").inputValue(), "2024");
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await page.locator("#archive").screenshot({ path: `/tmp/chromantis-photo-year-${mode}.png` });
+    }
+    await page.getByRole("button", { name: "Ver álbum de Photo_04.jpg", exact: true }).click();
+    await page.getByRole("button", { name: "Volver a resultados", exact: true }).click();
+    await page.waitForFunction(() => document.getElementById("result-count").textContent === "1");
+    assert.equal(await page.locator("#photo-year").inputValue(), "2024");
+    await page.locator("#photo-year").clear();
+    await page.locator("#archive-search").click();
+    await page.waitForFunction(() => document.getElementById("result-count").textContent === "2");
     await page.locator("#disconnect").click();
     await page.locator("#sign-in").waitFor();
     assert.equal(await page.evaluate(() => sessionStorage.getItem("chromantis.savedPhotoSearches")), null);
