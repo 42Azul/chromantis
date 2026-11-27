@@ -25,6 +25,8 @@ Después de iniciar una búsqueda de álbumes, escribe `con Ana y Luis` para exi
 
 Abre **Etiquetas** en **Buscar álbumes** y elige **Etiquetas de álbumes** o **Etiquetas manuales de fotos**. Cada etiqueta muestra cuántos resultados tiene. Pulsa una para buscar coincidencias exactas de ese tipo. Para quitar una etiqueta de álbum, pulsa su filtro activo. Escribe parte del nombre y pulsa **Filtrar etiquetas** para acotar todo el catálogo. Con una etiqueta de álbum activa, escribe un año u otro término y pulsa **Buscar** para acotar esos resultados. También puedes pulsar una etiqueta en un álbum abierto para buscar otros álbumes con esa etiqueta. En el visor de una foto, pulsa una etiqueta manual guardada para encontrar otras fotos con esa misma etiqueta. Usa **solo 2003** o **con Ana** para añadir un filtro de año o persona que puedes quitar por separado.
 
+Abre **Cronología de álbumes → Tal día como hoy** para encontrar álbumes del mismo día y mes de otros años. Los resultados indican la fecha y su origen.
+
 ## Busca fotos por persona
 
 En **Buscar álbumes**, cambia el tipo de resultado a **Fotos por persona** y escribe un nombre o alias. Aparecen las fotos etiquetadas individualmente desde la web o [Android](./android.md#etiqueta-fotos-individuales). Usa **Álbumes** para buscar por vínculos al álbum. Las miniaturas aparecen si está activa la caché. Pulsa una foto para abrir el original.

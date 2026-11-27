@@ -190,6 +190,21 @@ async function main() {
     await page.locator("#photo-year").clear();
     await page.locator("#archive-search").click();
     await page.waitForFunction(() => document.getElementById("result-count").textContent === "2");
+    await page.locator("#scope").selectOption("folders");
+    await page.clock.setFixedTime(new Date(2026, 9, 5, 12));
+    await page.locator("#timeline summary").click();
+    await page.locator("#timeline-anniversary").click();
+    await page.locator("#results-title").getByText("Tal día como hoy", { exact: true }).waitFor();
+    const anniversaryAlbum = page.locator('#results [data-album-path="2023/2023-10-05_excursion"]');
+    assert.match(await anniversaryAlbum.textContent(), /2023-10-05.*fecha de carpeta/);
+    assert.equal(await page.locator("#result-count").textContent(), "1");
+    for (const mode of ["light", "dark"]) {
+      await page.locator("#appearance").selectOption(mode);
+      await page.locator("#archive").screenshot({ path: `/tmp/chromantis-web-anniversary-${mode}.png` });
+    }
+    await anniversaryAlbum.click();
+    await page.getByRole("button", { name: "Volver a resultados", exact: true }).click();
+    await anniversaryAlbum.waitFor();
     await page.locator("#disconnect").click();
     await page.locator("#sign-in").waitFor();
     assert.equal(await page.evaluate(() => sessionStorage.getItem("chromantis.savedPhotoSearches")), null);

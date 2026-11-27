@@ -305,6 +305,7 @@ function setArchiveMode(family) {
   message("results-title", family ? "Álbumes" : "Results");
   message("timeline-label", family ? "Cronología de álbumes" : "Album timeline");
   message("timeline-search", family ? "Ver cronología" : "Show timeline");
+  $("timeline-anniversary").hidden = !family;
   message("place-filter-label", family ? "Lugar" : "Place");
   message("date-from-label", family ? "Desde" : "From");
   message("date-to-label", family ? "Hasta" : "To");
@@ -487,8 +488,12 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
         : { q: arguments_.q, limit: 31, offset: arguments_.offset || 0 };
       if (family && !timeline) params.filters = 1;
       if (arguments_.tag) params.tag = arguments_.tag;
-      const { items, filters } = await api("/folders" + queryParams(params));
+      const { items, filters, month_day } = await api("/folders" + queryParams(params));
       if (request !== requestNumber) return;
+      if (arguments_.month_day && month_day !== arguments_.month_day) {
+        message("archive-status", "Actualiza el servidor para ver los álbumes de este día.");
+        return;
+      }
       if (!items.length && params.offset) {
         return archiveRequest(action, { ...arguments_, offset: Math.max(0, params.offset - 30) }, albumSaved);
       }
@@ -498,6 +503,7 @@ async function archiveRequest(action, arguments_ = {}, albumSaved = false) {
         if (arguments_.updateInput) $("query").value = filters?.text ?? arguments_.q;
       }
       renderFolders(items.slice(0, 30), timeline, saved => archiveRequest(action, arguments_, saved));
+      if (arguments_.month_day) message("results-title", "Tal día como hoy");
       if (action === "year_albums") {
         message("results-title", `Álbumes de ${arguments_.q}`);
         $("browsing").append(button("Volver a años", () => archiveRequest("years")));
@@ -2486,6 +2492,14 @@ $("search-form").addEventListener("submit", event => {
   const q = [keywords, year].filter(Boolean).join(" ");
   const folders = principal?.auth_mode === "family" || $("scope").value === "folders";
   archiveRequest(folders ? "folders" : "search", { q, tag: archiveSearch?.tag });
+});
+$("timeline-anniversary").addEventListener("click", async () => {
+  $("query").value = "";
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  await archiveRequest("timeline", { month_day: `${month}-${day}` });
+  if (!$("archive").hidden) $("results-title").focus();
 });
 $("timeline-form").addEventListener("submit", event => {
   event.preventDefault();
