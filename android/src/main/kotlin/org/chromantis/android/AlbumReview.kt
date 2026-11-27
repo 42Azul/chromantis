@@ -55,6 +55,7 @@ internal fun AlbumReview(
     path: String?,
     onExpired: () -> Unit,
     onClose: () -> Unit,
+    onClassifyPhotos: (() -> Unit)? = null,
 ) {
     var after by rememberSaveable { mutableLongStateOf(0) }
     var reload by remember { mutableIntStateOf(0) }
@@ -115,6 +116,7 @@ internal fun AlbumReview(
                                 }
                             },
                             onQuickReview = if (path == null) ({ editingAlbum = 0 }) else null,
+                            onClassifyPhotos = onClassifyPhotos,
                         )
                     }
                 }
@@ -133,6 +135,7 @@ private fun ReviewForm(
     onSkip: () -> Unit,
     onSaved: () -> Unit,
     onQuickReview: (() -> Unit)?,
+    onClassifyPhotos: (() -> Unit)?,
 ) {
     var chosen by remember { mutableStateOf(album.people) }
     var filter by remember { mutableStateOf("") }
@@ -170,6 +173,19 @@ private fun ReviewForm(
                     decisions.isEmpty()
             ) {
                 TextButton(onClick = onQuickReview) { Text(stringResource(R.string.quick_review)) }
+            }
+            if (onClassifyPhotos != null) {
+                TextButton(
+                    onClick = onClassifyPhotos,
+                    enabled =
+                        !busy &&
+                            !conflict &&
+                            chosen == album.people &&
+                            name.isBlank() &&
+                            decisions.isEmpty(),
+                ) {
+                    Text(stringResource(R.string.classify_album_photos))
+                }
             }
             if (!showPhotos)
                 OutlinedButton(

@@ -32,6 +32,8 @@ Use **Por nombre** to sort albums alphabetically or **Por fecha** to see the new
 
 In **Clasificar**, tap **Elegir álbum** to edit an existing album directly. Filter by title, then use the folder path to distinguish albums with the same name. Saving returns to the filtered picker.
 
+Open **Clasificar fotos** in the selected album to tag one photo or a batch from the same page. To reverse a batch label, select the same photos again and choose **Quitar** in the tagging dialog. Save or discard pending album edits before switching to photo classification.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.
