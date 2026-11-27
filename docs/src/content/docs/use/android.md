@@ -20,6 +20,8 @@ Album-search follow-ups also accept `con Ana y Luis` or names separated by comma
 
 In an album or on the current page of a photo tag search, select two to four photos and tap **Crear collage** to preview them in selection order. Use **Subir** to move a photo earlier and **Quitar** to remove a photo while keeping at least two. Tap **Guardar collage** to save a new JPEG to the phone gallery. Use **Compartir** to open the Android share sheet with only the edited JPEG. If a preview is unavailable, tap **Reintentar** or remove the marked photo if at least two remain. This requires Android 10 or later and server previews.
 
+For an exact photo-tag search, use **Guardar búsqueda** to keep one shortcut on this device. **Reabrir búsqueda** in the tag catalog restores the saved label, year and person filters. Saving another search replaces the shortcut, and signing out clears it.
+
 ## A short walkthrough
 
 These screenshots show the redesigned production Compose screens in a disposable test host with synthetic photos. A separate disconnected fixture still checks that metadata search and tagging work without the photo source. They contain no family data. System bars and keyboard placement can differ on your phone.

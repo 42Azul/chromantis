@@ -109,6 +109,7 @@ class FamilyComposeTest {
         val previous = HttpsURLConnection.getDefaultSSLSocketFactory()
         val api = mutableStateOf<ChromantisApi?>(null)
         val appearance = mutableStateOf(Appearance.LIGHT)
+        val bookmark = mutableStateOf<PhotoSearchBookmark?>(null)
         val context = instrumentation.targetContext
         fun label(id: Int) = context.getString(id)
         fun await(text: String) {
@@ -136,6 +137,10 @@ class FamilyComposeTest {
                                     { appearance.value = it },
                                     null,
                                     {},
+                                    photoSearchBookmark = bookmark.value,
+                                    onSavePhotoSearch = {
+                                        bookmark.value = PhotoSearchBookmark.decode(it.encode())
+                                    },
                                 ) {
                                     api.value = null
                                 }
@@ -468,6 +473,20 @@ class FamilyComposeTest {
             await("Persona: Anita")
             await(photo.title)
             compose.onNodeWithText(otherPhoto.title).assertDoesNotExist()
+            compose.onNodeWithText(label(R.string.photo_album_year)).performTextInput("2023")
+            click(label(R.string.apply_photo_year))
+            await("Año: 2023")
+            click(label(R.string.save_photo_search))
+            await(label(R.string.photo_search_saved))
+            click(label(R.string.back))
+            click(context.getString(R.string.reopen_photo_search, "romeria"))
+            await("Persona: Anita")
+            await("Año: 2023")
+            await(photo.title)
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            capture("saved-tag-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("saved-tag-dark")
             // Exercise a scrolled second page with a filter active.
             val lastBeachPhoto = runBlocking {
                 val first = client.photos(beach.path, 0)

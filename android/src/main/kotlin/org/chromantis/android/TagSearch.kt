@@ -25,12 +25,15 @@ internal fun TagSearch(
     onExpired: () -> Unit,
     onOpenAlbum: (Entry) -> Unit,
     onOpenPhoto: (Entry) -> Unit,
+    bookmark: PhotoSearchBookmark?,
+    onSaveBookmark: ((PhotoSearchBookmark) -> Unit)?,
     onExit: () -> Unit,
 ) {
     var photos by rememberSaveable { mutableStateOf(false) }
     var draft by rememberSaveable { mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    var reopening by rememberSaveable { mutableStateOf(false) }
     val tag = selected
     val focus = LocalFocusManager.current
     val back = { if (tag == null) onExit() else selected = null }
@@ -38,6 +41,17 @@ internal fun TagSearch(
     Column(Modifier.fillMaxSize()) {
         TextButton(onClick = back) { Text(stringResource(R.string.back)) }
         if (tag == null) {
+            if (bookmark != null) {
+                TextButton(
+                    onClick = {
+                        photos = true
+                        reopening = true
+                        selected = bookmark.tag
+                    }
+                ) {
+                    Text(stringResource(R.string.reopen_photo_search, bookmark.tag))
+                }
+            }
             FilterChip(
                 selected = !photos,
                 onClick = { photos = false },
@@ -63,8 +77,6 @@ internal fun TagSearch(
             ) {
                 Text(stringResource(R.string.filter_tags))
             }
-        } else if (photos) {
-            Text(stringResource(R.string.exact_tag_results, tag))
         }
         Box(Modifier.weight(1f)) {
             key(photos, name, tag) {
@@ -78,11 +90,21 @@ internal fun TagSearch(
                             )
                         },
                         onExpired = onExpired,
-                        onOpen = { selected = it.path },
+                        onOpen = {
+                            reopening = false
+                            selected = it.path
+                        },
                     )
                 } else if (photos) {
                     Column(Modifier.fillMaxSize()) {
-                        ConfirmedPhotoSearch(api, onExpired, exactTag = tag, onOpen = onOpenPhoto)
+                        ConfirmedPhotoSearch(
+                            api,
+                            onExpired,
+                            exactTag = tag,
+                            initialBookmark = bookmark.takeIf { reopening },
+                            onSaveBookmark = onSaveBookmark,
+                            onOpen = onOpenPhoto,
+                        )
                     }
                 } else {
                     AlbumSearch(

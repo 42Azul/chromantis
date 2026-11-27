@@ -130,7 +130,8 @@ Reviewed against `main` and the family product requests on 2026-11-22. Keep the 
 
 #### Next family experiments
 
-- Let families reopen a useful tag/year/person combination through existing saved searches, then use it to create a collage or add matches to a private collection.
+- Let families reopen a useful tag/year/person combination, then use it to create a collage or add matches to a private collection.
+- **Android saved photo-tag shortcut:** The tag catalog opens one explicitly saved photo search with its year and person filters. It is local to the family session because the service's saved-search API uses Telegram chat IDs. The Compose fixture verifies reopening an exact label with both filters through the serialized shortcut. Next: verify a cold start on a phone and evaluate additional shortcuts or shared family storage. Web tag shortcuts are pending.
 - Explore **On this day** as an optional view from the dated timeline. Use reliable dates and show their source. Keep a single intentional entry point and validate several years of results before offering it on the home screen.
 - Audit tag usefulness with a synthetic vocabulary containing similar names. Try a curator-only alias or merge workflow if duplicate labels make discovery harder. Keep curation and automation under existing roles and preserve provenance.
 

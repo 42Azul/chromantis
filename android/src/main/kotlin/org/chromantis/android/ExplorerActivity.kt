@@ -136,6 +136,15 @@ class ExplorerActivity : ComponentActivity() {
                             else AlbumResume.decode(settings.getString("resume_album", null))
                         )
                     }
+                    var photoSearchBookmark by remember {
+                        mutableStateOf(
+                            if (savedSession == null) null
+                            else
+                                PhotoSearchBookmark.decode(
+                                    settings.getString("photo_search_bookmark", null)
+                                )
+                        )
+                    }
                     Column(Modifier.systemBarsPadding().imePadding().padding(horizontal = 16.dp)) {
                         val active = api
                         if (active == null) {
@@ -146,7 +155,10 @@ class ExplorerActivity : ComponentActivity() {
                                     it.secret?.let { secret ->
                                         sessionStore.save(it.origin, secret)
                                     } == true
-                                settings.edit { remove("resume_album") }
+                                settings.edit {
+                                    remove("resume_album")
+                                    remove("photo_search_bookmark")
+                                }
                                 api = it
                             }
                         } else {
@@ -160,6 +172,13 @@ class ExplorerActivity : ComponentActivity() {
                                         settings.edit { putString("appearance", mode.name) }
                                     },
                                     resumeAlbum = resumeAlbum,
+                                    photoSearchBookmark = photoSearchBookmark,
+                                    onSavePhotoSearch = { bookmark ->
+                                        photoSearchBookmark = bookmark
+                                        settings.edit {
+                                            putString("photo_search_bookmark", bookmark.encode())
+                                        }
+                                    },
                                     onAlbumVisited = { resume ->
                                         if (resume != resumeAlbum) {
                                             resumeAlbum = resume
@@ -172,6 +191,7 @@ class ExplorerActivity : ComponentActivity() {
                                     sessionStore.clear()
                                     settings.edit { remove("resume_album") }
                                     resumeAlbum = null
+                                    photoSearchBookmark = null
                                     expired = sessionExpired
                                     api = null
                                 }
@@ -217,6 +237,8 @@ internal fun Explorer(
     onAppearance: (Appearance) -> Unit,
     resumeAlbum: AlbumResume?,
     onAlbumVisited: (AlbumResume) -> Unit,
+    photoSearchBookmark: PhotoSearchBookmark? = null,
+    onSavePhotoSearch: ((PhotoSearchBookmark) -> Unit)? = null,
     endSession: (Boolean) -> Unit,
 ) {
     val folders = stringResource(R.string.folders)
@@ -342,6 +364,8 @@ internal fun Explorer(
                         AlbumSearch(
                             api,
                             expire,
+                            photoSearchBookmark = photoSearchBookmark,
+                            onSavePhotoSearch = onSavePhotoSearch,
                             onConfirmedPhotos = {
                                 focus.clearFocus()
                                 pages = pages + Page(Level.CONFIRMED, confirmedTitle)
@@ -369,8 +393,12 @@ internal fun Explorer(
                         )
                     Level.PHOTO_TAG -> {
                         val tag = requireNotNull(page.path)
-                        Text(stringResource(R.string.exact_tag_results, tag))
-                        ConfirmedPhotoSearch(api, expire, exactTag = tag) {
+                        ConfirmedPhotoSearch(
+                            api,
+                            expire,
+                            exactTag = tag,
+                            onSaveBookmark = onSavePhotoSearch,
+                        ) {
                             pages = pages + Page(Level.ORIGINAL, it.title, it.path)
                         }
                     }

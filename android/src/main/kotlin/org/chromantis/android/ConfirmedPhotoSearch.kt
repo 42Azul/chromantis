@@ -30,14 +30,16 @@ internal fun ConfirmedPhotoSearch(
     api: ChromantisApi,
     onExpired: () -> Unit,
     exactTag: String? = null,
+    initialBookmark: PhotoSearchBookmark? = null,
+    onSaveBookmark: ((PhotoSearchBookmark) -> Unit)? = null,
     onOpen: (Entry) -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
     var draftTag by rememberSaveable { mutableStateOf("") }
-    var person by rememberSaveable { mutableStateOf("") }
+    var person by rememberSaveable { mutableStateOf(initialBookmark?.person.orEmpty()) }
     var tag by rememberSaveable { mutableStateOf("") }
     var draftYear by rememberSaveable { mutableStateOf("") }
-    var year by rememberSaveable { mutableStateOf<Int?>(null) }
+    var year by rememberSaveable { mutableStateOf(initialBookmark?.year) }
     val focus = LocalFocusManager.current
     val validYear = draftYear.toIntOrNull()?.takeIf { it in 1000..9999 }
     fun applyYear() {
@@ -50,6 +52,28 @@ internal fun ConfirmedPhotoSearch(
         focus.clearFocus()
         person = draft.trim()
         tag = draftTag.trim()
+    }
+    if (exactTag != null) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.exact_tag_results, exactTag), Modifier.weight(1f))
+            if (onSaveBookmark != null) {
+                val bookmark = PhotoSearchBookmark(exactTag, person, year)
+                var saved by rememberSaveable(exactTag, person, year) { mutableStateOf(false) }
+                TextButton(
+                    onClick = {
+                        onSaveBookmark(bookmark)
+                        saved = true
+                    },
+                    enabled = !saved,
+                ) {
+                    Text(
+                        stringResource(
+                            if (saved) R.string.photo_search_saved else R.string.save_photo_search
+                        )
+                    )
+                }
+            }
+        }
     }
     Text(stringResource(R.string.confirmed_photo_explanation))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

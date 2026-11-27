@@ -64,7 +64,14 @@ internal class FamilySessionStore(
 
     fun clear() {
         runCatching {
-            write(mapOf("session" to null, "session_encrypted" to null, "resume_album" to null))
+            write(
+                mapOf(
+                    "session" to null,
+                    "session_encrypted" to null,
+                    "resume_album" to null,
+                    "photo_search_bookmark" to null,
+                )
+            )
         }
     }
 

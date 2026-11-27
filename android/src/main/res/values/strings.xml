@@ -200,4 +200,7 @@
     <string name="share_collage">Compartir</string>
     <string name="collage_share_error">No se pudo compartir el collage. Puedes intentarlo de nuevo.</string>
     <string name="collage_thumbnail_failed">No se pudo cargar esta miniatura</string>
+    <string name="save_photo_search">Guardar búsqueda</string>
+    <string name="photo_search_saved">Guardada</string>
+    <string name="reopen_photo_search">Reabrir búsqueda: %1$s</string>
 </resources>
