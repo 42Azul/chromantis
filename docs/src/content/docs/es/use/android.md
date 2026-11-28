@@ -100,6 +100,8 @@ La app familiar no permite iniciar una indexación. El propietario puede usar **
 
 Para acotar las fotos confirmadas, escribe una etiqueta manual de una palabra en **Etiqueta manual opcional** y busca. Por ejemplo, usa `Anita` y `romería`. Borra la etiqueta y vuelve a buscar para ver todas las fotos confirmadas de esa persona. Al cambiar la persona o la etiqueta se empieza por la primera página de resultados. Este filtro requiere el servicio local actualizado que admite `person` junto con `tag`.
 
+Después de buscar a la persona, usa **Año del álbum** para acotar los resultados. Pulsa el año activo para quitar ese filtro.
+
 Para editar necesitas permiso de etiquetado. Si una foto indexada cambia durante la edición, actualiza la galería y vuelve a seleccionar las fotos.
 
 Con las miniaturas activadas, **Revisar foto a foto** te deja elegir a una persona y recorrer la página actual de la galería. Desliza a la derecha para marcar la foto o a la izquierda para saltarla. Los botones hacen lo mismo. **Deshacer última decisión** vuelve a la foto anterior. **Guardar** aplica los vínculos nuevos en un solo lote. Salir de la revisión descarta el borrador. Si una miniatura falla, puedes saltar la foto.

@@ -113,7 +113,7 @@ internal fun ConfirmedPhotoSearch(
             modifier = Modifier.semantics { contentDescription = description },
         )
     }
-    if (exactTag != null) {
+    if (exactTag != null || person.isNotEmpty()) {
         val activeYear = year
         if (activeYear == null) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

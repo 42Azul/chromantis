@@ -100,6 +100,8 @@ The family app cannot start a scan. The owner can use **Administration → Find 
 
 To narrow the confirmed photos, enter a one-word manual photo tag in **Etiqueta manual opcional**, then search. For example, use `Anita` and `romería`. Clear the tag field and search again to see all confirmed photos for that person. Changing the person or tag starts from the first results page. This combined filter requires the updated local service that supports `person` together with `tag`.
 
+After the person search, use **Año del álbum** to narrow the results by year. Tap the active year to remove that filter.
+
 Photo edits require curation permission. If an indexed photo changes during editing, refresh the gallery and select the photos again.
 
 With thumbnails enabled, **Review photo by photo** (*Revisar foto a foto*) lets you choose one person for a pass through the current gallery page. Swipe right to mark a photo or left to skip it. The buttons do the same. Use **Undo last decision** (*Deshacer última decisión*) to go back one photo. **Save** applies the new links in one batch. Closing the review discards its draft. If a preview is unavailable, you can skip the photo.
