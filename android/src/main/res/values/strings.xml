@@ -170,6 +170,7 @@
     <string name="preparing_share">Preparando originales…</string>
     <string name="cancel_share">Cancelar preparación</string>
     <string name="share_count_limit">Selecciona hasta %1$d fotos por tanda.</string>
+    <string name="original_size_limit">El original supera 32 MiB. Vuelve y elige otra foto.</string>
     <string name="share_size_limit">La selección supera 32 MiB. Selecciona menos fotos.</string>
     <string name="save_selection">Guardar selección</string>
     <string name="saving_selection">Guardando originales…</string>

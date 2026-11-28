@@ -1099,6 +1099,7 @@ private fun ExportSelection(api: ChromantisApi, paths: List<String>, onExpired: 
                     if (error?.hasStatus(401) == true) onExpired()
                     status =
                         when {
+                            error?.hasStatus(413) == true -> R.string.original_size_limit
                             error is ResponseTooLarge -> R.string.share_size_limit
                             error != null -> errorLabel(error)
                             else -> 0
@@ -1164,7 +1165,7 @@ private fun ExportSelection(api: ChromantisApi, paths: List<String>, onExpired: 
 
 @Composable
 internal fun OriginalPhoto(api: ChromantisApi, path: String, title: String, onExpired: () -> Unit) {
-    LoadContent(onExpired, load = { api.photo(path) }) {
+    LoadContent(onExpired, load = { api.photo(path) }, failureLabel = ::originalErrorLabel) {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         var working by remember(path) { mutableStateOf(false) }
@@ -1177,7 +1178,7 @@ internal fun OriginalPhoto(api: ChromantisApi, path: String, title: String, onEx
                 val error = attempt { action(api.originalBytes(path)) }.exceptionOrNull()
                 working = false
                 if (error?.hasStatus(401) == true) onExpired()
-                else status = if (error == null) success else errorLabel(error)
+                else status = if (error == null) success else originalErrorLabel(error)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1215,6 +1216,7 @@ internal fun OriginalPhoto(api: ChromantisApi, path: String, title: String, onEx
 internal fun <T> LoadContent(
     onExpired: () -> Unit,
     load: suspend () -> T,
+    failureLabel: (Throwable) -> Int = ::errorLabel,
     content: @Composable (T) -> Unit,
 ) {
     var revision by remember { mutableIntStateOf(0) }
@@ -1229,8 +1231,11 @@ internal fun <T> LoadContent(
         loaded.fold(
             onSuccess = { content(it) },
             onFailure = {
-                Text(stringResource(errorLabel(it)))
-                TextButton(onClick = { revision++ }) { Text(stringResource(R.string.retry)) }
+                val label = failureLabel(it)
+                Text(stringResource(label))
+                if (label != R.string.original_size_limit) {
+                    TextButton(onClick = { revision++ }) { Text(stringResource(R.string.retry)) }
+                }
             },
         )
 }
@@ -1246,6 +1251,10 @@ internal suspend fun <T> attempt(action: suspend () -> T): Result<T> =
 
 internal fun Throwable.hasStatus(status: Int) =
     this is ChromantisApi.HttpFailure && this.status == status
+
+private fun originalErrorLabel(error: Throwable) =
+    if (error.hasStatus(413) || error is ResponseTooLarge) R.string.original_size_limit
+    else errorLabel(error)
 
 internal fun errorLabel(error: Throwable) =
     when {

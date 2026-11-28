@@ -56,7 +56,11 @@ def open_fixture(
         handler = make_api_handler(
             app,
             api_token="synthetic-fixture-only",
-            image_fetcher=source.read_bytes,
+            image_fetcher=lambda path: source.read_bytes(
+                path,
+                max_bytes=1 if missing_preview and path == "2024/2024-07-01_playa/Photo_04.jpg"
+                else 32 * 1024 * 1024,
+            ),
             export_reader=lambda path, limit: source.read_bytes(path, max_bytes=limit),
             thumbnails=None if index_only else build_thumbnail_cache(db, 8, source),
         )

@@ -490,6 +490,16 @@ class FamilyComposeTest {
             Log.i("ChromantisFixture", "Open exact photo results")
             compose.onNodeWithText("Romeria · 4").performSemanticsAction(SemanticsActions.OnClick)
             await(label(R.string.select_photos))
+            compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(extraPhoto.title))
+            click(extraPhoto.title)
+            await(label(R.string.original_size_limit))
+            compose.onNodeWithText(label(R.string.retry)).assertDoesNotExist()
+            compose.runOnIdle { appearance.value = Appearance.LIGHT }
+            capture("original-limit-light")
+            compose.runOnIdle { appearance.value = Appearance.DARK }
+            capture("original-limit-dark")
+            compose.onNodeWithContentDescription(label(R.string.back)).performClick()
+            await(label(R.string.select_photos))
             compose
                 .onNodeWithText(label(R.string.select_photos))
                 .performSemanticsAction(SemanticsActions.OnClick)

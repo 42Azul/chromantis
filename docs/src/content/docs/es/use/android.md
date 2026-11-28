@@ -212,6 +212,8 @@ SOURCE_TYPE=local SOURCE_ROOT=/tmp SQLITE_PATH=/tmp/chromantis-android-EXAMPLE/i
 
 En Android 10 o posterior, abre una foto y pulsa **Guardar original** para guardar una copia en **Pictures/Chromantis**. La app descarga el original bajo demanda, con un límite de 32 MiB.
 
+Si un original supera 32 MiB, el visor indica el límite. Vuelve a la lista y elige otra foto.
+
 En el visor, pulsa **Compartir** para abrir el menú de Android con el original. Elige una aplicación y confirma allí el envío. El visor prepara una copia temporal privada y admite originales de hasta 32 MiB.
 
 En la galería, pulsa **Seleccionar fotos** y marca hasta diez. **Compartir selección** prepara los originales (32 MiB en total) y abre el menú de Android. Puedes cancelar la preparación o cambiar la selección y reintentar si supera el límite.
