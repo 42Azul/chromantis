@@ -54,10 +54,13 @@ internal fun TagSearch(
                         },
                     ) {
                         Column {
-                            Text(stringResource(R.string.reopen_photo_search, bookmark.tag))
+                            val title = if (bookmark.personFirst) bookmark.person else bookmark.tag
+                            Text(stringResource(R.string.reopen_photo_search, title))
+                            val otherFilter =
+                                if (bookmark.personFirst) bookmark.tag else bookmark.person
                             val filters =
                                 listOfNotNull(
-                                    bookmark.person.takeIf { it.isNotBlank() },
+                                    otherFilter.takeIf { it.isNotBlank() },
                                     bookmark.year?.toString(),
                                 )
                             if (filters.isNotEmpty()) Text(filters.joinToString(" · "))
@@ -115,11 +118,12 @@ internal fun TagSearch(
                     )
                 } else if (photos) {
                     Column(Modifier.fillMaxSize()) {
+                        val bookmark = PhotoSearchBookmark.decode(reopened)
                         ConfirmedPhotoSearch(
                             api,
                             onExpired,
-                            exactTag = tag,
-                            initialBookmark = PhotoSearchBookmark.decode(reopened),
+                            exactTag = tag.takeUnless { bookmark?.personFirst == true },
+                            initialBookmark = bookmark,
                             onSaveBookmark =
                                 onSaveBookmark?.let { save ->
                                     { bookmark -> save(bookmark, false) }

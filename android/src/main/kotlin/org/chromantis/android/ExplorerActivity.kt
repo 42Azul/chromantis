@@ -425,7 +425,14 @@ internal fun Explorer(
                         }
                     }
                     Level.CONFIRMED ->
-                        ConfirmedPhotoSearch(api, expire) {
+                        ConfirmedPhotoSearch(
+                            api,
+                            expire,
+                            onSaveBookmark =
+                                onSavePhotoSearch?.let { save ->
+                                    { bookmark -> save(bookmark, false) }
+                                },
+                        ) {
                             pages = pages + Page(Level.ORIGINAL, it.title, it.path)
                         }
                     Level.YEARS -> {
