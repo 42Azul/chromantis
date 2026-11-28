@@ -22,7 +22,7 @@ Album-search follow-ups also accept `con Ana y Luis` or names separated by comma
 
 In an album or on the current page of a photo tag search, select two to four photos and tap **Crear collage** to preview them in selection order. Use **Subir** to move a photo earlier and **Quitar** to remove a photo while keeping at least two. Tap **Guardar collage** to save a new JPEG to the phone gallery. Use **Compartir** to open the Android share sheet with only the edited JPEG. If a preview is unavailable, tap **Reintentar** or remove the marked photo if at least two remain. This requires Android 10 or later and server previews.
 
-For an exact photo-tag search, use **Guardar búsqueda** to keep up to three different shortcuts on this device. **Reabrir búsqueda** in the tag catalog restores the saved label, year and person filters. The most recently saved searches appear first. Use **Quitar acceso** in the tag catalog to remove it, or sign out to clear it.
+For an exact photo-tag search or **Photos by person**, use **Guardar búsqueda** to keep up to three different shortcuts on this device. **Reabrir búsqueda** in the tag catalog restores the saved label, year and person filters. The most recently saved searches appear first. Use **Quitar acceso** in the tag catalog to remove it, or sign out to clear it.
 
 In **Carpetas**, **Tal día como hoy** finds albums from this calendar day across years. Each result shows its album date and where it came from. Open an album and tap **Tal día como hoy** in the gallery breadcrumb to return. This view requires a server that supports the month/day filter.
 

@@ -3,9 +3,19 @@ package org.chromantis.android
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class PhotoSearchBookmark(val tag: String, val person: String, val year: Int?) {
+internal data class PhotoSearchBookmark(
+    val tag: String,
+    val person: String,
+    val year: Int?,
+    val personFirst: Boolean = false,
+) {
     fun encode(): String =
-        JSONObject().put("tag", tag).put("person", person).put("year", year).toString()
+        JSONObject()
+            .put("tag", tag)
+            .put("person", person)
+            .put("year", year)
+            .put("personFirst", personFirst)
+            .toString()
 
     companion object {
         fun decode(value: String?): PhotoSearchBookmark? =
@@ -15,7 +25,9 @@ internal data class PhotoSearchBookmark(val tag: String, val person: String, val
                         val tag = json.getString("tag")
                         val person = json.getString("person")
                         val year = if (json.has("year")) json.getInt("year") else null
-                        PhotoSearchBookmark(tag, person, year)
+                        val personFirst = json.optBoolean("personFirst")
+                        require(!personFirst || person.isNotBlank())
+                        PhotoSearchBookmark(tag, person, year, personFirst)
                     }
                     .getOrNull()
             }

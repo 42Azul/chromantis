@@ -34,10 +34,11 @@ internal fun ConfirmedPhotoSearch(
     onSaveBookmark: ((PhotoSearchBookmark) -> Unit)? = null,
     onOpen: (Entry) -> Unit,
 ) {
-    var draft by rememberSaveable { mutableStateOf("") }
-    var draftTag by rememberSaveable { mutableStateOf("") }
+    val savedPersonSearch = initialBookmark?.takeIf { it.personFirst }
+    var draft by rememberSaveable { mutableStateOf(savedPersonSearch?.person.orEmpty()) }
+    var draftTag by rememberSaveable { mutableStateOf(savedPersonSearch?.tag.orEmpty()) }
     var person by rememberSaveable { mutableStateOf(initialBookmark?.person.orEmpty()) }
-    var tag by rememberSaveable { mutableStateOf("") }
+    var tag by rememberSaveable { mutableStateOf(savedPersonSearch?.tag.orEmpty()) }
     var draftYear by rememberSaveable { mutableStateOf("") }
     var year by rememberSaveable { mutableStateOf(initialBookmark?.year) }
     val focus = LocalFocusManager.current
@@ -56,22 +57,8 @@ internal fun ConfirmedPhotoSearch(
     if (exactTag != null) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.exact_tag_results, exactTag), Modifier.weight(1f))
-            if (onSaveBookmark != null) {
-                val bookmark = PhotoSearchBookmark(exactTag, person, year)
-                var saved by rememberSaveable(exactTag, person, year) { mutableStateOf(false) }
-                TextButton(
-                    onClick = {
-                        onSaveBookmark(bookmark)
-                        saved = true
-                    },
-                    enabled = !saved,
-                ) {
-                    Text(
-                        stringResource(
-                            if (saved) R.string.photo_search_saved else R.string.save_photo_search
-                        )
-                    )
-                }
+            onSaveBookmark?.let {
+                SavePhotoSearch(PhotoSearchBookmark(exactTag, person, year), it)
             }
         }
     }
@@ -151,7 +138,12 @@ internal fun ConfirmedPhotoSearch(
         }
     }
     if (exactTag == null && person.isNotEmpty()) {
-        Text(stringResource(R.string.confirmed_photo_results, person))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.confirmed_photo_results, person), Modifier.weight(1f))
+            onSaveBookmark?.let {
+                SavePhotoSearch(PhotoSearchBookmark(tag, person, year, personFirst = true), it)
+            }
+        }
         if (tag.isNotEmpty()) Text(stringResource(R.string.confirmed_photo_tag_result, tag))
     }
     if (exactTag != null || person.isNotEmpty()) {
@@ -168,5 +160,20 @@ internal fun ConfirmedPhotoSearch(
                 allowCollage = activeTag.isNotBlank(),
             )
         }
+    }
+}
+
+@Composable
+private fun SavePhotoSearch(bookmark: PhotoSearchBookmark, onSave: (PhotoSearchBookmark) -> Unit) {
+    var saved by rememberSaveable(bookmark) { mutableStateOf(false) }
+    TextButton(
+        onClick = {
+            onSave(bookmark)
+            saved = true
+        },
+        enabled = !saved,
+    ) {
+        val label = if (saved) R.string.photo_search_saved else R.string.save_photo_search
+        Text(stringResource(label))
     }
 }
