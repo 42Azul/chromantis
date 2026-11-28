@@ -8,20 +8,25 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.WindowRecomposerFactory
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -41,7 +46,20 @@ import org.junit.runner.RunWith
 /** Hosts production composables without opening the activity's saved family preferences. */
 @RunWith(AndroidJUnit4::class)
 class FamilyComposeTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @OptIn(InternalComposeUiApi::class)
+    private fun setActivityContent(content: @Composable () -> Unit) {
+        compose.activityRule.scenario.onActivity { activity ->
+            // Run the real HTTPS walkthrough with the window's normal main-thread recomposer.
+            val recomposer =
+                WindowRecomposerFactory.LifecycleAware.createRecomposer(activity.window.decorView)
+            val view = ComposeView(activity)
+            view.setParentCompositionContext(recomposer)
+            view.setContent(content)
+            activity.setContentView(view)
+        }
+    }
 
     private fun capture(name: String, node: SemanticsNodeInteraction = compose.onRoot()) {
         Log.i("ChromantisFixture", "Capture $name")
@@ -121,7 +139,7 @@ class FamilyComposeTest {
         fun click(text: String) = compose.onNodeWithText(text).performClick()
         try {
             HttpsURLConnection.setDefaultSSLSocketFactory(tls.socketFactory)
-            compose.setContent {
+            setActivityContent {
                 MaterialTheme(
                     colorScheme =
                         if (appearance.value == Appearance.DARK) darkPalette else lightPalette
