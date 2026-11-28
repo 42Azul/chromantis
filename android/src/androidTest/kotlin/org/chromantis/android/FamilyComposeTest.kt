@@ -92,6 +92,10 @@ class FamilyComposeTest {
 
     @Test
     fun signInBrowseCurateAndFindAnaInBothAppearances() {
+        withAndroidWindowRecomposer(::runWalkthrough)
+    }
+
+    private fun runWalkthrough() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val assets = instrumentation.context.assets
         assumeTrue(assets.list("")!!.contains("fixture.json"))

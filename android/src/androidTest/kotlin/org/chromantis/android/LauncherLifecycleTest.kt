@@ -35,6 +35,10 @@ class LauncherLifecycleTest {
 
     @Test
     fun launcherRestoresEncryptedSessionAndAlbumAfterRecreationAndFreshLaunch() {
+        withAndroidWindowRecomposer(::runWalkthrough)
+    }
+
+    private fun runWalkthrough() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val assets = instrumentation.context.assets
         assumeTrue(assets.list("")!!.contains("fixture.json"))
