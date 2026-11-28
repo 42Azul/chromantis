@@ -32,6 +32,7 @@ import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import org.json.JSONObject
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
@@ -41,7 +42,9 @@ import org.junit.runner.RunWith
 /** Hosts production composables without opening the activity's saved family preferences. */
 @RunWith(AndroidJUnit4::class)
 class FamilyComposeTest {
-    @get:Rule val compose = createComposeRule()
+    // Queue composition after real HTTPS responses instead of resuming inline on an IO worker.
+    @OptIn(ExperimentalTestApi::class)
+    @get:Rule val compose = createComposeRule(effectContext = StandardTestDispatcher())
 
     private fun capture(name: String, node: SemanticsNodeInteraction = compose.onRoot()) {
         Log.i("ChromantisFixture", "Capture $name")
